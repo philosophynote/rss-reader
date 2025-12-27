@@ -1,0 +1,147 @@
+# =========================
+
+# General
+
+# =========================
+
+.DS_Store
+Thumbs.db
+*.log
+.env
+.env.*
+!.env.example
+
+# =========================
+
+# Editor / IDE
+
+# =========================
+
+.vscode/
+.idea/
+.history/
+
+# =========================
+
+# Kiro
+
+# =========================
+
+# Keep: .kiro/steering/, .kiro/spec.md 等（成果物）
+
+# Ignore: local / ephemeral
+
+.kiro/settings
+.kiro/cache/
+.kiro/session/
+.kiro/tmp/
+.kiro/logs/
+
+# =========================
+
+# Python
+
+# =========================
+
+**pycache**/
+*.py[cod]
+*.pyo
+*.pyd
+
+# virtual environments
+
+.venv/
+venv/
+env/
+
+# packaging
+
+build/
+dist/
+*.egg-info/
+
+# testing / coverage
+
+.pytest_cache/
+.coverage
+htmlcov/
+
+# mypy / ruff / pyright
+
+.mypy_cache/
+.ruff_cache/
+.pyright/
+
+# =========================
+
+# Node.js / TypeScript
+
+# =========================
+
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# build outputs
+
+dist/
+build/
+.out/
+.next/
+
+# cache
+
+.vite/
+.turbo/
+.cache/
+
+# =========================
+
+# Frontend tooling
+
+# =========================
+
+.eslintcache
+.stylelintcache
+
+# =========================
+
+# Docker
+
+# =========================
+
+docker-compose.override.yml
+
+# =========================
+
+# AWS / IaC
+
+# =========================
+
+.aws/
+cdk.out/
+terraform.tfstate
+terraform.tfstate.*
+.terraform/
+
+# =========================
+
+# Database / Local runtime
+
+# =========================
+
+*.sqlite
+*.sqlite3
+*.db
+
+# =========================
+
+# OS / misc
+
+# =========================
+
+*.swp
+*.swo
+*~

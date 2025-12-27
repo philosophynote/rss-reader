@@ -1,0 +1,22 @@
+{
+  "toolsSettings": {
+    "read": {
+      "allowedPaths": [
+        "spec/**",
+        "README.md"
+      ],
+      "deniedPaths": [
+        "**/node_modules/**",
+        "**/__pycache__/**",
+        "**/dist/**",
+        ".env"
+      ]
+    },
+    "write": {
+      "allowedPaths": [
+        "backend/**",
+        "frontend/**"
+      ]
+    }
+  }
+}
