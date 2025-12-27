@@ -6,6 +6,7 @@ import * as events from 'aws-cdk-lib/aws-events';
 import * as targets from 'aws-cdk-lib/aws-events-targets';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
+import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import { Construct } from 'constructs';
 
@@ -24,13 +25,24 @@ export class RssReaderStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
+    // 環境設定を取得
+    const environment = this.node.tryGetContext('environment') || process.env.ENVIRONMENT || 'development';
+    
+    // 必須環境変数の検証
+    const apiKey = process.env.RSS_READER_API_KEY;
+    if (!apiKey) {
+      throw new Error('RSS_READER_API_KEY environment variable is required');
+    }
+
     // DynamoDB テーブル（シングルテーブル設計）
     this.table = new dynamodb.Table(this, 'RssReaderTable', {
-      tableName: 'rss-reader',
+      tableName: `rss-reader-${environment}`,
       partitionKey: { name: 'PK', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'SK', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      removalPolicy: cdk.RemovalPolicy.DESTROY, // 開発環境用
+      removalPolicy: environment === 'production' 
+        ? cdk.RemovalPolicy.RETAIN 
+        : cdk.RemovalPolicy.DESTROY,
       pointInTimeRecovery: true, // バックアップ有効化
     });
 
@@ -75,18 +87,20 @@ export class RssReaderStack extends cdk.Stack {
     });
 
     // TTL設定（自動削除用）
-    this.table.addTimeToLive({
+    const cfnTable = this.table.node.defaultChild as dynamodb.CfnTable;
+    cfnTable.timeToLiveSpecification = {
       attributeName: 'ttl',
-    });
+      enabled: true,
+    };
 
     // Lambda 関数（Python + FastAPI）
     this.apiFunction = new lambda.DockerImageFunction(this, 'ApiFunction', {
       code: lambda.DockerImageCode.fromImageAsset('../backend', {
         file: 'Dockerfile',
       }),
-      functionName: 'rss-reader-api',
+      functionName: `rss-reader-api-${environment}`,
       description: 'RSS Reader API using FastAPI',
-      timeout: cdk.Duration.minutes(15),
+      timeout: cdk.Duration.minutes(5), // API呼び出し用に短縮
       memorySize: 1024,
       architecture: lambda.Architecture.X86_64,
       environment: {
@@ -95,36 +109,45 @@ export class RssReaderStack extends cdk.Stack {
         BEDROCK_REGION: 'us-east-1',
         BEDROCK_MODEL_ID: 'amazon.nova-2-multimodal-embeddings-v1:0',
         EMBEDDING_DIMENSION: '1024',
-        // 認証関連の環境変数（本番環境では適切な値に変更）
-        API_KEY: process.env.RSS_READER_API_KEY || 'default-api-key-change-in-production',
-        CORS_ORIGINS: process.env.CORS_ORIGINS || 'https://localhost:3000',
+        // 認証関連の環境変数（環境変数必須）
+        API_KEY: apiKey,
+        // CORS_ORIGINSは後でCloudFrontドメインを追加するため、ここでは基本設定のみ
+        CORS_ORIGINS: process.env.CORS_ORIGINS || (environment === 'production' 
+          ? '' // 本番環境では後でCloudFrontドメインを設定
+          : 'http://localhost:3000,http://localhost:5173'),
       },
     });
 
     // DynamoDB 権限
     this.table.grantReadWriteData(this.apiFunction);
 
-    // Bedrock 権限
+    // Bedrock 権限（最小権限の原則に従い特定モデルのみ許可）
+    const bedrockModelId = process.env.BEDROCK_MODEL_ID || 'amazon.nova-2-multimodal-embeddings-v1:0';
     this.apiFunction.addToRolePolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
       actions: [
         'bedrock:InvokeModel',
         'bedrock:InvokeModelWithResponseStream',
       ],
-      resources: ['*'],
+      resources: [
+        `arn:aws:bedrock:us-east-1::foundation-model/${bedrockModelId}`,
+      ],
     }));
 
-    // Lambda 関数 URL（AWS IAM認証を使用）
+    // Lambda 関数 URL（環境別認証設定）
+    const corsOrigins = process.env.CORS_ORIGINS?.split(',').filter(Boolean) || (environment === 'production' 
+      ? [`https://${this.distribution.distributionDomainName}`] // 本番環境ではCloudFrontドメインのみ
+      : ['http://localhost:3000', 'http://localhost:5173']);
+    
     const functionUrl = this.apiFunction.addFunctionUrl({
-      authType: lambda.FunctionUrlAuthType.NONE, // API Key認証をアプリケーションレベルで実装
+      authType: environment === 'production' 
+        ? lambda.FunctionUrlAuthType.AWS_IAM // 本番環境ではIAM認証
+        : lambda.FunctionUrlAuthType.NONE,   // 開発環境ではAPI Key認証のみ
       cors: {
-        allowedOrigins: [
-          'https://localhost:3000',  // 開発環境
-          'https://localhost:5173',  // Vite開発サーバー
-        ],
+        allowedOrigins: corsOrigins,
         allowedMethods: [lambda.HttpMethod.ALL],
         allowedHeaders: ['*'],
-        allowCredentials: true,  // 認証情報を含むリクエストを許可
+        allowCredentials: true,
         maxAge: cdk.Duration.hours(1),
       },
     });
@@ -158,13 +181,15 @@ export class RssReaderStack extends cdk.Stack {
 
     // S3 バケット（フロントエンド）
     this.frontendBucket = new s3.Bucket(this, 'FrontendBucket', {
-      bucketName: `rss-reader-frontend-${this.account}-${this.region}`,
+      bucketName: `rss-reader-frontend-${environment}-${this.account}-${this.region}`,
       websiteIndexDocument: 'index.html',
       websiteErrorDocument: 'error.html',
       publicReadAccess: false,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
-      autoDeleteObjects: true,
+      removalPolicy: environment === 'production' 
+        ? cdk.RemovalPolicy.RETAIN 
+        : cdk.RemovalPolicy.DESTROY,
+      autoDeleteObjects: environment !== 'production',
     });
 
     // CloudFront ディストリビューション
@@ -195,7 +220,10 @@ export class RssReaderStack extends cdk.Stack {
       comment: 'RSS Reader Frontend Distribution',
     });
 
-    // 出力
+    // 本番環境でCloudFrontドメインをLambda環境変数に追加
+    if (environment === 'production') {
+      this.apiFunction.addEnvironment('CLOUDFRONT_DOMAIN', this.distribution.distributionDomainName);
+    }
     new cdk.CfnOutput(this, 'TableName', {
       value: this.table.tableName,
       description: 'DynamoDB Table Name',
