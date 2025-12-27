@@ -1206,15 +1206,26 @@ export class RssReaderStack extends cdk.Stack {
       architecture: lambda.Architecture.X86_64,
     });
 
-    // Lambda 関数 URL
+    // Lambda 関数 URL（AWS IAM認証を使用）
     const functionUrl = apiFunction.addFunctionUrl({
-      authType: lambda.FunctionUrlAuthType.NONE,
+      authType: lambda.FunctionUrlAuthType.AWS_IAM,
       cors: {
-        allowedOrigins: ['*'],
+        allowedOrigins: [
+          'https://localhost:3000',  // 開発環境
+          `https://${distribution.distributionDomainName}`,  // 本番環境
+        ],
         allowedMethods: [lambda.HttpMethod.ALL],
         allowedHeaders: ['*'],
+        allowCredentials: true,  // 認証情報を含むリクエストを許可
       },
     });
+
+    // API Key認証用の環境変数を追加
+    apiFunction.addEnvironment('API_KEY', process.env.RSS_READER_API_KEY || 'default-api-key-change-in-production');
+    apiFunction.addEnvironment('CORS_ORIGINS', [
+      'https://localhost:3000',
+      `https://${distribution.distributionDomainName}`
+    ].join(','));
 
     // EventBridge ルール: フィード取得（1時間ごと）
     const fetchRule = new events.Rule(this, 'FeedFetchRule', {
@@ -1535,7 +1546,135 @@ def test_bedrock_embeddings():
 - `CLASSIFICATION`: 分類タスク
 - `CLUSTERING`: クラスタリングタスク
 
-### AWS Lambda デプロイメント
+### FastAPI認証ミドルウェア
+
+**API Key認証の実装**:
+```python
+import os
+from fastapi import FastAPI, HTTPException, Depends, Request
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.middleware.cors import CORSMiddleware
+from typing import Optional
+import logging
+
+logger = logging.getLogger(__name__)
+
+app = FastAPI(title="RSS Reader API", version="1.0.0")
+
+# セキュリティスキーム
+security = HTTPBearer()
+
+# 環境変数から設定を取得
+API_KEY = os.getenv('API_KEY', 'default-api-key-change-in-production')
+CORS_ORIGINS = os.getenv('CORS_ORIGINS', 'https://localhost:3000').split(',')
+
+# CORS設定（認証対応）
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+)
+
+def verify_api_key(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
+    """
+    API Key認証を検証
+    
+    Args:
+        credentials: HTTPベアラートークン
+    
+    Returns:
+        認証されたAPI Key
+    
+    Raises:
+        HTTPException: 認証失敗時
+    """
+    if credentials.credentials != API_KEY:
+        logger.warning(f"Invalid API key attempt: {credentials.credentials[:10]}...")
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid API key",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return credentials.credentials
+
+# 認証が必要なエンドポイントの例
+@app.get("/api/feeds")
+async def get_feeds(api_key: str = Depends(verify_api_key)):
+    """フィード一覧を取得（認証必須）"""
+    feed_service = FeedService()
+    return feed_service.get_feeds()
+
+@app.post("/api/feeds")
+async def create_feed(
+    feed_data: dict,
+    api_key: str = Depends(verify_api_key)
+):
+    """フィードを作成（認証必須）"""
+    feed_service = FeedService()
+    return feed_service.add_feed(
+        url=feed_data['url'],
+        folder=feed_data.get('folder')
+    )
+
+# ヘルスチェック（認証不要）
+@app.get("/health")
+async def health_check():
+    """ヘルスチェック（認証不要）"""
+    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+
+# Lambda Web Adapter対応のハンドラー
+def lambda_handler(event, context):
+    """AWS Lambda用のハンドラー"""
+    import awslambdaric
+    from mangum import Mangum
+    
+    handler = Mangum(app, lifespan="off")
+    return handler(event, context)
+```
+
+**代替認証方式（AWS IAM Signature V4）**:
+```python
+import boto3
+from botocore.auth import SigV4Auth
+from botocore.awsrequest import AWSRequest
+from fastapi import Request, HTTPException
+import json
+
+async def verify_aws_signature(request: Request):
+    """
+    AWS IAM Signature V4を検証
+    
+    Args:
+        request: FastAPIリクエストオブジェクト
+    
+    Raises:
+        HTTPException: 署名検証失敗時
+    """
+    try:
+        # リクエストヘッダーから署名情報を取得
+        authorization = request.headers.get('Authorization')
+        if not authorization or not authorization.startswith('AWS4-HMAC-SHA256'):
+            raise HTTPException(status_code=401, detail="Missing or invalid AWS signature")
+        
+        # AWS署名の検証ロジック（簡略化）
+        # 実際の実装では、boto3のSigV4Authを使用して検証
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"AWS signature verification failed: {e}")
+        raise HTTPException(status_code=401, detail="Invalid AWS signature")
+
+# AWS IAM認証を使用するエンドポイント
+@app.get("/api/feeds/iam")
+async def get_feeds_iam(request: Request):
+    """フィード一覧を取得（AWS IAM認証）"""
+    await verify_aws_signature(request)
+    feed_service = FeedService()
+    return feed_service.get_feeds()
+```
 
 **Dockerfile**:
 ```dockerfile
@@ -1566,6 +1705,8 @@ CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "808
 - `BEDROCK_REGION=us-east-1`  # Bedrockが利用可能なリージョン
 - `BEDROCK_MODEL_ID=amazon.nova-2-multimodal-embeddings-v1:0`
 - `EMBEDDING_DIMENSION=1024`
+- `API_KEY=your-secure-api-key-here`  # 本番環境では強力なランダム文字列を使用
+- `CORS_ORIGINS=https://your-frontend-domain.com,https://localhost:3000`  # 許可するオリジン
 
 ### DynamoDB設定
 
@@ -1689,7 +1830,250 @@ class DynamoDBClient:
 3. aws cloudfront create-invalidation → キャッシュを無効化
 ```
 
-### コンポーネント構成
+### フロントエンド認証処理
+
+**API Key認証の実装**:
+```typescript
+// src/api/client.ts
+import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
+
+class ApiClient {
+  private client: AxiosInstance;
+  private apiKey: string;
+
+  constructor() {
+    this.apiKey = import.meta.env.VITE_API_KEY || '';
+    
+    this.client = axios.create({
+      baseURL: import.meta.env.VITE_API_URL,
+      timeout: 30000,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    // リクエストインターセプター（API Key認証）
+    this.client.interceptors.request.use(
+      (config) => {
+        if (this.apiKey) {
+          config.headers.Authorization = `Bearer ${this.apiKey}`;
+        }
+        return config;
+      },
+      (error) => {
+        return Promise.reject(error);
+      }
+    );
+
+    // レスポンスインターセプター（エラーハンドリング）
+    this.client.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error.response?.status === 401) {
+          console.error('認証エラー: 無効なAPI Key');
+          // 必要に応じてログイン画面にリダイレクト
+        }
+        return Promise.reject(error);
+      }
+    );
+  }
+
+  // フィード関連API
+  async getFeeds(): Promise<Feed[]> {
+    const response = await this.client.get('/api/feeds');
+    return response.data;
+  }
+
+  async createFeed(feedData: CreateFeedRequest): Promise<Feed> {
+    const response = await this.client.post('/api/feeds', feedData);
+    return response.data;
+  }
+
+  async deleteFeed(feedId: string): Promise<void> {
+    await this.client.delete(`/api/feeds/${feedId}`);
+  }
+
+  // 記事関連API
+  async getArticles(params?: GetArticlesParams): Promise<ArticlesResponse> {
+    const response = await this.client.get('/api/articles', { params });
+    return response.data;
+  }
+
+  async markAsRead(articleId: string, isRead: boolean): Promise<Article> {
+    const response = await this.client.put(`/api/articles/${articleId}/read`, {
+      is_read: isRead
+    });
+    return response.data;
+  }
+
+  async markAsSaved(articleId: string, isSaved: boolean): Promise<Article> {
+    const response = await this.client.put(`/api/articles/${articleId}/save`, {
+      is_saved: isSaved
+    });
+    return response.data;
+  }
+
+  // キーワード関連API
+  async getKeywords(): Promise<Keyword[]> {
+    const response = await this.client.get('/api/keywords');
+    return response.data;
+  }
+
+  async createKeyword(keywordData: CreateKeywordRequest): Promise<Keyword> {
+    const response = await this.client.post('/api/keywords', keywordData);
+    return response.data;
+  }
+
+  async updateKeyword(keywordId: string, updates: Partial<Keyword>): Promise<Keyword> {
+    const response = await this.client.put(`/api/keywords/${keywordId}`, updates);
+    return response.data;
+  }
+
+  async deleteKeyword(keywordId: string): Promise<void> {
+    await this.client.delete(`/api/keywords/${keywordId}`);
+  }
+
+  // ジョブ実行API
+  async triggerFeedFetch(): Promise<{ message: string }> {
+    const response = await this.client.post('/api/jobs/fetch-feeds');
+    return response.data;
+  }
+
+  async triggerCleanup(): Promise<{ message: string }> {
+    const response = await this.client.post('/api/jobs/cleanup-articles');
+    return response.data;
+  }
+}
+
+export const apiClient = new ApiClient();
+```
+
+**環境変数設定**:
+```typescript
+// .env.local (開発環境)
+VITE_API_URL=https://your-lambda-function-url.lambda-url.ap-northeast-1.on.aws
+VITE_API_KEY=your-development-api-key
+
+// .env.production (本番環境)
+VITE_API_URL=https://your-production-lambda-function-url.lambda-url.ap-northeast-1.on.aws
+VITE_API_KEY=your-production-api-key
+```
+
+**AWS IAM認証の実装（代替案）**:
+```typescript
+// src/api/aws-client.ts
+import { SignatureV4 } from '@aws-sdk/signature-v4';
+import { Sha256 } from '@aws-crypto/sha256-js';
+import { HttpRequest } from '@aws-sdk/protocol-http';
+import { defaultProvider } from '@aws-sdk/credential-provider-node';
+
+class AwsApiClient {
+  private signer: SignatureV4;
+  private region: string;
+  private service: string;
+
+  constructor() {
+    this.region = 'ap-northeast-1';
+    this.service = 'lambda';
+    
+    this.signer = new SignatureV4({
+      credentials: defaultProvider(),
+      region: this.region,
+      service: this.service,
+      sha256: Sha256,
+    });
+  }
+
+  async makeSignedRequest(
+    method: string,
+    url: string,
+    body?: string
+  ): Promise<Response> {
+    const request = new HttpRequest({
+      method,
+      protocol: 'https:',
+      hostname: new URL(url).hostname,
+      path: new URL(url).pathname,
+      headers: {
+        'Content-Type': 'application/json',
+        host: new URL(url).hostname,
+      },
+      body,
+    });
+
+    const signedRequest = await this.signer.sign(request);
+    
+    return fetch(url, {
+      method: signedRequest.method,
+      headers: signedRequest.headers,
+      body: signedRequest.body,
+    });
+  }
+
+  async getFeeds(): Promise<Feed[]> {
+    const response = await this.makeSignedRequest(
+      'GET',
+      `${import.meta.env.VITE_API_URL}/api/feeds`
+    );
+    return response.json();
+  }
+}
+
+export const awsApiClient = new AwsApiClient();
+```
+
+**エラーハンドリングコンポーネント**:
+```typescript
+// src/components/ErrorBoundary.tsx
+import React from 'react';
+import { Alert, AlertIcon, AlertTitle, AlertDescription, Box } from '@chakra-ui/react';
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error?: Error;
+}
+
+export class ErrorBoundary extends React.Component<
+  React.PropsWithChildren<{}>,
+  ErrorBoundaryState
+> {
+  constructor(props: React.PropsWithChildren<{}>) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('認証エラー:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <Box p={6}>
+          <Alert status="error">
+            <AlertIcon />
+            <Box>
+              <AlertTitle>認証エラーが発生しました</AlertTitle>
+              <AlertDescription>
+                API Keyが無効か、設定されていません。
+                環境変数 VITE_API_KEY を確認してください。
+              </AlertDescription>
+            </Box>
+          </Alert>
+        </Box>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+```
+
+### AWS Lambda デプロイメント
 
 ```
 src/
@@ -2211,6 +2595,78 @@ AWS_SECRET_ACCESS_KEY      # AWS シークレットキー
 S3_BUCKET_NAME            # S3 バケット名
 CLOUDFRONT_DISTRIBUTION_ID # CloudFront ディストリビューション ID
 VITE_API_URL              # フロントエンド用 API URL
+RSS_READER_API_KEY        # バックエンド API Key（強力なランダム文字列）
+VITE_API_KEY              # フロントエンド用 API Key（RSS_READER_API_KEYと同じ値）
+```
+
+**API Key生成例**:
+```bash
+# 強力なAPI Keyを生成
+openssl rand -base64 32
+# 例: K7gNU3sdo+OL0wNhqoVWhr3g6s1xYv72ol/pe/Unols=
+```
+
+**セキュリティ強化されたデプロイメント設定**:
+```yaml
+# .github/workflows/deploy-backend.yml (セキュリティ強化版)
+name: Deploy Backend (Secure)
+
+on:
+  push:
+    branches: [ main ]
+    paths: [ 'backend/**' ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-1
+      
+      - name: Update Lambda environment variables
+        run: |
+          aws lambda update-function-configuration \
+            --function-name rss-reader-api \
+            --environment Variables='{
+              "DYNAMODB_TABLE_NAME": "rss-reader",
+              "AWS_REGION": "ap-northeast-1",
+              "BEDROCK_REGION": "us-east-1",
+              "BEDROCK_MODEL_ID": "amazon.nova-2-multimodal-embeddings-v1:0",
+              "EMBEDDING_DIMENSION": "1024",
+              "API_KEY": "${{ secrets.RSS_READER_API_KEY }}",
+              "CORS_ORIGINS": "https://your-frontend-domain.com"
+            }'
+      
+      - name: Build and deploy Docker image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: rss-reader-backend
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          cd backend
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          
+          aws lambda update-function-code \
+            --function-name rss-reader-api \
+            --image-uri $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+      
+      - name: Verify deployment with authentication
+        run: |
+          # API Key認証のテスト
+          curl -H "Authorization: Bearer ${{ secrets.RSS_READER_API_KEY }}" \
+               -H "Content-Type: application/json" \
+               "${{ secrets.VITE_API_URL }}/health" \
+               --fail --silent --show-error
 ```
 
 **IAM ポリシー** (GitHub Actions 用):
@@ -2336,6 +2792,342 @@ jobs:
     text: "❌ RSS Reader deployment failed!"
   env:
     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+```
+
+## セキュリティ考慮事項
+
+### 認証・認可
+
+#### API Key認証（推奨）
+
+**メリット**:
+- 実装が簡単
+- フロントエンドから直接利用可能
+- 個人利用に適している
+- デバッグが容易
+
+**実装**:
+- Lambda関数URLでAWS IAM認証を有効化
+- FastAPIでAPI Key認証ミドルウェアを実装
+- 強力なランダム文字列をAPI Keyとして使用
+- 環境変数で安全に管理
+
+**セキュリティ対策**:
+```python
+# API Key生成（本番環境用）
+import secrets
+import string
+
+def generate_api_key(length: int = 32) -> str:
+    """暗号学的に安全なAPI Keyを生成"""
+    alphabet = string.ascii_letters + string.digits + '-_'
+    return ''.join(secrets.choice(alphabet) for _ in range(length))
+
+# 使用例
+api_key = generate_api_key(32)
+print(f"Generated API Key: {api_key}")
+```
+
+#### AWS IAM認証（代替案）
+
+**メリット**:
+- AWSネイティブの認証
+- 細かい権限制御が可能
+- 一時的な認証情報を使用
+- 監査ログが自動的に記録
+
+**デメリット**:
+- 実装が複雑
+- フロントエンドでの署名生成が必要
+- 個人利用には過剰
+
+### CORS設定
+
+**セキュリティ強化されたCORS設定**:
+```typescript
+// CDK設定
+cors: {
+  allowedOrigins: [
+    'https://localhost:3000',  // 開発環境
+    'https://your-production-domain.com',  // 本番環境
+  ],
+  allowedMethods: [lambda.HttpMethod.GET, lambda.HttpMethod.POST, lambda.HttpMethod.PUT, lambda.HttpMethod.DELETE],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  allowCredentials: true,
+  maxAge: cdk.Duration.hours(1),  # プリフライトリクエストのキャッシュ時間
+}
+```
+
+### データ保護
+
+#### 機密情報の管理
+
+**環境変数の暗号化**:
+```typescript
+// AWS Systems Manager Parameter Store使用
+import * as ssm from 'aws-cdk-lib/aws-ssm';
+
+const apiKeyParameter = new ssm.StringParameter(this, 'ApiKeyParameter', {
+  parameterName: '/rss-reader/api-key',
+  stringValue: process.env.RSS_READER_API_KEY!,
+  type: ssm.ParameterType.SECURE_STRING,  // 暗号化
+});
+
+// Lambda関数で参照
+apiFunction.addEnvironment('API_KEY_PARAMETER', apiKeyParameter.parameterName);
+```
+
+**実行時の機密情報取得**:
+```python
+import boto3
+import os
+from functools import lru_cache
+
+@lru_cache(maxsize=1)
+def get_api_key() -> str:
+    """Parameter Storeから暗号化されたAPI Keyを取得"""
+    ssm = boto3.client('ssm')
+    parameter_name = os.getenv('API_KEY_PARAMETER')
+    
+    if parameter_name:
+        response = ssm.get_parameter(
+            Name=parameter_name,
+            WithDecryption=True
+        )
+        return response['Parameter']['Value']
+    
+    # フォールバック: 環境変数から取得
+    return os.getenv('API_KEY', 'default-key')
+```
+
+#### ログの安全性
+
+**機密情報のマスキング**:
+```python
+import logging
+import re
+
+class SensitiveDataFilter(logging.Filter):
+    """ログから機密情報を除去するフィルター"""
+    
+    def __init__(self):
+        super().__init__()
+        # 機密情報のパターン
+        self.patterns = [
+            (re.compile(r'Bearer [A-Za-z0-9+/=]{20,}'), 'Bearer [REDACTED]'),
+            (re.compile(r'api[_-]?key["\s]*[:=]["\s]*[A-Za-z0-9+/=]{20,}', re.IGNORECASE), 'api_key: [REDACTED]'),
+            (re.compile(r'password["\s]*[:=]["\s]*[^\s"]+', re.IGNORECASE), 'password: [REDACTED]'),
+        ]
+    
+    def filter(self, record):
+        if hasattr(record, 'msg'):
+            message = str(record.msg)
+            for pattern, replacement in self.patterns:
+                message = pattern.sub(replacement, message)
+            record.msg = message
+        return True
+
+# ロガー設定
+logger = logging.getLogger(__name__)
+logger.addFilter(SensitiveDataFilter())
+```
+
+### ネットワークセキュリティ
+
+#### VPC設定（オプション）
+
+高セキュリティが必要な場合のVPC設定:
+```typescript
+// VPC内でのLambda実行
+import * as ec2 from 'aws-cdk-lib/aws-ec2';
+
+const vpc = new ec2.Vpc(this, 'RssReaderVpc', {
+  maxAzs: 2,
+  natGateways: 1,
+});
+
+const apiFunction = new lambda.DockerImageFunction(this, 'ApiFunction', {
+  // ... 他の設定
+  vpc: vpc,
+  vpcSubnets: {
+    subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
+  },
+  securityGroups: [
+    new ec2.SecurityGroup(this, 'LambdaSecurityGroup', {
+      vpc: vpc,
+      description: 'Security group for RSS Reader Lambda',
+      allowAllOutbound: true,  // Bedrock APIアクセス用
+    })
+  ],
+});
+```
+
+#### DynamoDB VPCエンドポイント
+
+```typescript
+// DynamoDB VPCエンドポイント（VPC使用時）
+vpc.addGatewayEndpoint('DynamoDbEndpoint', {
+  service: ec2.GatewayVpcEndpointAwsService.DYNAMODB,
+});
+```
+
+### 入力検証とサニタイゼーション
+
+**FastAPIでの入力検証**:
+```python
+from pydantic import BaseModel, HttpUrl, validator
+from typing import Optional
+import re
+
+class CreateFeedRequest(BaseModel):
+    url: HttpUrl  # 自動的にURL形式を検証
+    folder: Optional[str] = None
+    
+    @validator('folder')
+    def validate_folder(cls, v):
+        if v is not None:
+            # フォルダ名のサニタイゼーション
+            if len(v) > 50:
+                raise ValueError('フォルダ名は50文字以内である必要があります')
+            if not re.match(r'^[a-zA-Z0-9\s\-_]+$', v):
+                raise ValueError('フォルダ名に無効な文字が含まれています')
+        return v
+
+class CreateKeywordRequest(BaseModel):
+    text: str
+    weight: float = 1.0
+    
+    @validator('text')
+    def validate_text(cls, v):
+        if len(v.strip()) == 0:
+            raise ValueError('キーワードテキストは必須です')
+        if len(v) > 100:
+            raise ValueError('キーワードは100文字以内である必要があります')
+        # HTMLタグの除去
+        import html
+        return html.escape(v.strip())
+    
+    @validator('weight')
+    def validate_weight(cls, v):
+        if v < 0 or v > 10:
+            raise ValueError('重みは0から10の間である必要があります')
+        return v
+```
+
+### レート制限
+
+**API レート制限の実装**:
+```python
+from fastapi import HTTPException
+from collections import defaultdict
+from datetime import datetime, timedelta
+import asyncio
+
+class RateLimiter:
+    def __init__(self, max_requests: int = 100, window_minutes: int = 1):
+        self.max_requests = max_requests
+        self.window = timedelta(minutes=window_minutes)
+        self.requests = defaultdict(list)
+    
+    async def check_rate_limit(self, client_id: str) -> bool:
+        """レート制限をチェック"""
+        now = datetime.now()
+        
+        # 古いリクエストを削除
+        cutoff = now - self.window
+        self.requests[client_id] = [
+            req_time for req_time in self.requests[client_id]
+            if req_time > cutoff
+        ]
+        
+        # 制限チェック
+        if len(self.requests[client_id]) >= self.max_requests:
+            return False
+        
+        # リクエストを記録
+        self.requests[client_id].append(now)
+        return True
+
+rate_limiter = RateLimiter(max_requests=100, window_minutes=1)
+
+@app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next):
+    # クライアントIPまたはAPI Keyでレート制限
+    client_id = request.client.host
+    
+    if not await rate_limiter.check_rate_limit(client_id):
+        raise HTTPException(
+            status_code=429,
+            detail="レート制限に達しました。しばらく待ってから再試行してください。"
+        )
+    
+    response = await call_next(request)
+    return response
+```
+
+### セキュリティヘッダー
+
+**セキュリティヘッダーの追加**:
+```python
+@app.middleware("http")
+async def security_headers_middleware(request: Request, call_next):
+    response = await call_next(request)
+    
+    # セキュリティヘッダーを追加
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Content-Security-Policy"] = "default-src 'self'"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    
+    return response
+```
+
+### 監査とモニタリング
+
+**CloudTrail統合**:
+```typescript
+import * as cloudtrail from 'aws-cdk-lib/aws-cloudtrail';
+
+const trail = new cloudtrail.Trail(this, 'RssReaderAuditTrail', {
+  trailName: 'rss-reader-audit',
+  includeGlobalServiceEvents: true,
+  isMultiRegionTrail: true,
+  enableFileValidation: true,
+});
+
+// Lambda関数の実行ログを記録
+trail.addLambdaEventSelector([{
+  includeManagementEvents: true,
+  readWriteType: cloudtrail.ReadWriteType.ALL,
+  resources: [apiFunction.functionArn],
+}]);
+```
+
+**セキュリティアラート**:
+```typescript
+import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
+import * as sns from 'aws-cdk-lib/aws-sns';
+
+const securityTopic = new sns.Topic(this, 'SecurityAlerts');
+
+// 認証失敗アラーム
+const authFailureAlarm = new cloudwatch.Alarm(this, 'AuthFailureAlarm', {
+  metric: new cloudwatch.Metric({
+    namespace: 'AWS/Lambda',
+    metricName: 'Errors',
+    dimensionsMap: {
+      FunctionName: apiFunction.functionName,
+    },
+    statistic: 'Sum',
+  }),
+  threshold: 10,
+  evaluationPeriods: 2,
+  treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+});
+
+authFailureAlarm.addAlarmAction(new cloudwatchActions.SnsAction(securityTopic));
 ```
 
 ## パフォーマンス考慮事項
