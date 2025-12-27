@@ -127,7 +127,7 @@ DynamoDBのシングルテーブル設計を採用します。
     "GSI1PK": "ARTICLE",
     "GSI1SK": "2024-01-01T10:00:00Z",  # published_at for time-based sorting
     "GSI2PK": "ARTICLE",
-    "GSI2SK": "0.85"  # importance_score for score-based sorting
+    "GSI2SK": "999999.150000"  # 逆順ソート用: (1000000 - score * 1000000) をゼロパディング
 }
 ```
 
@@ -316,7 +316,7 @@ Limit = 100
 ```python
 # Query GSI2
 GSI2PK = "ARTICLE"
-ScanIndexForward = False  # 降順
+ScanIndexForward = True  # 昇順（逆順ソートキーのため、昇順で高スコア順になる）
 Limit = 100
 ```
 
@@ -398,6 +398,43 @@ BatchWriteItem: 削除対象の記事を一括削除
    EventBridge → Lambda → CleanupService.cleanup_old_articles()
    → delete_articles_by_age() + delete_read_articles() → DynamoDB
    ```
+
+### 重要度スコアのソートキー生成
+
+DynamoDBでは数値の降順ソートを実現するため、以下の方法でGSI2SKを生成します：
+
+```python
+def generate_importance_sort_key(importance_score: float) -> str:
+    """
+    重要度スコア（0.0-1.0）を降順ソート用の文字列キーに変換
+    
+    Args:
+        importance_score: 0.0-1.0の重要度スコア
+    
+    Returns:
+        ゼロパディングされた逆順ソートキー
+    
+    Examples:
+        0.95 → "050000.000000" (高スコア = 小さい値)
+        0.85 → "150000.000000"
+        0.10 → "900000.000000" (低スコア = 大きい値)
+    """
+    # 逆順にするため (1.0 - score) を計算し、1,000,000倍してゼロパディング
+    inverted_score = 1.0 - importance_score
+    scaled_score = int(inverted_score * 1000000)
+    return f"{scaled_score:06d}.000000"
+
+# 使用例
+article_data = {
+    "importance_score": 0.85,
+    "GSI2SK": generate_importance_sort_key(0.85)  # "150000.000000"
+}
+```
+
+**ソート動作の説明**:
+- 高い重要度スコア（0.95）→ 小さいソートキー（"050000.000000"）
+- 低い重要度スコア（0.10）→ 大きいソートキー（"900000.000000"）
+- DynamoDBの昇順ソート（ScanIndexForward=True）で高スコア順に取得可能
 
 ## 正確性プロパティ
 
@@ -797,7 +834,7 @@ export class RssReaderStack extends cdk.Stack {
       sortKey: { name: 'GSI1SK', type: dynamodb.AttributeType.STRING },
     });
 
-    // GSI2: 重要度順ソート用
+    // GSI2: 重要度順ソート用（逆順ソートキーで高スコア順を実現）
     table.addGlobalSecondaryIndex({
       indexName: 'GSI2',
       partitionKey: { name: 'GSI2PK', type: dynamodb.AttributeType.STRING },
