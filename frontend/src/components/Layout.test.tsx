@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { describe, it, expect } from 'vitest'
 import { ChakraProvider } from '@chakra-ui/react'
 import Layout from './Layout'
-import theme from '../theme'
+import chakraSystem from '../theme'
 
 /**
  * Layoutコンポーネントのテスト
@@ -12,7 +12,7 @@ import theme from '../theme'
 describe('Layout', () => {
   const renderLayout = (children: React.ReactNode) => {
     return render(
-      <ChakraProvider theme={theme}>
+      <ChakraProvider value={chakraSystem}>
         <Layout>{children}</Layout>
       </ChakraProvider>
     )

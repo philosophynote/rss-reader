@@ -4,7 +4,7 @@ import { ChakraProvider } from '@chakra-ui/react'
 import { BrowserRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import App from './App'
-import theme from './theme'
+import chakraSystem from './theme'
 
 /**
  * Appコンポーネントのテスト
@@ -22,7 +22,7 @@ describe('App', () => {
     })
 
     return render(
-      <ChakraProvider theme={theme}>
+      <ChakraProvider value={chakraSystem}>
         <QueryClientProvider client={queryClient}>
           <BrowserRouter>
             <App />
