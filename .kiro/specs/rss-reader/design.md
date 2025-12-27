@@ -86,6 +86,7 @@ DynamoDBのシングルテーブル設計を採用します。
 - GSI2: `GSI2PK` (パーティションキー), `GSI2SK` (ソートキー) - 重要度順ソート用
 - GSI3: `GSI3PK` (パーティションキー), `GSI3SK` (ソートキー) - 作成日時順ソート用（削除クエリ用）
 - GSI4: `GSI4PK` (パーティションキー), `GSI4SK` (ソートキー) - 既読記事削除用
+- GSI5: `GSI5PK` (パーティションキー), `GSI5SK` (ソートキー) - フィード別記事クエリ用（カスケード削除用）
 
 **TTL設定**:
 - `ttl` 属性を使用してアイテムの自動削除を設定
@@ -137,7 +138,9 @@ DynamoDBのシングルテーブル設計を採用します。
     "GSI3PK": "ARTICLE",
     "GSI3SK": "2024-01-01T10:05:00Z",  # created_at for deletion queries
     "GSI4PK": "ARTICLE_READ",  # 既読記事削除用（is_readがtrueの場合のみ設定）
-    "GSI4SK": "true#2024-01-01T12:00:00Z"  # "is_read#read_at" format（is_readがtrueの場合のみ設定）
+    "GSI4SK": "true#2024-01-01T12:00:00Z",  # "is_read#read_at" format（is_readがtrueの場合のみ設定）
+    "GSI5PK": "FEED#{feed_id}",  # フィード別記事クエリ用（カスケード削除用）
+    "GSI5SK": "ARTICLE#{article_id}"  # 記事ID
 }
 ```
 
@@ -304,12 +307,22 @@ SK = "METADATA"
 
 **フィード削除（カスケード）**:
 ```python
-# 1. フィードを削除
-DeleteItem: PK = "FEED#{feed_id}", SK = "METADATA"
+# 1. GSI5を使用して関連記事を効率的に検索
+Query GSI5:
+  GSI5PK = "FEED#{feed_id}"
+  # すべての関連記事を取得
 
-# 2. 関連記事を検索して削除
-Query: PK = "FEED#{feed_id}", SK begins_with "ARTICLE#"
-BatchWriteItem: 各記事を削除
+# 2. 関連記事とその重要度理由を削除
+for article in articles:
+    # 記事本体を削除
+    DeleteItem: PK = article['PK'], SK = article['SK']
+    
+    # 重要度理由も削除（カスケード）
+    Query: PK = article['PK'], SK begins_with "REASON#"
+    BatchWriteItem: 各理由を削除
+
+# 3. フィード本体を削除
+DeleteItem: PK = "FEED#{feed_id}", SK = "METADATA"
 ```
 
 #### 2. 記事管理
@@ -422,7 +435,183 @@ article_data["ttl"] = ttl_timestamp
    → delete_articles_by_age() + delete_read_articles() → DynamoDB
    ```
 
-### 効率的な記事削除の実装
+### 効率的なフィード削除（カスケード）の実装
+
+```python
+import boto3
+from typing import List, Dict
+import logging
+
+logger = logging.getLogger(__name__)
+
+class FeedService:
+    def __init__(self, table_name: str):
+        self.dynamodb = boto3.resource('dynamodb')
+        self.table = self.dynamodb.Table(table_name)
+    
+    def delete_feed_cascade(self, feed_id: str) -> Dict[str, int]:
+        """
+        フィードとその関連記事を効率的にカスケード削除
+        
+        Args:
+            feed_id: 削除対象のフィードID
+        
+        Returns:
+            削除結果の統計
+        """
+        deleted_articles = 0
+        deleted_reasons = 0
+        
+        try:
+            # 1. GSI5を使用して関連記事を効率的に検索
+            articles = self._get_articles_by_feed(feed_id)
+            
+            # 2. 各記事とその重要度理由を削除
+            for article in articles:
+                # 重要度理由を削除
+                reasons_deleted = self._delete_article_reasons(article['article_id'])
+                deleted_reasons += reasons_deleted
+                
+                # 記事本体を削除
+                self.table.delete_item(
+                    Key={
+                        'PK': article['PK'],
+                        'SK': article['SK']
+                    }
+                )
+                deleted_articles += 1
+            
+            # 3. フィード本体を削除
+            self.table.delete_item(
+                Key={
+                    'PK': f"FEED#{feed_id}",
+                    'SK': "METADATA"
+                }
+            )
+            
+            logger.info(f"Deleted feed {feed_id} with {deleted_articles} articles and {deleted_reasons} reasons")
+            
+            return {
+                'deleted_feed': 1,
+                'deleted_articles': deleted_articles,
+                'deleted_reasons': deleted_reasons
+            }
+            
+        except Exception as e:
+            logger.error(f"Error deleting feed {feed_id}: {e}")
+            raise
+    
+    def _get_articles_by_feed(self, feed_id: str) -> List[Dict]:
+        """
+        GSI5を使用してフィードの全記事を取得
+        
+        Args:
+            feed_id: フィードID
+        
+        Returns:
+            記事のリスト
+        """
+        articles = []
+        last_evaluated_key = None
+        
+        while True:
+            query_params = {
+                'IndexName': 'GSI5',
+                'KeyConditionExpression': 'GSI5PK = :feed_pk',
+                'ExpressionAttributeValues': {
+                    ':feed_pk': f'FEED#{feed_id}'
+                },
+                'Limit': 100  # バッチサイズ
+            }
+            
+            if last_evaluated_key:
+                query_params['ExclusiveStartKey'] = last_evaluated_key
+            
+            response = self.table.query(**query_params)
+            articles.extend(response.get('Items', []))
+            
+            last_evaluated_key = response.get('LastEvaluatedKey')
+            if not last_evaluated_key:
+                break
+        
+        return articles
+    
+    def _delete_article_reasons(self, article_id: str) -> int:
+        """
+        記事の重要度理由を削除
+        
+        Args:
+            article_id: 記事ID
+        
+        Returns:
+            削除した理由の数
+        """
+        deleted_count = 0
+        
+        try:
+            # 重要度理由を検索
+            response = self.table.query(
+                KeyConditionExpression='PK = :article_pk AND begins_with(SK, :reason_prefix)',
+                ExpressionAttributeValues={
+                    ':article_pk': f'ARTICLE#{article_id}',
+                    ':reason_prefix': 'REASON#'
+                }
+            )
+            
+            # バッチ削除
+            if response['Items']:
+                with self.table.batch_writer() as batch:
+                    for reason in response['Items']:
+                        batch.delete_item(
+                            Key={
+                                'PK': reason['PK'],
+                                'SK': reason['SK']
+                            }
+                        )
+                        deleted_count += 1
+            
+            return deleted_count
+            
+        except Exception as e:
+            logger.error(f"Error deleting reasons for article {article_id}: {e}")
+            return 0
+
+# 使用例
+feed_service = FeedService('rss-reader')
+
+# フィードをカスケード削除（効率的なGSI5クエリ使用）
+result = feed_service.delete_feed_cascade('feed-uuid-123')
+print(f"Deleted: {result['deleted_feed']} feed, {result['deleted_articles']} articles, {result['deleted_reasons']} reasons")
+```
+
+### カスケード削除のパフォーマンス比較
+
+| 方式 | 検索方法 | パフォーマンス | コスト効率 |
+|------|----------|----------------|------------|
+| **従来（誤った方式）** | `Query: PK = "FEED#{feed_id}"` | ❌ 動作しない | ❌ N/A |
+| **修正後（GSI5使用）** | `Query GSI5: GSI5PK = "FEED#{feed_id}"` | ✅ 高速 | ✅ 効率的 |
+| **代替案（Scan使用）** | `Scan + FilterExpression` | ❌ 低速 | ❌ 高コスト |
+
+### データ整合性の保証
+
+1. **トランザクション使用（推奨）**:
+```python
+# DynamoDB Transactionsを使用した原子的削除
+with self.table.batch_writer() as batch:
+    # すべての削除操作を一括実行
+    pass
+```
+
+2. **エラー時のロールバック**:
+```python
+try:
+    # 削除処理
+    pass
+except Exception as e:
+    # 部分的に削除された場合の復旧処理
+    logger.error("Rollback required")
+    raise
+```
 
 ```python
 import boto3
@@ -989,6 +1178,13 @@ export class RssReaderStack extends cdk.Stack {
       indexName: 'GSI4',
       partitionKey: { name: 'GSI4PK', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'GSI4SK', type: dynamodb.AttributeType.STRING },
+    });
+
+    // GSI5: フィード別記事クエリ用（カスケード削除用）
+    table.addGlobalSecondaryIndex({
+      indexName: 'GSI5',
+      partitionKey: { name: 'GSI5PK', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'GSI5SK', type: dynamodb.AttributeType.STRING },
     });
 
     // TTL設定（自動削除用）
