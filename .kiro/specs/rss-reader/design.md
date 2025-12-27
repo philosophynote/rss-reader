@@ -2713,7 +2713,7 @@ jobs:
    - 型チェック (mypy, TypeScript)
 
 2. **テスト**
-   - ユニットテスト (pytest, Jest)
+   - ユニットテスト (pytest, Vitest)
    - プロパティベーステスト (hypothesis)
    - カバレッジ 80% 以上
 

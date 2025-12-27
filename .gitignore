@@ -89,6 +89,10 @@ dist-ssr/
 .eslintcache
 .stylelintcache
 
+# Coverage reports
+coverage/
+**/coverage/
+
 # =========================
 # Docker
 # =========================

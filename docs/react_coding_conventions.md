@@ -186,7 +186,7 @@ Agents must:
 
 * Write unit tests using **React Testing Library**
 * Test observable behavior, not implementation details
-* Use Jest (or the project’s configured runner)
+* Use Vitest (or the project’s configured runner)
 * Add integration tests for complex interactions
 * Mock external APIs and dependencies appropriately
 * Validate accessibility and keyboard navigation

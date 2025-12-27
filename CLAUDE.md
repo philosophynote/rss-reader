@@ -127,7 +127,7 @@ This project follows Kiro-style spec-driven development using custom slash comma
 - Edge cases: empty inputs, invalid types, boundary values
 
 ### TypeScript/React
-- **Unit tests** using Jest
+- **Unit tests** using Vitest
 - **Component tests** using React Testing Library
 - Test behavior, not implementation details
 - Mock external APIs appropriately

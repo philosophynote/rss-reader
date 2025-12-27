@@ -1,4 +1,4 @@
-import '@testing-library/jest-dom'
+import '@testing-library/jest-dom/vitest'
 
-// テスト環境のセットアップファイル
+// Vitestテスト環境のセットアップファイル
 // グローバルなテスト設定やモックを定義します
