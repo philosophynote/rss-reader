@@ -106,9 +106,10 @@
 3. THE System SHALL Lambda関数URLを通じてアクセスできる
 4. THE System SHALL EventBridgeを使用して定期的なフィード取得を実行する
 5. THE System SHALL DynamoDBを使用してデータを永続化する
-5. THE System SHALL TypeScriptとReactを使用してフロントエンドを実装する
-6. THE System SHALL Chakra UIを使用してUIコンポーネントを実装する
-7. THE System SHALL TanStack QueryとTanStack Tableを使用してデータ管理とテーブル表示を行う
+6. THE System SHALL AWS CDK（TypeScript）を使用してインフラストラクチャを定義・管理する
+7. THE System SHALL TypeScriptとReactを使用してフロントエンドを実装する
+8. THE System SHALL Chakra UIを使用してUIコンポーネントを実装する
+9. THE System SHALL TanStack QueryとTanStack Tableを使用してデータ管理とテーブル表示を行う
 
 ### 要件9: 単一ユーザー運用
 
@@ -130,6 +131,18 @@
 2. THE System SHALL Webスクレイピング機能を実装しない
 3. THE System SHALL RSS Builder機能を実装しない
 
+### 要件12: インフラストラクチャ管理
+
+**ユーザーストーリー:** システム管理者として、インフラストラクチャをコードで管理したい。これにより、環境の再現性と保守性を確保できる。
+
+#### 受入基準
+
+1. THE System SHALL AWS CDK（TypeScript）を使用してすべてのAWSリソースを定義する
+2. THE System SHALL DynamoDBテーブル、Lambda関数、EventBridgeルール、S3バケット、CloudFrontディストリビューションをCDKで管理する
+3. THE System SHALL IAMロールと権限をCDKで適切に設定する
+4. THE System SHALL 環境ごと（開発、本番）にスタックを分離できる
+5. THE System SHALL CDKを使用してリソースのデプロイと削除を自動化する
+
 ### 要件11: 記事の自動削除
 
 **ユーザーストーリー:** システム管理者として、データベースの容量を削減するために古い記事を自動削除したい。これにより、ストレージコストを最小限に抑えられる。
@@ -140,3 +153,15 @@
 2. WHEN 記事が既読になってから1日が経過した場合 THEN THE System SHALL その記事を削除する
 3. THE System SHALL 定期的に削除対象の記事をチェックし削除を実行する
 4. WHEN 記事を削除する THEN THE System SHALL 関連する重要度スコアと理由も削除する
+
+### 要件12: インフラストラクチャ管理
+
+**ユーザーストーリー:** システム管理者として、インフラストラクチャをコードで管理したい。これにより、環境の再現性と保守性を確保できる。
+
+#### 受入基準
+
+1. THE System SHALL AWS CDK（TypeScript）を使用してすべてのAWSリソースを定義する
+2. THE System SHALL DynamoDBテーブル、Lambda関数、EventBridgeルール、S3バケット、CloudFrontディストリビューションをCDKで管理する
+3. THE System SHALL IAMロールと権限をCDKで適切に設定する
+4. THE System SHALL 環境ごと（開発、本番）にスタックを分離できる
+5. THE System SHALL CDKを使用してリソースのデプロイと削除を自動化する

@@ -703,6 +703,192 @@ def test_feed_registration_with_invalid_url():
 
 ## 実装の詳細
 
+### プロジェクト構造
+
+```
+rss-reader/
+├── backend/                 # Python (FastAPI + Lambda)
+│   ├── app/
+│   │   ├── main.py         # FastAPI アプリケーション
+│   │   ├── services/       # ビジネスロジック
+│   │   ├── models/         # データモデル
+│   │   └── utils/          # ユーティリティ
+│   ├── tests/              # Python テスト
+│   ├── pyproject.toml      # uv 依存関係管理
+│   ├── uv.lock            # 依存関係ロックファイル
+│   └── Dockerfile          # Lambda コンテナ
+├── frontend/               # TypeScript (React + Chakra UI)
+│   ├── src/
+│   │   ├── components/     # React コンポーネント
+│   │   ├── hooks/          # TanStack Query フック
+│   │   ├── api/           # API クライアント
+│   │   └── theme/         # Chakra UI テーマ
+│   ├── package.json
+│   └── vite.config.ts
+├── infrastructure/         # TypeScript (AWS CDK)
+│   ├── lib/
+│   │   ├── rss-reader-stack.ts    # メインスタック
+│   │   ├── database-stack.ts      # DynamoDB
+│   │   ├── compute-stack.ts       # Lambda
+│   │   └── frontend-stack.ts      # S3 + CloudFront
+│   ├── bin/
+│   │   └── app.ts         # CDK アプリケーション
+│   ├── package.json
+│   └── cdk.json
+└── README.md
+```
+
+### AWS CDK実装例
+
+```typescript
+// infrastructure/lib/rss-reader-stack.ts
+import * as cdk from 'aws-cdk-lib';
+import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as events from 'aws-cdk-lib/aws-events';
+import * as targets from 'aws-cdk-lib/aws-events-targets';
+import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
+import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
+import * as iam from 'aws-cdk-lib/aws-iam';
+import { Construct } from 'constructs';
+
+export class RssReaderStack extends cdk.Stack {
+  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+    super(scope, id, props);
+
+    // DynamoDB テーブル
+    const table = new dynamodb.Table(this, 'RssReaderTable', {
+      tableName: 'rss-reader',
+      partitionKey: { name: 'PK', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'SK', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.DESTROY, // 開発環境用
+    });
+
+    // GSI1: 時系列順ソート用
+    table.addGlobalSecondaryIndex({
+      indexName: 'GSI1',
+      partitionKey: { name: 'GSI1PK', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'GSI1SK', type: dynamodb.AttributeType.STRING },
+    });
+
+    // GSI2: 重要度順ソート用
+    table.addGlobalSecondaryIndex({
+      indexName: 'GSI2',
+      partitionKey: { name: 'GSI2PK', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'GSI2SK', type: dynamodb.AttributeType.STRING },
+    });
+
+    // Lambda 関数（Python + FastAPI）
+    const apiFunction = new lambda.DockerImageFunction(this, 'ApiFunction', {
+      code: lambda.DockerImageCode.fromImageAsset('../backend', {
+        file: 'Dockerfile',
+      }),
+      environment: {
+        DYNAMODB_TABLE_NAME: table.tableName,
+        BEDROCK_REGION: 'us-east-1',
+        BEDROCK_MODEL_ID: 'amazon.nova-2-multimodal-embeddings-v1:0',
+        EMBEDDING_DIMENSION: '1024',
+      },
+      timeout: cdk.Duration.minutes(15),
+      memorySize: 1024,
+      architecture: lambda.Architecture.X86_64,
+    });
+
+    // Lambda 関数 URL
+    const functionUrl = apiFunction.addFunctionUrl({
+      authType: lambda.FunctionUrlAuthType.NONE,
+      cors: {
+        allowedOrigins: ['*'],
+        allowedMethods: [lambda.HttpMethod.ALL],
+        allowedHeaders: ['*'],
+      },
+    });
+
+    // EventBridge ルール: フィード取得（1時間ごと）
+    const fetchRule = new events.Rule(this, 'FeedFetchRule', {
+      schedule: events.Schedule.rate(cdk.Duration.hours(1)),
+      targets: [new targets.LambdaFunction(apiFunction, {
+        event: events.RuleTargetInput.fromObject({
+          action: 'fetch_feeds'
+        })
+      })],
+    });
+
+    // EventBridge ルール: 記事削除（1日1回、深夜2時）
+    const cleanupRule = new events.Rule(this, 'CleanupRule', {
+      schedule: events.Schedule.cron({
+        hour: '2',
+        minute: '0',
+      }),
+      targets: [new targets.LambdaFunction(apiFunction, {
+        event: events.RuleTargetInput.fromObject({
+          action: 'cleanup_articles'
+        })
+      })],
+    });
+
+    // DynamoDB 権限
+    table.grantReadWriteData(apiFunction);
+
+    // Bedrock 権限
+    apiFunction.addToRolePolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        'bedrock:InvokeModel',
+        'bedrock:InvokeModelWithResponseStream',
+      ],
+      resources: ['*'],
+    }));
+
+    // S3 バケット（フロントエンド）
+    const frontendBucket = new s3.Bucket(this, 'FrontendBucket', {
+      bucketName: `rss-reader-frontend-${this.account}-${this.region}`,
+      websiteIndexDocument: 'index.html',
+      websiteErrorDocument: 'error.html',
+      publicReadAccess: false,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      autoDeleteObjects: true,
+    });
+
+    // CloudFront ディストリビューション
+    const distribution = new cloudfront.Distribution(this, 'Distribution', {
+      defaultBehavior: {
+        origin: new origins.S3Origin(frontendBucket),
+        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+        cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+      },
+      defaultRootObject: 'index.html',
+      errorResponses: [
+        {
+          httpStatus: 404,
+          responseHttpStatus: 200,
+          responsePagePath: '/index.html',
+        },
+      ],
+    });
+
+    // 出力
+    new cdk.CfnOutput(this, 'ApiUrl', {
+      value: functionUrl.url,
+      description: 'Lambda Function URL for API',
+    });
+
+    new cdk.CfnOutput(this, 'FrontendUrl', {
+      value: `https://${distribution.distributionDomainName}`,
+      description: 'CloudFront Distribution URL',
+    });
+
+    new cdk.CfnOutput(this, 'TableName', {
+      value: table.tableName,
+      description: 'DynamoDB Table Name',
+    });
+  }
+}
+```
+
 ### セマンティック検索の実装
 
 セマンティック検索には、AWS Bedrockの埋め込みモデルを使用します。
