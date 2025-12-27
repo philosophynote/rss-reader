@@ -258,6 +258,7 @@ class ImportanceScoreService:
     def get_embedding(text: str) -> List[float]
     def calculate_similarity(embedding1: List[float], embedding2: List[float]) -> float
     def recalculate_score(article_id: str) -> None
+    def invoke_bedrock_embeddings(text: str, dimension: int = 1024) -> List[float]
 ```
 
 #### CleanupService
@@ -701,62 +702,167 @@ def test_feed_registration_with_invalid_url():
 
 ### セマンティック検索の実装
 
-セマンティック検索には、`sentence-transformers`ライブラリを使用します。
+セマンティック検索には、AWS Bedrockの埋め込みモデルを使用します。
 
 **モデル選択**:
-- `paraphrase-multilingual-MiniLM-L12-v2`: 多言語対応、軽量、高速
-- 埋め込み次元: 384
+- Amazon Nova Multimodal Embeddings (`amazon.nova-2-multimodal-embeddings-v1:0`)
+  - 多言語対応
+  - テキスト、画像、動画、音声に対応
+  - 埋め込み次元: 1024（コストと精度のバランス）
+  - 最大コンテキスト長: 8K トークン
+
+**代替モデル**:
+- Amazon Titan Text Embeddings V2 (`amazon.titan-embed-text-v2:0`)
+  - テキスト専用
+  - 埋め込み次元: 256, 512, 1024（選択可能）
+  - 最大コンテキスト長: 8,192 トークン
+  - より低コスト
 
 **実装例**:
 ```python
-from sentence_transformers import SentenceTransformer
-from sklearn.metrics.pairwise import cosine_similarity
+import boto3
+import json
+from typing import List, Tuple, Dict
 import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
 
 class ImportanceScoreService:
-    def __init__(self):
-        self.model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
+    def __init__(self, region_name: str = "us-east-1"):
+        self.bedrock_runtime = boto3.client(
+            service_name="bedrock-runtime",
+            region_name=region_name
+        )
+        self.model_id = "amazon.nova-2-multimodal-embeddings-v1:0"
+        self.embedding_dimension = 1024
+        # キーワード埋め込みのキャッシュ
+        self.keyword_embeddings_cache = {}
+    
+    def invoke_bedrock_embeddings(self, text: str, dimension: int = 1024) -> List[float]:
+        """AWS Bedrockを使用してテキストの埋め込みを生成"""
+        request_body = {
+            "taskType": "SINGLE_EMBEDDING",
+            "singleEmbeddingParams": {
+                "embeddingPurpose": "GENERIC_INDEX",
+                "embeddingDimension": dimension,
+                "text": {
+                    "truncationMode": "END",
+                    "value": text
+                }
+            }
+        }
+        
+        try:
+            response = self.bedrock_runtime.invoke_model(
+                body=json.dumps(request_body),
+                modelId=self.model_id,
+                accept="application/json",
+                contentType="application/json"
+            )
+            
+            response_body = json.loads(response.get("body").read())
+            embedding = response_body["embeddings"][0]["embedding"]
+            return embedding
+            
+        except Exception as e:
+            logger.error(f"Bedrock embedding error: {e}")
+            # エラー時はゼロベクトルを返す
+            return [0.0] * dimension
     
     def get_embedding(self, text: str) -> np.ndarray:
-        return self.model.encode(text)
+        """テキストの埋め込みを取得（キャッシュ対応）"""
+        embedding = self.invoke_bedrock_embeddings(text, self.embedding_dimension)
+        return np.array(embedding)
+    
+    def get_keyword_embedding(self, keyword_text: str) -> np.ndarray:
+        """キーワードの埋め込みを取得（キャッシュ使用）"""
+        if keyword_text not in self.keyword_embeddings_cache:
+            self.keyword_embeddings_cache[keyword_text] = self.get_embedding(keyword_text)
+        return self.keyword_embeddings_cache[keyword_text]
     
     def calculate_similarity(self, embedding1: np.ndarray, embedding2: np.ndarray) -> float:
-        return cosine_similarity([embedding1], [embedding2])[0][0]
+        """コサイン類似度を計算"""
+        similarity = cosine_similarity([embedding1], [embedding2])[0][0]
+        return float(similarity)
     
-    def calculate_score(self, article: Article, keywords: List[Keyword]) -> Tuple[float, List[ImportanceReason]]:
-        article_text = f"{article.title} {article.content or ''}"
+    def calculate_score(
+        self, 
+        article: Dict, 
+        keywords: List[Dict]
+    ) -> Tuple[float, List[Dict]]:
+        """記事の重要度スコアを計算"""
+        # 記事のテキストを結合
+        article_text = f"{article['title']} {article.get('content', '')}"
         article_embedding = self.get_embedding(article_text)
         
         total_score = 0.0
         reasons = []
         
         for keyword in keywords:
-            if not keyword.is_active:
+            if not keyword.get('is_active', True):
                 continue
             
-            keyword_embedding = self.get_embedding(keyword.text)
+            # キーワードの埋め込みを取得（キャッシュから）
+            keyword_embedding = self.get_keyword_embedding(keyword['text'])
+            
+            # 類似度を計算
             similarity = self.calculate_similarity(article_embedding, keyword_embedding)
-            contribution = similarity * keyword.weight
+            
+            # 重みを適用
+            weight = keyword.get('weight', 1.0)
+            contribution = similarity * weight
             total_score += contribution
             
-            reasons.append(ImportanceReason(
-                article_id=article.id,
-                keyword_id=keyword.id,
-                similarity_score=similarity,
-                contribution=contribution
-            ))
+            # 理由を記録
+            reasons.append({
+                'PK': f"ARTICLE#{article['article_id']}",
+                'SK': f"REASON#{keyword['keyword_id']}",
+                'EntityType': 'ImportanceReason',
+                'article_id': article['article_id'],
+                'keyword_id': keyword['keyword_id'],
+                'keyword_text': keyword['text'],
+                'similarity_score': similarity,
+                'contribution': contribution
+            })
         
         return total_score, reasons
+    
+    def recalculate_score(self, article_id: str) -> None:
+        """記事の重要度スコアを再計算"""
+        # 記事とキーワードを取得
+        article = self.article_service.get_article(article_id)
+        keywords = self.keyword_service.get_keywords()
+        
+        # スコアを再計算
+        score, reasons = self.calculate_score(article, keywords)
+        
+        # 記事を更新
+        self.article_service.update_article(
+            article_id,
+            importance_score=score
+        )
+        
+        # 既存の理由を削除
+        self.dynamodb_client.delete_reasons_for_article(article_id)
+        
+        # 新しい理由を保存
+        for reason in reasons:
+            self.dynamodb_client.put_item(reason)
 ```
+
+**コスト最適化**:
+1. **キャッシュの活用**: キーワードの埋め込みをメモリにキャッシュし、API呼び出しを削減
+2. **バッチ処理**: 複数記事を一度に処理する場合は、バッチAPIを検討
+3. **次元数の選択**: 1024次元を使用してコストと精度のバランスを取る
+4. **代替モデル**: コスト重視の場合はTitan Text Embeddings V2を使用
 
 ### AWS Lambda デプロイメント
 
 **Dockerfile**:
 ```dockerfile
-FROM public.ecr.aws/lambda/python:3.11
+FROM public.ecr.aws/lambda/python:3.14
 
-# AWS Lambda Web Adapter をインストール
-COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.8.1 /lambda-adapter /opt/extensions/lambda-adapter
+# AWS Lambda Web Adapter をインストール（最新版: v0.9.x）
+COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.9.0 /lambda-adapter /opt/extensions/lambda-adapter
 
 # 依存関係をインストール
 COPY requirements.txt .
@@ -774,6 +880,9 @@ CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "
 - `PORT=8080`
 - `DYNAMODB_TABLE_NAME=rss-reader`
 - `AWS_REGION=ap-northeast-1`
+- `BEDROCK_REGION=us-east-1`  # Bedrockが利用可能なリージョン
+- `BEDROCK_MODEL_ID=amazon.nova-2-multimodal-embeddings-v1:0`
+- `EMBEDDING_DIMENSION=1024`
 
 ### DynamoDB設定
 
@@ -960,12 +1069,13 @@ export function ArticleTable({ articles }: { articles: Article[] }) {
 
 ### セマンティック検索の最適化
 
-1. **埋め込みのキャッシュ**: キーワードの埋め込みをメモリにキャッシュ
-2. **バッチ処理**: 複数記事の埋め込みを一度に生成
-3. **軽量モデル**: MiniLMモデルを使用して高速化
+1. **埋め込みのキャッシュ**: キーワードの埋め込みをメモリにキャッシュしてAPI呼び出しを削減
+2. **次元数の選択**: 1024次元を使用してコストと精度のバランスを取る
+3. **エラーハンドリング**: Bedrock APIエラー時はゼロベクトルを返してシステムを継続
+4. **代替モデル**: コスト重視の場合はTitan Text Embeddings V2を使用
 
 ### Lambda コールドスタート対策
 
 1. **プロビジョニング済み同時実行**: 必要に応じて設定
-2. **モデルの遅延ロード**: 初回リクエスト時にモデルをロード
-3. **依存関係の最小化**: 必要なライブラリのみをインストール
+2. **依存関係の最小化**: 必要なライブラリのみをインストール
+3. **Bedrockクライアントの再利用**: Lambda関数の外でクライアントを初期化
