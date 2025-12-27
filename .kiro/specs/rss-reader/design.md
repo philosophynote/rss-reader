@@ -55,7 +55,7 @@
    - RSSフィード取得ジョブ
    - 古い記事削除ジョブ
 
-3. **フロントエンド（React + TypeScript）**
+3. **フロントエンド（React + TypeScript + Chakra UI）**
    - フィード管理画面
    - 記事一覧画面（時系列・重要度順）
    - キーワード管理画面
@@ -867,15 +867,18 @@ FROM public.ecr.aws/lambda/python:3.14
 # AWS Lambda Web Adapter をインストール（最新版: v0.9.x）
 COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.9.0 /lambda-adapter /opt/extensions/lambda-adapter
 
+# uvをインストール
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
+
 # 依存関係をインストール
-COPY requirements.txt .
-RUN pip install -r requirements.txt
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-cache
 
 # アプリケーションコードをコピー
 COPY app/ /var/task/app/
 
 # FastAPI を起動
-CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
 ```
 
 **環境変数**:
@@ -1080,6 +1083,107 @@ export function ArticleTable({ articles }: { articles: Article[] }) {
   });
   
   // テーブルのレンダリング
+}
+```
+
+### Chakra UI の使用
+
+```typescript
+import { 
+  Box, 
+  Button, 
+  Table, 
+  Thead, 
+  Tbody, 
+  Tr, 
+  Th, 
+  Td,
+  Badge,
+  VStack,
+  HStack,
+  Text,
+  Input,
+  FormControl,
+  FormLabel,
+  Select,
+  Card,
+  CardHeader,
+  CardBody,
+  Heading,
+  Divider,
+  IconButton,
+  useToast
+} from '@chakra-ui/react';
+import { AddIcon, DeleteIcon, EditIcon } from '@chakra-ui/icons';
+
+export function ArticleList() {
+  const toast = useToast();
+  
+  return (
+    <Box p={6}>
+      <VStack spacing={4} align="stretch">
+        <HStack justify="space-between">
+          <Heading size="lg">記事一覧</Heading>
+          <HStack>
+            <Select placeholder="フィルタ">
+              <option value="unread">未読</option>
+              <option value="read">既読</option>
+              <option value="saved">保存済み</option>
+            </Select>
+            <Select placeholder="ソート">
+              <option value="published_at">時系列順</option>
+              <option value="importance_score">重要度順</option>
+            </Select>
+          </HStack>
+        </HStack>
+        
+        <Card>
+          <CardBody>
+            <Table variant="simple">
+              <Thead>
+                <Tr>
+                  <Th>タイトル</Th>
+                  <Th>フィード</Th>
+                  <Th>公開日時</Th>
+                  <Th>重要度</Th>
+                  <Th>状態</Th>
+                  <Th>操作</Th>
+                </Tr>
+              </Thead>
+              <Tbody>
+                {/* 記事データをマップ */}
+              </Tbody>
+            </Table>
+          </CardBody>
+        </Card>
+      </VStack>
+    </Box>
+  );
+}
+
+export function FeedForm() {
+  return (
+    <Card>
+      <CardHeader>
+        <Heading size="md">新しいフィードを追加</Heading>
+      </CardHeader>
+      <CardBody>
+        <VStack spacing={4}>
+          <FormControl>
+            <FormLabel>フィードURL</FormLabel>
+            <Input placeholder="https://example.com/feed.xml" />
+          </FormControl>
+          <FormControl>
+            <FormLabel>フォルダ</FormLabel>
+            <Input placeholder="テクノロジー" />
+          </FormControl>
+          <Button colorScheme="blue" leftIcon={<AddIcon />}>
+            フィードを追加
+          </Button>
+        </VStack>
+      </CardBody>
+    </Card>
+  );
 }
 ```
 

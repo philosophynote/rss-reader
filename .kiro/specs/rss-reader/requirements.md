@@ -106,7 +106,8 @@
 3. THE System SHALL Lambda関数URLを通じてアクセスできる
 4. THE System SHALL EventBridgeを使用して定期的なフィード取得を実行する
 5. THE System SHALL DynamoDBを使用してデータを永続化する
-6. THE System SHALL TypeScriptとReactを使用してフロントエンドを実装する
+5. THE System SHALL TypeScriptとReactを使用してフロントエンドを実装する
+6. THE System SHALL Chakra UIを使用してUIコンポーネントを実装する
 7. THE System SHALL TanStack QueryとTanStack Tableを使用してデータ管理とテーブル表示を行う
 
 ### 要件9: 単一ユーザー運用
