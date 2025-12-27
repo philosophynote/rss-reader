@@ -132,3 +132,5 @@ infrastructure/*.d.ts
 *.ntvs*
 *.njsproj
 *.sln
+
+*.d.ts

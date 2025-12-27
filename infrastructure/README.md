@@ -32,6 +32,22 @@ npm run bootstrap
 
 ## デプロイ
 
+### 環境別デプロイ
+
+```bash
+# 開発環境
+./scripts/deploy.sh development
+# または
+npm run deploy:dev
+
+# 本番環境
+./scripts/deploy.sh production
+# または
+npm run deploy:prod
+```
+
+### 手動デプロイ
+
 ```bash
 # 変更内容を確認
 npm run diff
@@ -43,6 +59,20 @@ npm run deploy
 npm run destroy
 ```
 
+### 環境別削除
+
+```bash
+# 開発環境
+./scripts/destroy.sh development
+# または
+npm run destroy:dev
+
+# 本番環境
+./scripts/destroy.sh production
+# または
+npm run destroy:prod
+```
+
 ## 開発
 
 ```bash
@@ -52,6 +82,10 @@ npm run watch
 # CloudFormationテンプレートを生成
 npm run synth
 
+# 環境別テンプレート生成
+npm run synth:dev
+npm run synth:prod
+
 # テストを実行
 npm run test
 ```
@@ -59,23 +93,64 @@ npm run test
 ## スタック構成
 
 - **RssReaderStack**: メインスタック
-  - DynamoDB テーブル
-  - Lambda 関数（API + フィード取得）
-  - EventBridge ルール
+  - DynamoDB テーブル（シングルテーブル設計、GSI1-5、TTL設定）
+  - Lambda 関数（API + フィード取得、Docker Image Function）
+  - EventBridge ルール（フィード取得、記事削除）
   - S3 バケット（フロントエンド）
   - CloudFront ディストリビューション
-  - IAM ロール・ポリシー
+  - IAM ロール・ポリシー（DynamoDB、Bedrock権限）
 
-## 環境変数
+## 環境設定
+
+### 環境変数
 
 - `CDK_DEFAULT_ACCOUNT`: AWSアカウントID
 - `CDK_DEFAULT_REGION`: AWSリージョン（デフォルト: ap-northeast-1）
-- `ENVIRONMENT`: 環境名（dev/prod）
+- `ENVIRONMENT`: 環境名（development/production）
+- `RSS_READER_API_KEY`: API認証キー（本番環境では必須）
+- `CORS_ORIGINS`: CORS許可オリジン
+
+### 環境別設定
+
+- **開発環境**: `RssReaderStack-Dev`
+- **本番環境**: `RssReaderStack-Prod`
 
 ## 出力
 
 デプロイ後、以下の情報が出力されます：
 
-- Lambda Function URL
-- CloudFront Distribution URL
-- DynamoDB Table Name
+- `ApiUrl`: Lambda Function URL
+- `FrontendUrl`: CloudFront Distribution URL
+- `TableName`: DynamoDB Table Name
+- `FeedFetchRuleName`: EventBridge Rule Name (Feed Fetching)
+- `CleanupRuleName`: EventBridge Rule Name (Article Cleanup)
+- `FrontendBucketName`: S3 Bucket Name
+- `DistributionId`: CloudFront Distribution ID
+
+## トラブルシューティング
+
+### よくある問題
+
+1. **Bootstrap エラー**
+   ```bash
+   # CDKをブートストラップ
+   npm run bootstrap:dev
+   ```
+
+2. **権限エラー**
+   - AWS CLIの認証情報を確認
+   - IAMユーザーに適切な権限があることを確認
+
+3. **リージョンエラー**
+   - `CDK_DEFAULT_REGION`環境変数を設定
+   - Bedrockが利用可能なリージョンを使用
+
+### ログ確認
+
+```bash
+# CloudFormationスタックの状態を確認
+aws cloudformation describe-stacks --stack-name RssReaderStack-Dev
+
+# Lambda関数のログを確認
+aws logs describe-log-groups --log-group-name-prefix /aws/lambda/rss-reader-api
+```
