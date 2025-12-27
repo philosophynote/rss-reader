@@ -165,3 +165,22 @@
 3. THE System SHALL IAMロールと権限をCDKで適切に設定する
 4. THE System SHALL 環境ごと（開発、本番）にスタックを分離できる
 5. THE System SHALL CDKを使用してリソースのデプロイと削除を自動化する
+
+### 要件13: CI/CD パイプライン
+
+**ユーザーストーリー:** 開発者として、コードの品質を保証し、自動的にデプロイメントを行いたい。これにより、開発効率を向上させ、本番環境への安全なリリースを実現できる。
+
+#### 受入基準
+
+1. THE System SHALL GitHub Actionsを使用して継続的インテグレーション（CI）を実行する
+2. WHEN コードがプッシュまたはプルリクエストが作成された場合 THEN THE System SHALL 自動的にリンティング、型チェック、テストを実行する
+3. WHEN テストが失敗した場合 THEN THE System SHALL デプロイメントを停止し、開発者に通知する
+4. THE System SHALL ユニットテストとプロパティベーステストの両方を実行する
+5. THE System SHALL テストカバレッジを測定し、80%以上を維持する
+6. WHEN mainブランチにコードがマージされた場合 THEN THE System SHALL 自動的に本番環境にデプロイする
+7. THE System SHALL バックエンド、フロントエンド、インフラストラクチャを独立してデプロイできる
+8. THE System SHALL デプロイメント前に統合テストを実行する
+9. THE System SHALL デプロイメント後にヘルスチェックを実行する
+10. IF デプロイメントが失敗した場合 THEN THE System SHALL 開発者に通知し、ロールバック手順を提供する
+11. THE System SHALL セキュリティスキャンを実行し、脆弱性を検出する
+12. THE System SHALL デプロイメント状況をSlackまたは他の通知システムに送信する

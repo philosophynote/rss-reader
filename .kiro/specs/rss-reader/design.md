@@ -560,6 +560,30 @@ BatchWriteItem: 削除対象の記事を一括削除
 
 **検証: 要件 11.4**
 
+### プロパティ27: CI/CDパイプラインの品質ゲート
+
+*任意の*コード変更に対して、テストが失敗した場合、デプロイメントは実行されない
+
+**検証: 要件 13.3**
+
+### プロパティ28: 自動デプロイメントの実行
+
+*任意の*mainブランチへのマージに対して、すべてのテストが成功した場合、自動的に本番環境へのデプロイメントが実行される
+
+**検証: 要件 13.6**
+
+### プロパティ29: テストカバレッジの維持
+
+*任意の*コードベースに対して、テストカバレッジは80%以上を維持する
+
+**検証: 要件 13.5**
+
+### プロパティ30: デプロイメント失敗時の通知
+
+*任意の*デプロイメント失敗に対して、開発者への通知が送信される
+
+**検証: 要件 13.10**
+
 ## エラーハンドリング
 
 ### エラーの種類
@@ -1371,6 +1395,480 @@ export function FeedForm() {
     </Card>
   );
 }
+```
+
+## CI/CD パイプライン
+
+### GitHub Actions による自動化
+
+本システムでは、GitHub Actionsを使用してCI/CDパイプラインを構築し、コードの品質保証と自動デプロイメントを実現します。
+
+#### ワークフロー構成
+
+```
+.github/workflows/
+├── ci.yml              # 継続的インテグレーション
+├── deploy-backend.yml  # バックエンドデプロイメント
+├── deploy-frontend.yml # フロントエンドデプロイメント
+└── deploy-infra.yml    # インフラストラクチャデプロイメント
+```
+
+#### CI ワークフロー (ci.yml)
+
+```yaml
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+      
+      - name: Set up Python
+        run: uv python install 3.14
+      
+      - name: Install dependencies
+        run: |
+          cd backend
+          uv sync
+      
+      - name: Run linting
+        run: |
+          cd backend
+          uv run ruff check .
+          uv run ruff format --check .
+      
+      - name: Run type checking
+        run: |
+          cd backend
+          uv run mypy app/
+      
+      - name: Run unit tests
+        run: |
+          cd backend
+          uv run pytest tests/unit/ -v --cov=app --cov-report=xml
+      
+      - name: Run property-based tests
+        run: |
+          cd backend
+          uv run pytest tests/property/ -v --tb=short
+      
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./backend/coverage.xml
+
+  test-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm ci
+      
+      - name: Run linting
+        run: |
+          cd frontend
+          npm run lint
+      
+      - name: Run type checking
+        run: |
+          cd frontend
+          npm run type-check
+      
+      - name: Run unit tests
+        run: |
+          cd frontend
+          npm run test:coverage
+      
+      - name: Build application
+        run: |
+          cd frontend
+          npm run build
+
+  test-infrastructure:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: infrastructure/package-lock.json
+      
+      - name: Install dependencies
+        run: |
+          cd infrastructure
+          npm ci
+      
+      - name: Run CDK synth
+        run: |
+          cd infrastructure
+          npm run synth
+      
+      - name: Run CDK diff
+        run: |
+          cd infrastructure
+          npm run diff
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ap-northeast-1
+```
+
+#### バックエンドデプロイメント (deploy-backend.yml)
+
+```yaml
+name: Deploy Backend
+
+on:
+  push:
+    branches: [ main ]
+    paths: [ 'backend/**' ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-1
+      
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      
+      - name: Build and push Docker image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: rss-reader-backend
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          cd backend
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+      
+      - name: Update Lambda function
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: rss-reader-backend
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          aws lambda update-function-code \
+            --function-name rss-reader-api \
+            --image-uri $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          
+          aws lambda wait function-updated \
+            --function-name rss-reader-api
+      
+      - name: Run integration tests
+        run: |
+          cd backend
+          npm install -g newman
+          newman run tests/integration/api-tests.postman_collection.json \
+            --environment tests/integration/production.postman_environment.json
+```
+
+#### フロントエンドデプロイメント (deploy-frontend.yml)
+
+```yaml
+name: Deploy Frontend
+
+on:
+  push:
+    branches: [ main ]
+    paths: [ 'frontend/**' ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm ci
+      
+      - name: Build application
+        run: |
+          cd frontend
+          npm run build
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-1
+      
+      - name: Deploy to S3
+        run: |
+          cd frontend
+          aws s3 sync dist/ s3://${{ secrets.S3_BUCKET_NAME }}/ --delete
+      
+      - name: Invalidate CloudFront
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --paths "/*"
+```
+
+#### インフラストラクチャデプロイメント (deploy-infra.yml)
+
+```yaml
+name: Deploy Infrastructure
+
+on:
+  push:
+    branches: [ main ]
+    paths: [ 'infrastructure/**' ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: infrastructure/package-lock.json
+      
+      - name: Install dependencies
+        run: |
+          cd infrastructure
+          npm ci
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-1
+      
+      - name: CDK Bootstrap (if needed)
+        run: |
+          cd infrastructure
+          npx cdk bootstrap
+      
+      - name: CDK Deploy
+        run: |
+          cd infrastructure
+          npx cdk deploy --all --require-approval never
+```
+
+### デプロイメント戦略
+
+#### 環境構成
+
+1. **開発環境 (develop ブランチ)**
+   - 自動デプロイメント
+   - 開発者向けテスト環境
+   - AWS アカウント: 開発用
+
+2. **本番環境 (main ブランチ)**
+   - 手動承認が必要
+   - GitHub Environments を使用した保護
+   - AWS アカウント: 本番用
+
+#### ブランチ戦略
+
+```
+main (本番)
+├── develop (開発)
+├── feature/xxx (機能開発)
+└── hotfix/xxx (緊急修正)
+```
+
+**フロー**:
+1. `feature/xxx` → `develop` (PR + レビュー)
+2. `develop` → `main` (PR + レビュー + 承認)
+3. `main` → 本番デプロイメント
+
+#### セキュリティ設定
+
+**GitHub Secrets**:
+```
+AWS_ACCESS_KEY_ID          # AWS アクセスキー
+AWS_SECRET_ACCESS_KEY      # AWS シークレットキー
+S3_BUCKET_NAME            # S3 バケット名
+CLOUDFRONT_DISTRIBUTION_ID # CloudFront ディストリビューション ID
+VITE_API_URL              # フロントエンド用 API URL
+```
+
+**IAM ポリシー** (GitHub Actions 用):
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "lambda:UpdateFunctionCode",
+        "lambda:GetFunction",
+        "lambda:WaitUntilFunctionUpdated",
+        "ecr:GetAuthorizationToken",
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:BatchGetImage",
+        "ecr:PutImage",
+        "ecr:InitiateLayerUpload",
+        "ecr:UploadLayerPart",
+        "ecr:CompleteLayerUpload",
+        "s3:PutObject",
+        "s3:PutObjectAcl",
+        "s3:GetObject",
+        "s3:DeleteObject",
+        "s3:ListBucket",
+        "cloudfront:CreateInvalidation",
+        "cloudformation:*",
+        "iam:PassRole"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+```
+
+### 品質ゲート
+
+#### 必須チェック項目
+
+1. **コード品質**
+   - Linting (ruff, ESLint)
+   - フォーマット (ruff format, Prettier)
+   - 型チェック (mypy, TypeScript)
+
+2. **テスト**
+   - ユニットテスト (pytest, Jest)
+   - プロパティベーステスト (hypothesis)
+   - カバレッジ 80% 以上
+
+3. **セキュリティ**
+   - 依存関係の脆弱性チェック (npm audit, safety)
+   - シークレットスキャン (GitGuardian)
+
+4. **パフォーマンス**
+   - バンドルサイズチェック
+   - Lighthouse スコア
+
+#### 自動化されたテスト
+
+**統合テスト**:
+- Postman/Newman を使用した API テスト
+- DynamoDB Local を使用したデータベーステスト
+
+**E2E テスト**:
+- Playwright を使用したブラウザテスト
+- 主要なユーザーフローの自動テスト
+
+### モニタリングとアラート
+
+#### CloudWatch 統合
+
+```yaml
+# .github/workflows/monitoring.yml
+name: Deploy Monitoring
+
+on:
+  push:
+    branches: [ main ]
+    paths: [ 'monitoring/**' ]
+
+jobs:
+  deploy-dashboards:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy CloudWatch Dashboard
+        run: |
+          aws cloudwatch put-dashboard \
+            --dashboard-name "RSS-Reader-Production" \
+            --dashboard-body file://monitoring/dashboard.json
+      
+      - name: Create CloudWatch Alarms
+        run: |
+          aws cloudwatch put-metric-alarm \
+            --alarm-name "RSS-Reader-Lambda-Errors" \
+            --alarm-description "Lambda function errors" \
+            --metric-name Errors \
+            --namespace AWS/Lambda \
+            --statistic Sum \
+            --period 300 \
+            --threshold 5 \
+            --comparison-operator GreaterThanThreshold \
+            --evaluation-periods 2
+```
+
+#### デプロイメント通知
+
+```yaml
+- name: Notify deployment success
+  if: success()
+  uses: 8398a7/action-slack@v3
+  with:
+    status: success
+    text: "🚀 RSS Reader deployment successful!"
+  env:
+    SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+- name: Notify deployment failure
+  if: failure()
+  uses: 8398a7/action-slack@v3
+  with:
+    status: failure
+    text: "❌ RSS Reader deployment failed!"
+  env:
+    SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 ```
 
 ## パフォーマンス考慮事項
