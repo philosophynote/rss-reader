@@ -82,8 +82,13 @@ DynamoDBのシングルテーブル設計を採用します。
 - ソートキー (SK): `string`
 
 **グローバルセカンダリインデックス (GSI)**:
-- GSI1: `GSI1PK` (パーティションキー), `GSI1SK` (ソートキー)
-- GSI2: `GSI2PK` (パーティションキー), `GSI2SK` (ソートキー)
+- GSI1: `GSI1PK` (パーティションキー), `GSI1SK` (ソートキー) - 時系列順ソート用
+- GSI2: `GSI2PK` (パーティションキー), `GSI2SK` (ソートキー) - 重要度順ソート用
+- GSI3: `GSI3PK` (パーティションキー), `GSI3SK` (ソートキー) - 作成日時順ソート用（削除クエリ用）
+- GSI4: `GSI4PK` (パーティションキー), `GSI4SK` (ソートキー) - 既読記事削除用
+
+**TTL設定**:
+- `ttl` 属性を使用してアイテムの自動削除を設定
 
 #### エンティティ設計
 
@@ -124,10 +129,15 @@ DynamoDBのシングルテーブル設計を採用します。
     "is_saved": false,
     "importance_score": 0.85,
     "read_at": null,
+    "ttl": 1704758700,  # Unix timestamp for automatic deletion (7 days from created_at)
     "GSI1PK": "ARTICLE",
     "GSI1SK": "2024-01-01T10:00:00Z",  # published_at for time-based sorting
     "GSI2PK": "ARTICLE",
-    "GSI2SK": "999999.150000"  # 逆順ソート用: (1000000 - score * 1000000) をゼロパディング
+    "GSI2SK": "150000.000000",  # 逆順ソート用: (1000000 - score * 1000000) をゼロパディング
+    "GSI3PK": "ARTICLE",
+    "GSI3SK": "2024-01-01T10:05:00Z",  # created_at for deletion queries
+    "GSI4PK": "ARTICLE_READ",  # 既読記事削除用（is_readがtrueの場合のみ設定）
+    "GSI4SK": "true#2024-01-01T12:00:00Z"  # "is_read#read_at" format（is_readがtrueの場合のみ設定）
 }
 ```
 
@@ -358,18 +368,31 @@ SK = "METADATA"
 
 #### 4. 記事削除
 
-**古い記事の削除**:
+**古い記事の削除（効率的なクエリ使用）**:
 ```python
-# Scan with FilterExpression
-FilterExpression: created_at < (now - 7 days)
-BatchWriteItem: 削除対象の記事を一括削除
+# Query GSI3 for articles older than 7 days
+GSI3PK = "ARTICLE"
+GSI3SK < (now - 7 days)  # 例: "2024-01-01T10:05:00Z"
+Limit = 100  # バッチサイズ
+# BatchWriteItem: 削除対象の記事を一括削除
 ```
 
-**既読記事の削除**:
+**既読記事の削除（GSI4を使用）**:
 ```python
-# Scan with FilterExpression
-FilterExpression: is_read = true AND read_at < (now - 1 day)
-BatchWriteItem: 削除対象の記事を一括削除
+# 既読記事用の複合ソートキーを使用
+# GSI4: 既読状態と読了日時の複合キー
+GSI4PK = "ARTICLE_READ"
+GSI4SK < f"true#{(now - 1 day)}"  # 例: "true#2024-01-01T10:05:00Z"
+Limit = 100
+# BatchWriteItem: 削除対象の記事を一括削除
+```
+
+**TTL（Time To Live）による自動削除**:
+```python
+# 記事作成時にTTLを設定（推奨）
+ttl_timestamp = int((datetime.now() + timedelta(days=7)).timestamp())
+article_data["ttl"] = ttl_timestamp
+# DynamoDBが自動的に期限切れアイテムを削除（24-48時間以内）
 ```
 
 ### データフロー
@@ -399,42 +422,155 @@ BatchWriteItem: 削除対象の記事を一括削除
    → delete_articles_by_age() + delete_read_articles() → DynamoDB
    ```
 
-### 重要度スコアのソートキー生成
-
-DynamoDBでは数値の降順ソートを実現するため、以下の方法でGSI2SKを生成します：
+### 効率的な記事削除の実装
 
 ```python
-def generate_importance_sort_key(importance_score: float) -> str:
-    """
-    重要度スコア（0.0-1.0）を降順ソート用の文字列キーに変換
+import boto3
+from datetime import datetime, timedelta
+from typing import List, Dict
+import logging
+
+logger = logging.getLogger(__name__)
+
+class CleanupService:
+    def __init__(self, table_name: str):
+        self.dynamodb = boto3.resource('dynamodb')
+        self.table = self.dynamodb.Table(table_name)
     
-    Args:
-        importance_score: 0.0-1.0の重要度スコア
+    def cleanup_old_articles(self, days: int = 7) -> Dict[str, int]:
+        """
+        古い記事を効率的に削除（GSI3を使用したクエリ）
+        
+        Args:
+            days: 削除対象の日数（デフォルト: 7日）
+        
+        Returns:
+            削除結果の統計
+        """
+        cutoff_date = (datetime.now() - timedelta(days=days)).isoformat() + "Z"
+        deleted_count = 0
+        
+        try:
+            # GSI3を使用して効率的にクエリ
+            response = self.table.query(
+                IndexName='GSI3',
+                KeyConditionExpression='GSI3PK = :pk AND GSI3SK < :cutoff',
+                ExpressionAttributeValues={
+                    ':pk': 'ARTICLE',
+                    ':cutoff': cutoff_date
+                },
+                Limit=100  # バッチサイズ
+            )
+            
+            # バッチ削除
+            if response['Items']:
+                with self.table.batch_writer() as batch:
+                    for item in response['Items']:
+                        batch.delete_item(
+                            Key={
+                                'PK': item['PK'],
+                                'SK': item['SK']
+                            }
+                        )
+                        deleted_count += 1
+                
+                logger.info(f"Deleted {deleted_count} old articles")
+            
+            return {
+                'deleted_articles': deleted_count,
+                'cutoff_date': cutoff_date
+            }
+            
+        except Exception as e:
+            logger.error(f"Error deleting old articles: {e}")
+            raise
     
-    Returns:
-        ゼロパディングされた逆順ソートキー
+    def cleanup_read_articles(self, hours: int = 24) -> Dict[str, int]:
+        """
+        既読記事を効率的に削除（GSI4を使用したクエリ）
+        
+        Args:
+            hours: 既読後の削除対象時間（デフォルト: 24時間）
+        
+        Returns:
+            削除結果の統計
+        """
+        cutoff_datetime = (datetime.now() - timedelta(hours=hours)).isoformat() + "Z"
+        deleted_count = 0
+        
+        try:
+            # GSI4を使用して既読記事を効率的にクエリ
+            response = self.table.query(
+                IndexName='GSI4',
+                KeyConditionExpression='GSI4PK = :pk AND GSI4SK < :cutoff',
+                ExpressionAttributeValues={
+                    ':pk': 'ARTICLE_READ',
+                    ':cutoff': f'true#{cutoff_datetime}'
+                },
+                Limit=100  # バッチサイズ
+            )
+            
+            # バッチ削除
+            if response['Items']:
+                with self.table.batch_writer() as batch:
+                    for item in response['Items']:
+                        batch.delete_item(
+                            Key={
+                                'PK': item['PK'],
+                                'SK': item['SK']
+                            }
+                        )
+                        deleted_count += 1
+                
+                logger.info(f"Deleted {deleted_count} read articles")
+            
+            return {
+                'deleted_read_articles': deleted_count,
+                'cutoff_datetime': cutoff_datetime
+            }
+            
+        except Exception as e:
+            logger.error(f"Error deleting read articles: {e}")
+            raise
     
-    Examples:
-        0.95 → "050000.000000" (高スコア = 小さい値)
-        0.85 → "150000.000000"
-        0.10 → "900000.000000" (低スコア = 大きい値)
-    """
-    # 逆順にするため (1.0 - score) を計算し、1,000,000倍してゼロパディング
-    inverted_score = 1.0 - importance_score
-    scaled_score = int(inverted_score * 1000000)
-    return f"{scaled_score:06d}.000000"
+    def set_article_ttl(self, article_data: Dict, days: int = 7) -> Dict:
+        """
+        記事にTTLを設定（作成時に呼び出し）
+        
+        Args:
+            article_data: 記事データ
+            days: TTL日数（デフォルト: 7日）
+        
+        Returns:
+            TTLが設定された記事データ
+        """
+        ttl_timestamp = int((datetime.now() + timedelta(days=days)).timestamp())
+        article_data['ttl'] = ttl_timestamp
+        return article_data
 
 # 使用例
-article_data = {
-    "importance_score": 0.85,
-    "GSI2SK": generate_importance_sort_key(0.85)  # "150000.000000"
-}
+cleanup_service = CleanupService('rss-reader')
+
+# 古い記事を削除（効率的なクエリ使用）
+result = cleanup_service.cleanup_old_articles(days=7)
+print(f"Deleted {result['deleted_articles']} articles")
+
+# 既読記事を削除（効率的なクエリ使用）
+result = cleanup_service.cleanup_read_articles(hours=24)
+print(f"Deleted {result['deleted_read_articles']} read articles")
 ```
 
-**ソート動作の説明**:
-- 高い重要度スコア（0.95）→ 小さいソートキー（"050000.000000"）
-- 低い重要度スコア（0.10）→ 大きいソートキー（"900000.000000"）
-- DynamoDBの昇順ソート（ScanIndexForward=True）で高スコア順に取得可能
+### TTL vs 手動削除の比較
+
+| 方式 | メリット | デメリット | 推奨用途 |
+|------|----------|------------|----------|
+| **TTL自動削除** | - コスト効率的<br>- 運用不要<br>- 正確な削除 | - 削除タイミングが不正確（24-48時間の遅延）<br>- 削除通知なし | 基本的な記事削除 |
+| **GSI3/4クエリ削除** | - 即座に削除<br>- 削除統計取得可能<br>- 柔軟な条件設定 | - Lambda実行コスト<br>- 実装が必要 | 即座の削除が必要な場合 |
+
+**推奨アプローチ**:
+1. **基本削除**: TTLを使用（7日後自動削除）
+2. **即座削除**: 手動削除ジョブでGSI3/4クエリを使用
+3. **ハイブリッド**: TTL + 定期的なクリーンアップジョブ
 
 ## 正確性プロパティ
 
@@ -840,6 +976,23 @@ export class RssReaderStack extends cdk.Stack {
       partitionKey: { name: 'GSI2PK', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'GSI2SK', type: dynamodb.AttributeType.STRING },
     });
+
+    // GSI3: 作成日時順ソート用（効率的な削除クエリ用）
+    table.addGlobalSecondaryIndex({
+      indexName: 'GSI3',
+      partitionKey: { name: 'GSI3PK', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'GSI3SK', type: dynamodb.AttributeType.STRING },
+    });
+
+    // GSI4: 既読記事削除用
+    table.addGlobalSecondaryIndex({
+      indexName: 'GSI4',
+      partitionKey: { name: 'GSI4PK', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'GSI4SK', type: dynamodb.AttributeType.STRING },
+    });
+
+    // TTL設定（自動削除用）
+    table.addTimeToLiveAttribute('ttl');
 
     // Lambda 関数（Python + FastAPI）
     const apiFunction = new lambda.DockerImageFunction(this, 'ApiFunction', {
