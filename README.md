@@ -1,40 +1,107 @@
-RSS Reader (Feedly-like, RSS-only) — Request
-What I want
+# RSS Reader
 
-RSSに限定したFeedly風RSSリーダーを作りたい。
-複数RSSを定期取得して保存し、未読/既読・保存（後で読む）で管理できること。
-さらに、ユーザーが登録したキーワードとの関連性に基づいて記事の重要度をスコア化し、重要度順にランキング表示したい。重要度には「どのキーワードがどのように寄与したか」の説明を付けたい。
+Feedly風のRSSリーダーアプリケーション
 
-Must have
+## 概要
 
-複数RSSフィード登録（フォルダ分類できると嬉しい）
+このプロジェクトは、複数のRSSフィードを管理し、記事を取得・保存・閲覧できるRSSリーダーです。セマンティック検索を用いて記事の重要度をスコア化し、ユーザーにとって重要な記事を優先的に表示します。
 
-定期取得（失敗しても安全にリトライできる）
+## 技術スタック
 
-重複保存しない（link等で冪等）
+### バックエンド
+- Python 3.11+ / FastAPI
+- AWS Lambda Web Adapter
+- DynamoDB
+- AWS Bedrock (セマンティック検索)
 
-記事一覧：時系列 / 重要度順
+### フロントエンド
+- React 18 / TypeScript
+- Chakra UI
+- TanStack Query / TanStack Table
+- React Router
 
-未読/既読、保存/解除
+### インフラストラクチャ
+- AWS CDK (TypeScript)
+- AWS Lambda
+- EventBridge
+- S3 + CloudFront
 
-キーワード登録/無効化（重み付けは任意）
+## プロジェクト構造
 
-重要度スコアと理由（reasons）を保持・表示
+```
+rss-reader/
+├── backend/                 # Python (FastAPI + Lambda)
+│   ├── app/                # アプリケーションコード
+│   ├── tests/              # テスト
+│   ├── pyproject.toml      # Python依存関係
+│   └── Dockerfile          # Lambda コンテナ
+├── frontend/               # TypeScript (React + Chakra UI)
+│   ├── src/                # ソースコード
+│   ├── package.json        # Node.js依存関係
+│   └── vite.config.ts      # Vite設定
+├── infrastructure/         # TypeScript (AWS CDK)
+│   ├── lib/                # CDKスタック定義
+│   ├── bin/                # CDKアプリケーション
+│   └── package.json        # CDK依存関係
+└── README.md
+```
 
-Must NOT
+## 開発環境のセットアップ
 
-非RSS対応（スクレイピング/RSS Builder不要）
+### 前提条件
 
-認証/マルチユーザー（当面単一ユーザー）
+- Python 3.11以上
+- Node.js 18以上
+- AWS CLI設定済み
+- uv (Python パッケージマネージャー)
 
-常時起動のサーバ（サーバレス優先）
+### バックエンド
 
-Tech constraints
+```bash
+cd backend
+uv sync --dev
+uv run uvicorn app.main:app --reload
+```
 
-Backend: Python + FastAPI + SQLModel
+### フロントエンド
 
-Deploy: AWS Lambda Web Adapter（コンテナ）+ API Gateway（HTTP API）+ EventBridge（定期実行）
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-Frontend: TypeScript + React（TanStack Query / TanStack Table中心）
+### インフラストラクチャ
 
-Goal: AWS寄せ & 低ランニングコスト
+```bash
+cd infrastructure
+npm install
+npm run build
+npm run deploy
+```
+
+## 機能
+
+- [x] プロジェクト構造のセットアップ
+- [ ] RSSフィード管理
+- [ ] 記事の定期取得
+- [ ] 記事の一覧表示（時系列・重要度順）
+- [ ] 未読/既読管理
+- [ ] 記事の保存機能
+- [ ] キーワード管理
+- [ ] 重要度スコアリング（セマンティック検索）
+- [ ] 記事の自動削除
+- [ ] API認証
+- [ ] CI/CDパイプライン
+
+## ライセンス
+
+MIT License
+
+## 開発者向け情報
+
+詳細な開発情報は各ディレクトリのREADME.mdを参照してください：
+
+- [バックエンド](./backend/README.md)
+- [フロントエンド](./frontend/README.md)
+- [インフラストラクチャ](./infrastructure/README.md)
