@@ -31,7 +31,7 @@ This is a Feedly-style RSS reader application with semantic search-based article
 
 ### Frontend
 - **Language:** TypeScript
-- **Framework:** React 19+
+- **Framework:** React 19.2.3
 - **Data Fetching:** TanStack Query
 - **Tables:** TanStack Table
 - **UI Components:** Chakra UI
@@ -56,7 +56,7 @@ This is a Feedly-style RSS reader application with semantic search-based article
 │   ├── ts_coding_conventions.md
 │   └── react_coding_conventions.md
 ├── backend/                   # (To be created) Python + FastAPI
-├── frontend/                  # (To be created) React + TypeScript
+├── frontend/                  # React 19 + TypeScript
 ├── infrastructure/            # (To be created) AWS CDK
 └── AGENTS.md                  # AI agent instructions
 ```
@@ -77,7 +77,7 @@ When writing code in this repository, **always** reference the relevant conventi
   - Discriminated unions for state machines
 
 - **React:** `docs/react_coding_conventions.md`
-  - React 19+ functional components with hooks only
+  - React 19.2.3 functional components with hooks only
   - TypeScript for all components
   - React Query for server state
   - Chakra UI for styling
@@ -127,7 +127,7 @@ This project follows Kiro-style spec-driven development using custom slash comma
 - Edge cases: empty inputs, invalid types, boundary values
 
 ### TypeScript/React
-- **Unit tests** using Jest
+- **Unit tests** using Vitest
 - **Component tests** using React Testing Library
 - Test behavior, not implementation details
 - Mock external APIs appropriately

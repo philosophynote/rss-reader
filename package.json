@@ -1,0 +1,41 @@
+{
+  "name": "rss-reader",
+  "version": "1.0.0",
+  "description": "Feedly風のRSSリーダーアプリケーション",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "infrastructure"
+  ],
+  "scripts": {
+    "dev:backend": "cd backend && uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:infrastructure": "cd infrastructure && npm run watch",
+    "build:backend": "cd backend && uv sync",
+    "build:frontend": "cd frontend && npm run build",
+    "build:infrastructure": "cd infrastructure && npm run build",
+    "test:backend": "cd backend && uv run pytest",
+    "test:frontend": "cd frontend && npm run test",
+    "test:infrastructure": "cd infrastructure && npm run test",
+    "lint:backend": "cd backend && uv run black app/ tests/ && uv run isort app/ tests/ && uv run flake8 app/ tests/ && uv run mypy app/",
+    "lint:frontend": "cd frontend && npm run lint",
+    "deploy:infrastructure": "cd infrastructure && npm run deploy",
+    "destroy:infrastructure": "cd infrastructure && npm run destroy",
+    "install:all": "cd backend && uv sync && cd ../frontend && npm install && cd ../infrastructure && npm install"
+  },
+  "keywords": [
+    "rss",
+    "reader",
+    "fastapi",
+    "react",
+    "aws",
+    "cdk",
+    "dynamodb",
+    "lambda"
+  ],
+  "author": "RSS Reader Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

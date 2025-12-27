@@ -2,11 +2,11 @@
 
 ## 概要
 
-本実装計画では、Feedly風RSSリーダーを段階的に構築します。バックエンド（Python + FastAPI + DynamoDB）、フロントエンド（React + TypeScript）、AWS Bedrockを使用したセマンティック検索を実装します。
+本実装計画では、Feedly風RSSリーダーを段階的に構築します。バックエンド（Python + FastAPI + DynamoDB）、フロントエンド（React 19 + TypeScript）、AWS Bedrockを使用したセマンティック検索を実装します。
 
 ## タスク
 
-- [ ] 1. プロジェクト構造とインフラストラクチャのセットアップ
+- [x] 1. プロジェクト構造とインフラストラクチャのセットアップ
   - バックエンド、フロントエンド、インフラストラクチャのディレクトリ構造を作成
   - 必要な依存関係をインストール（pyproject.toml、package.json）
   - AWS CDKプロジェクトを初期化
