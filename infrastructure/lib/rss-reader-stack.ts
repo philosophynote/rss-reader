@@ -135,16 +135,16 @@ export class RssReaderStack extends cdk.Stack {
     }));
 
     // Lambda 関数 URL（環境別認証設定）
-    const corsOrigins = process.env.CORS_ORIGINS?.split(',').filter(Boolean) || (environment === 'production' 
-      ? [`https://${this.distribution.distributionDomainName}`] // 本番環境ではCloudFrontドメインのみ
-      : ['http://localhost:3000', 'http://localhost:5173']);
+    // 初期設定では開発環境のオリジンのみ設定（本番環境では後でCloudFrontドメインを追加）
+    const initialCorsOrigins = process.env.CORS_ORIGINS?.split(',').filter(Boolean) || 
+      ['http://localhost:3000', 'http://localhost:5173'];
     
     const functionUrl = this.apiFunction.addFunctionUrl({
       authType: environment === 'production' 
         ? lambda.FunctionUrlAuthType.AWS_IAM // 本番環境ではIAM認証
         : lambda.FunctionUrlAuthType.NONE,   // 開発環境ではAPI Key認証のみ
       cors: {
-        allowedOrigins: corsOrigins,
+        allowedOrigins: initialCorsOrigins,
         allowedMethods: [lambda.HttpMethod.ALL],
         allowedHeaders: ['*'],
         allowCredentials: true,
@@ -154,7 +154,7 @@ export class RssReaderStack extends cdk.Stack {
 
     // EventBridge ルール: フィード取得（1時間ごと）
     const fetchRule = new events.Rule(this, 'FeedFetchRule', {
-      ruleName: 'rss-reader-feed-fetch',
+      ruleName: `rss-reader-feed-fetch-${environment}`,
       description: 'Trigger RSS feed fetching every hour',
       schedule: events.Schedule.rate(cdk.Duration.hours(1)),
       targets: [new targets.LambdaFunction(this.apiFunction, {
@@ -166,7 +166,7 @@ export class RssReaderStack extends cdk.Stack {
 
     // EventBridge ルール: 記事削除（1日1回、深夜2時）
     const cleanupRule = new events.Rule(this, 'CleanupRule', {
-      ruleName: 'rss-reader-cleanup',
+      ruleName: `rss-reader-cleanup-${environment}`,
       description: 'Trigger article cleanup daily at 2 AM JST',
       schedule: events.Schedule.cron({
         hour: '17',  // UTC時間（JST 2:00 AM = UTC 17:00）
@@ -223,6 +223,19 @@ export class RssReaderStack extends cdk.Stack {
     // 本番環境でCloudFrontドメインをLambda環境変数に追加
     if (environment === 'production') {
       this.apiFunction.addEnvironment('CLOUDFRONT_DOMAIN', this.distribution.distributionDomainName);
+      
+      // 本番環境でのCORS設定更新（CloudFrontドメインを追加）
+      const cfnFunctionUrl = functionUrl.node.defaultChild as lambda.CfnUrl;
+      const productionCorsOrigins = process.env.CORS_ORIGINS?.split(',').filter(Boolean) || 
+        [`https://${this.distribution.distributionDomainName}`];
+      
+      cfnFunctionUrl.cors = {
+        allowCredentials: true,
+        allowHeaders: ['*'],
+        allowMethods: ['*'],
+        allowOrigins: productionCorsOrigins,
+        maxAge: 3600,
+      };
     }
     new cdk.CfnOutput(this, 'TableName', {
       value: this.table.tableName,
