@@ -4,7 +4,7 @@ Feedly風RSSリーダーのフロントエンド
 
 ## 技術スタック
 
-- React 18
+- React 19
 - TypeScript
 - Chakra UI
 - TanStack Query (React Query)

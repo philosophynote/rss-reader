@@ -15,7 +15,7 @@ Feedly風のRSSリーダーアプリケーション
 - AWS Bedrock (セマンティック検索)
 
 ### フロントエンド
-- React 18 / TypeScript
+- React 19 / TypeScript
 - Chakra UI
 - TanStack Query / TanStack Table
 - React Router
