@@ -111,15 +111,19 @@
 8. THE System SHALL Chakra UIを使用してUIコンポーネントを実装する
 9. THE System SHALL TanStack QueryとTanStack Tableを使用してデータ管理とテーブル表示を行う
 
-### 要件9: 単一ユーザー運用
+### 要件9: セキュリティとアクセス制御
 
-**ユーザーストーリー:** システム管理者として、シンプルな単一ユーザー運用を行いたい。これにより、認証機能の複雑さを避けられる。
+**ユーザーストーリー:** システム管理者として、単一ユーザー向けの適切なセキュリティ対策を実装したい。これにより、不正アクセスを防ぎながらシンプルな運用を維持できる。
 
 #### 受入基準
 
-1. THE System SHALL 単一ユーザーのみをサポートする
-2. THE System SHALL ユーザー認証機能を実装しない
-3. THE System SHALL マルチユーザー機能を実装しない
+1. THE System SHALL API Key認証を使用してAPIアクセスを制御する
+2. THE System SHALL 認証失敗時に適切なエラーレスポンスを返す
+3. THE System SHALL レート制限を実装して過度なリクエストを防ぐ
+4. THE System SHALL 特定のオリジンからのアクセスのみを許可するCORS設定を実装する
+5. THE System SHALL セキュリティヘッダーを設定してセキュリティを強化する
+6. THE System SHALL 機密情報をログから除外する
+7. THE System SHALL セキュリティアラートと監視を設定する
 
 ### 要件10: RSS専用
 
