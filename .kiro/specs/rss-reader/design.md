@@ -14,8 +14,9 @@
 ┌─────────────────┐
 │   Frontend      │
 │  (React + TS)   │
+│  S3 + CloudFront│
 └────────┬────────┘
-         │ HTTP
+         │ HTTPS
          ↓
 ┌─────────────────┐
 │  Lambda Function│
@@ -27,7 +28,8 @@
 │   DynamoDB      │
 │   (NoSQL DB)    │
 └─────────────────┘
-
+         ↑
+         │
 ┌─────────────────┐
 │  EventBridge    │
 │  (Scheduler)    │
@@ -57,6 +59,7 @@
    - フィード管理画面
    - 記事一覧画面（時系列・重要度順）
    - キーワード管理画面
+   - S3 + CloudFrontでホスティング
 
 4. **データベース（DynamoDB）**
    - フィード情報
@@ -983,6 +986,28 @@ class DynamoDBClient:
 ```
 
 ## フロントエンド設計
+
+### デプロイメント
+
+**ホスティング**: Amazon S3 + CloudFront
+
+**構成**:
+- S3バケット: 静的ファイル（HTML、CSS、JS）を格納
+- CloudFront: グローバルCDNでコンテンツを配信
+- HTTPS: CloudFrontでSSL/TLS証明書を設定
+
+**メリット**:
+- 低コスト: 月額$1未満で運用可能（低トラフィック時）
+- 高可用性: AWSのグローバルインフラを活用
+- スケーラビリティ: トラフィック増加に自動対応
+- セキュリティ: CloudFrontでHTTPS通信を強制
+
+**デプロイフロー**:
+```
+1. npm run build → ビルド成果物を生成
+2. aws s3 sync dist/ s3://bucket-name/ → S3にアップロード
+3. aws cloudfront create-invalidation → キャッシュを無効化
+```
 
 ### コンポーネント構成
 
