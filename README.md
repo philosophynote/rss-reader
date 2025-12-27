@@ -28,7 +28,7 @@ Feedly風のRSSリーダーアプリケーション
 
 ## プロジェクト構造
 
-```
+```plaintext
 rss-reader/
 ├── backend/                 # Python (FastAPI + Lambda)
 │   ├── app/                # アプリケーションコード
@@ -100,8 +100,16 @@ MIT License
 
 ## 開発者向け情報
 
-詳細な開発情報は各ディレクトリのREADME.mdを参照してください：
+詳細な開発情報は各ディレクトリのREADME.mdを参照してください。
 
-- [バックエンド](./backend/README.md)
-- [フロントエンド](./frontend/README.md)
-- [インフラストラクチャ](./infrastructure/README.md)
+### バックエンド
+
+[バックエンド](./backend/README.md) - FastAPIとLambdaの開発手順
+
+### フロントエンド
+
+[フロントエンド](./frontend/README.md) - ViteとReactの開発手順
+
+### インフラストラクチャ
+
+[インフラストラクチャ](./infrastructure/README.md) - CDKの構築とデプロイ手順
