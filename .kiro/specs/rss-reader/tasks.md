@@ -2,7 +2,7 @@
 
 ## 概要
 
-本実装計画では、Feedly風RSSリーダーを段階的に構築します。バックエンド（Python + FastAPI + DynamoDB）、フロントエンド（React + TypeScript）、AWS Bedrockを使用したセマンティック検索を実装します。
+本実装計画では、Feedly風RSSリーダーを段階的に構築します。バックエンド（Python + FastAPI + DynamoDB）、フロントエンド（React 19 + TypeScript）、AWS Bedrockを使用したセマンティック検索を実装します。
 
 ## タスク
 

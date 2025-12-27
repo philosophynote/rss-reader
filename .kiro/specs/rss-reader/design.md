@@ -13,7 +13,7 @@
 ```
 ┌─────────────────┐
 │   Frontend      │
-│  (React + TS)   │
+│ (React 19 + TS) │
 │  S3 + CloudFront│
 └────────┬────────┘
          │ HTTPS
@@ -55,7 +55,7 @@
    - RSSフィード取得ジョブ
    - 古い記事削除ジョブ
 
-3. **フロントエンド（React + TypeScript + Chakra UI）**
+3. **フロントエンド（React 19 + TypeScript + Chakra UI）**
    - フィード管理画面
    - 記事一覧画面（時系列・重要度順）
    - キーワード管理画面
@@ -1103,9 +1103,9 @@ rss-reader/
 │   ├── pyproject.toml      # uv 依存関係管理
 │   ├── uv.lock            # 依存関係ロックファイル
 │   └── Dockerfile          # Lambda コンテナ
-├── frontend/               # TypeScript (React + Chakra UI)
+├── frontend/               # TypeScript (React 19 + Chakra UI)
 │   ├── src/
-│   │   ├── components/     # React コンポーネント
+│   │   ├── components/     # React 19 コンポーネント
 │   │   ├── hooks/          # TanStack Query フック
 │   │   ├── api/           # API クライアント
 │   │   └── theme/         # Chakra UI テーマ

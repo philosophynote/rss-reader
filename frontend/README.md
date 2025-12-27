@@ -4,12 +4,12 @@ Feedly風RSSリーダーのフロントエンド
 
 ## 技術スタック
 
-- React 19
-- TypeScript
+- React 19.2.3 (最新安定版)
+- TypeScript 5.9.3
 - Chakra UI
-- TanStack Query (React Query)
-- TanStack Table
-- React Router
+- TanStack Query (React Query) 5.90.12
+- TanStack Table 8.21.3
+- React Router 7.11.0
 - Vite
 
 ## 開発環境のセットアップ
