@@ -131,18 +131,6 @@
 2. THE System SHALL Webスクレイピング機能を実装しない
 3. THE System SHALL RSS Builder機能を実装しない
 
-### 要件12: インフラストラクチャ管理
-
-**ユーザーストーリー:** システム管理者として、インフラストラクチャをコードで管理したい。これにより、環境の再現性と保守性を確保できる。
-
-#### 受入基準
-
-1. THE System SHALL AWS CDK（TypeScript）を使用してすべてのAWSリソースを定義する
-2. THE System SHALL DynamoDBテーブル、Lambda関数、EventBridgeルール、S3バケット、CloudFrontディストリビューションをCDKで管理する
-3. THE System SHALL IAMロールと権限をCDKで適切に設定する
-4. THE System SHALL 環境ごと（開発、本番）にスタックを分離できる
-5. THE System SHALL CDKを使用してリソースのデプロイと削除を自動化する
-
 ### 要件11: 記事の自動削除
 
 **ユーザーストーリー:** システム管理者として、データベースの容量を削減するために古い記事を自動削除したい。これにより、ストレージコストを最小限に抑えられる。
