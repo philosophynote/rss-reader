@@ -938,6 +938,9 @@ import json
 from typing import List, Tuple, Dict
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
+import logging
+
+logger = logging.getLogger(__name__)
 
 class ImportanceScoreService:
     def __init__(self, region_name: str = "us-east-1"):
@@ -951,7 +954,11 @@ class ImportanceScoreService:
         self.keyword_embeddings_cache = {}
     
     def invoke_bedrock_embeddings(self, text: str, dimension: int = 1024) -> List[float]:
-        """AWS Bedrockを使用してテキストの埋め込みを生成"""
+        """AWS Bedrockを使用してテキストの埋め込みを生成
+        
+        公式ドキュメント準拠のAPIフォーマット:
+        https://docs.aws.amazon.com/nova/latest/userguide/embeddings-schema.html
+        """
         request_body = {
             "taskType": "SINGLE_EMBEDDING",
             "singleEmbeddingParams": {
@@ -973,6 +980,7 @@ class ImportanceScoreService:
             )
             
             response_body = json.loads(response.get("body").read())
+            # レスポンス形式: {"embeddings": [{"embeddingType": "TEXT", "embedding": [...]}]}
             embedding = response_body["embeddings"][0]["embedding"]
             return embedding
             
@@ -1060,6 +1068,52 @@ class ImportanceScoreService:
         # 新しい理由を保存
         for reason in reasons:
             self.dynamodb_client.put_item(reason)
+
+# 使用例とテスト用のサンプルコード
+def test_bedrock_embeddings():
+    """Bedrock Embeddings APIのテスト用サンプル"""
+    import boto3
+    import json
+    
+    # Bedrockクライアントを作成
+    bedrock_runtime = boto3.client(
+        service_name="bedrock-runtime",
+        region_name="us-east-1"
+    )
+    
+    # リクエストボディ（公式ドキュメント準拠）
+    request_body = {
+        "taskType": "SINGLE_EMBEDDING",
+        "singleEmbeddingParams": {
+            "embeddingPurpose": "GENERIC_INDEX",
+            "embeddingDimension": 1024,
+            "text": {
+                "truncationMode": "END",
+                "value": "Hello, World!"
+            }
+        }
+    }
+    
+    try:
+        # Nova Embeddings モデルを呼び出し
+        response = bedrock_runtime.invoke_model(
+            body=json.dumps(request_body),
+            modelId="amazon.nova-2-multimodal-embeddings-v1:0",
+            accept="application/json",
+            contentType="application/json"
+        )
+        
+        # レスポンスを解析
+        response_body = json.loads(response.get("body").read())
+        print("Request ID:", response.get("ResponseMetadata").get("RequestId"))
+        print("Embedding dimension:", len(response_body["embeddings"][0]["embedding"]))
+        print("Embedding type:", response_body["embeddings"][0]["embeddingType"])
+        
+        return response_body["embeddings"][0]["embedding"]
+        
+    except Exception as e:
+        print(f"Error: {e}")
+        return None
 ```
 
 **コスト最適化**:
@@ -1067,6 +1121,33 @@ class ImportanceScoreService:
 2. **バッチ処理**: 複数記事を一度に処理する場合は、バッチAPIを検討
 3. **次元数の選択**: 1024次元を使用してコストと精度のバランスを取る
 4. **代替モデル**: コスト重視の場合はTitan Text Embeddings V2を使用
+
+**実装前の検証手順**:
+1. **APIフォーマット確認**: 
+   - AWS Bedrockの公式ドキュメントで最新のAPIフォーマットを確認
+   - 上記のtest_bedrock_embeddings()関数を使用してAPIの動作を検証
+2. **boto3バージョン確認**: 
+   - boto3の最新バージョン（1.35.0以降推奨）を使用
+   - Nova Multimodal Embeddingsがサポートされていることを確認
+3. **リージョン確認**: 
+   - Nova Multimodal Embeddingsが利用可能なリージョン（us-east-1等）を使用
+4. **権限確認**: 
+   - IAMロールにbedrock:InvokeModel権限が付与されていることを確認
+5. **レスポンス構造確認**: 
+   - 実際のレスポンス形式が期待通りであることを確認
+   - エラーハンドリングの動作を検証
+
+**利用可能な埋め込み次元**:
+- 256: 最小サイズ、低コスト
+- 384: バランス型
+- 1024: 推奨サイズ（コストと精度のバランス）
+- 3072: 最高精度、高コスト
+
+**埋め込み目的の選択**:
+- `GENERIC_INDEX`: インデックス作成時（記事とキーワードの埋め込み生成）
+- `TEXT_RETRIEVAL`: テキスト検索時（類似記事検索）
+- `CLASSIFICATION`: 分類タスク
+- `CLUSTERING`: クラスタリングタスク
 
 ### AWS Lambda デプロイメント
 
