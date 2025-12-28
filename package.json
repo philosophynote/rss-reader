@@ -19,6 +19,7 @@
     "test:infrastructure": "cd infrastructure && npm run test",
     "lint:backend": "cd backend && uv run black app/ tests/ && uv run isort app/ tests/ && uv run flake8 app/ tests/ && uv run mypy app/",
     "lint:frontend": "cd frontend && npm run lint",
+    "lint:infrastructure": "cd infrastructure && npm run lint",
     "deploy:infrastructure": "cd infrastructure && npm run deploy",
     "destroy:infrastructure": "cd infrastructure && npm run destroy",
     "install:all": "cd backend && uv sync && cd ../frontend && npm install && cd ../infrastructure && npm install"
