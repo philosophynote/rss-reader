@@ -11,6 +11,8 @@ from typing import List
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api import feeds_router
+
 app = FastAPI(
     title="RSS Reader API",
     description="Feedly風RSSリーダーのバックエンドAPI",
@@ -45,6 +47,8 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
     allow_headers=["Content-Type", "Authorization"],
 )
+
+app.include_router(feeds_router)
 
 
 @app.get("/")

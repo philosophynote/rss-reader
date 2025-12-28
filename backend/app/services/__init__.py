@@ -1,1 +1,5 @@
-# サービス層パッケージ
+"""サービス層パッケージ"""
+
+from .feed_service import FeedService
+
+__all__ = ["FeedService"]
