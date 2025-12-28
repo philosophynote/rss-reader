@@ -188,8 +188,8 @@ class TestArticleModel:
         assert article.generate_gsi2_pk() == "ARTICLE"
         gsi2_sk = article.generate_gsi2_sk()
         assert isinstance(gsi2_sk, str)
-        # 0.85のスコアは逆順で150000.000000になる
-        assert gsi2_sk == "150000.000000"
+        # 0.85のスコアは逆順で0150000.000000になる
+        assert gsi2_sk == "0150000.000000"
         
         # GSI3（削除クエリ用）
         assert article.generate_gsi3_pk() == "ARTICLE"
@@ -204,9 +204,9 @@ class TestArticleModel:
         """GSI2SKゼロパディング処理のテスト（数値ソートの正確性検証）"""
         test_cases = [
             (0.0, "1000000.000000"),
-            (0.5, "500000.000000"),
-            (0.85, "150000.000000"),
-            (1.0, "000000.000000"),
+            (0.5, "0500000.000000"),
+            (0.85, "0150000.000000"),
+            (1.0, "0000000.000000"),
         ]
         
         for score, expected_key in test_cases:

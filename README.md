@@ -9,7 +9,7 @@ Feedly風のRSSリーダーアプリケーション
 ## 技術スタック
 
 ### バックエンド
-- Python 3.11+ / FastAPI
+- Python 3.14+ / FastAPI
 - AWS Lambda Web Adapter
 - DynamoDB
 - AWS Bedrock (セマンティック検索)
@@ -50,7 +50,7 @@ rss-reader/
 
 ### 前提条件
 
-- Python 3.11以上
+- Python 3.14以上
 - Node.js 18以上
 - AWS CLI設定済み
 - uv (Python パッケージマネージャー)
