@@ -6,6 +6,7 @@
 
 from typing import Dict
 from pydantic import Field, field_validator
+from uuid import uuid4
 from .base import BaseModel
 
 
@@ -20,10 +21,36 @@ class Keyword(BaseModel):
         is_active: キーワードが有効かどうか
     """
     
-    keyword_id: str = Field(default_factory=lambda: BaseModel().generate_id())
+    keyword_id: str = Field(default_factory=lambda: str(uuid4()))
     text: str
     weight: float = 1.0
     is_active: bool = True
+    
+    @staticmethod
+    def _normalize_text(text: str) -> str:
+        """
+        テキストの正規化処理
+        
+        Args:
+            text: 正規化するテキスト
+            
+        Returns:
+            str: 正規化されたテキスト
+        """
+        if not text or not text.strip():
+            raise ValueError("Text cannot be empty")
+        
+        # 前後の空白を除去
+        text = text.strip()
+        
+        # 改行文字を除去
+        text = text.replace('\n', ' ').replace('\r', ' ')
+        
+        # 連続する空白を単一の空白に変換
+        import re
+        text = re.sub(r'\s+', ' ', text)
+        
+        return text
     
     @field_validator('text')
     @classmethod
@@ -37,24 +64,14 @@ class Keyword(BaseModel):
         Returns:
             str: バリデーション済みキーワードテキスト
         """
-        if not v or not v.strip():
-            raise ValueError("Keyword text cannot be empty")
-        
-        # 前後の空白を除去
-        v = v.strip()
+        # 共通の正規化処理を使用
+        text = cls._normalize_text(v)
         
         # 長さ制限（100文字以内）
-        if len(v) > 100:
+        if len(text) > 100:
             raise ValueError("Keyword text must be 100 characters or less")
         
-        # 改行文字を除去
-        v = v.replace('\n', ' ').replace('\r', ' ')
-        
-        # 連続する空白を単一の空白に変換
-        import re
-        v = re.sub(r'\s+', ' ', v)
-        
-        return v
+        return text
     
     @field_validator('weight')
     @classmethod
@@ -171,6 +188,6 @@ class Keyword(BaseModel):
         Args:
             new_text: 新しいキーワードテキスト
         """
-        # バリデーションは@validatorで自動実行される
+        # 共通の正規化処理を使用（バリデーションは@field_validatorで自動実行される）
         self.text = new_text
         self.update_timestamp()

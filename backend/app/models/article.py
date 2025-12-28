@@ -7,6 +7,7 @@ RSSフィードから取得した記事の情報を管理するデータモデ�
 from datetime import datetime
 from typing import Optional, Dict
 from pydantic import Field, HttpUrl, field_validator
+from uuid import uuid4
 from .base import BaseModel
 
 
@@ -28,7 +29,7 @@ class Article(BaseModel):
         ttl: TTL（自動削除用のUnix timestamp）
     """
     
-    article_id: str = Field(default_factory=lambda: BaseModel().generate_id())
+    article_id: str = Field(default_factory=lambda: str(uuid4()))
     feed_id: str
     link: HttpUrl
     title: str

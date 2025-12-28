@@ -7,7 +7,7 @@ DynamoDBクライアントのユニットテスト
 
 import pytest
 from datetime import datetime, timedelta
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, patch
 from botocore.exceptions import ClientError
 
 from app.utils.dynamodb_client import DynamoDBClient
@@ -19,7 +19,7 @@ class TestDynamoDBClient:
     @pytest.fixture
     def mock_table(self):
         """モックテーブルのフィクスチャ"""
-        mock_table = Mock()
+        mock_table = MagicMock()
         mock_table.table_name = "test-table"
         return mock_table
     
@@ -27,7 +27,7 @@ class TestDynamoDBClient:
     def client(self, mock_table):
         """DynamoDBクライアントのフィクスチャ"""
         with patch('app.utils.dynamodb_client.boto3.resource') as mock_resource:
-            mock_dynamodb = Mock()
+            mock_dynamodb = MagicMock()
             mock_dynamodb.Table.return_value = mock_table
             mock_resource.return_value = mock_dynamodb
             
@@ -38,8 +38,8 @@ class TestDynamoDBClient:
     def test_client_initialization(self):
         """クライアント初期化のテスト"""
         with patch('app.utils.dynamodb_client.boto3.resource') as mock_resource:
-            mock_dynamodb = Mock()
-            mock_table = Mock()
+            mock_dynamodb = MagicMock()
+            mock_table = MagicMock()
             mock_table.table_name = "test-table"
             mock_dynamodb.Table.return_value = mock_table
             mock_resource.return_value = mock_dynamodb
@@ -47,24 +47,25 @@ class TestDynamoDBClient:
             client = DynamoDBClient("test-table")
             
             assert client.table_name == "test-table"
-            mock_resource.assert_called_once_with('dynamodb')
+            mock_resource.assert_called_once_with('dynamodb', region_name='us-east-1')
             mock_dynamodb.Table.assert_called_once_with("test-table")
     
     def test_client_initialization_with_env_var(self):
         """環境変数からのクライアント初期化テスト"""
-        with patch('app.utils.dynamodb_client.os.getenv') as mock_getenv, \
+        with patch('app.utils.dynamodb_client.settings') as mock_settings, \
              patch('app.utils.dynamodb_client.boto3.resource') as mock_resource:
             
-            mock_getenv.return_value = "env-table"
-            mock_dynamodb = Mock()
-            mock_table = Mock()
+            mock_settings.get_table_name.return_value = "env-table"
+            mock_settings.get_region.return_value = "us-west-2"
+            mock_dynamodb = MagicMock()
+            mock_table = MagicMock()
             mock_dynamodb.Table.return_value = mock_table
             mock_resource.return_value = mock_dynamodb
             
             client = DynamoDBClient()
             
             assert client.table_name == "env-table"
-            mock_getenv.assert_called_once_with('DYNAMODB_TABLE_NAME', 'rss-reader')
+            mock_resource.assert_called_once_with('dynamodb', region_name='us-west-2')
     
     def test_put_item_success(self, client, mock_table):
         """アイテム保存の成功テスト"""
@@ -445,8 +446,8 @@ class TestDynamoDBClientErrorHandling:
     def client_with_error_table(self):
         """エラーを発生させるテーブルを持つクライアント"""
         with patch('app.utils.dynamodb_client.boto3.resource') as mock_resource:
-            mock_dynamodb = Mock()
-            mock_table = Mock()
+            mock_dynamodb = MagicMock()
+            mock_table = MagicMock()
             mock_dynamodb.Table.return_value = mock_table
             mock_resource.return_value = mock_dynamodb
             

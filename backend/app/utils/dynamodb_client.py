@@ -5,13 +5,14 @@ DynamoDBとの通信を担当するクライアントクラス。
 シングルテーブル設計に対応した効率的なクエリメソッドを提供します。
 """
 
-import os
 import logging
-from typing import Dict, List, Optional, Tuple, Any
-from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Tuple
+from datetime import datetime
 import boto3
 from botocore.exceptions import ClientError
 from boto3.dynamodb.conditions import Key, Attr
+
+from ..config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -29,12 +30,12 @@ class DynamoDBClient:
         DynamoDBクライアントを初期化
         
         Args:
-            table_name: テーブル名（環境変数から取得可能）
+            table_name: テーブル名（Noneの場合は設定から取得）
         """
-        self.table_name = table_name or os.getenv('DYNAMODB_TABLE_NAME', 'rss-reader')
+        self.table_name = table_name or settings.get_table_name()
         
         # DynamoDBリソースを初期化
-        self.dynamodb = boto3.resource('dynamodb')
+        self.dynamodb = boto3.resource('dynamodb', region_name=settings.get_region())
         self.table = self.dynamodb.Table(self.table_name)
         
         logger.info(f"DynamoDBClient initialized with table: {self.table_name}")
@@ -51,7 +52,8 @@ class DynamoDBClient:
         """
         try:
             self.table.put_item(Item=item)
-            logger.debug(f"Item saved: PK={item.get('PK')}, SK={item.get('SK')}")
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug(f"Item saved: PK={item.get('PK')}, SK={item.get('SK')}")
         except ClientError as e:
             logger.error(f"Failed to put item: {e}")
             raise
@@ -75,9 +77,11 @@ class DynamoDBClient:
             item = response.get('Item')
             
             if item:
-                logger.debug(f"Item retrieved: PK={pk}, SK={sk}")
+                if logger.isEnabledFor(logging.DEBUG):
+                    logger.debug(f"Item retrieved: PK={pk}, SK={sk}")
             else:
-                logger.debug(f"Item not found: PK={pk}, SK={sk}")
+                if logger.isEnabledFor(logging.DEBUG):
+                    logger.debug(f"Item not found: PK={pk}, SK={sk}")
             
             return item
         except ClientError as e:
@@ -136,7 +140,8 @@ class DynamoDBClient:
             items = response.get('Items', [])
             last_evaluated_key = response.get('LastEvaluatedKey')
             
-            logger.debug(f"Query returned {len(items)} items")
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug(f"Query returned {len(items)} items")
             
             return items, last_evaluated_key
         except ClientError as e:
@@ -156,14 +161,15 @@ class DynamoDBClient:
         """
         try:
             self.table.delete_item(Key={'PK': pk, 'SK': sk})
-            logger.debug(f"Item deleted: PK={pk}, SK={sk}")
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug(f"Item deleted: PK={pk}, SK={sk}")
         except ClientError as e:
             logger.error(f"Failed to delete item: {e}")
             raise
     
     def batch_write_item(self, items: List[Dict], delete_keys: List[Dict] = None) -> None:
         """
-        バッチ書き込み操作
+        バッチ書き込み操作（リトライロジック付き）
         
         Args:
             items: 保存するアイテムのリスト
@@ -172,21 +178,44 @@ class DynamoDBClient:
         Raises:
             ClientError: DynamoDB操作エラー
         """
-        try:
-            with self.table.batch_writer() as batch:
-                # アイテムを保存
-                for item in items:
-                    batch.put_item(Item=item)
+        import time
+        import random
+        
+        max_retries = 3
+        base_delay = 0.1  # 100ms
+        
+        for attempt in range(max_retries + 1):
+            try:
+                with self.table.batch_writer() as batch:
+                    # アイテムを保存
+                    for item in items:
+                        batch.put_item(Item=item)
+                    
+                    # アイテムを削除
+                    if delete_keys:
+                        for key in delete_keys:
+                            batch.delete_item(Key=key)
                 
-                # アイテムを削除
-                if delete_keys:
-                    for key in delete_keys:
-                        batch.delete_item(Key=key)
-            
-            logger.debug(f"Batch write completed: {len(items)} puts, {len(delete_keys or [])} deletes")
-        except ClientError as e:
-            logger.error(f"Failed to batch write: {e}")
-            raise
+                if logger.isEnabledFor(logging.DEBUG):
+                    logger.debug(f"Batch write completed: {len(items)} puts, {len(delete_keys or [])} deletes")
+                return
+                
+            except ClientError as e:
+                error_code = e.response['Error']['Code']
+                
+                # リトライ可能なエラーかチェック
+                if error_code in ['ProvisionedThroughputExceededException', 'ThrottlingException']:
+                    if attempt < max_retries:
+                        # 指数バックオフ + ジッター
+                        delay = base_delay * (2 ** attempt) + random.uniform(0, 0.1)
+                        if logger.isEnabledFor(logging.DEBUG):
+                            logger.debug(f"Batch write throttled, retrying in {delay:.2f}s (attempt {attempt + 1}/{max_retries + 1})")
+                        time.sleep(delay)
+                        continue
+                
+                # リトライ不可能なエラーまたは最大リトライ回数に達した場合
+                logger.error(f"Failed to batch write after {attempt + 1} attempts: {e}")
+                raise
     
     # GSI1を使用したクエリメソッド（時系列順ソート用）
     
@@ -521,10 +550,12 @@ class DynamoDBClient:
             raise ValueError(f"Score must be between 0 and {max_score}")
         
         # スコアを100万倍して整数化し、100万から引く
-        reverse_score = 1000000 - int(score * 1000000)
+        SCORE_PRECISION = 1_000_000
+        score_scaled = int(score * SCORE_PRECISION)
+        reverse_score = SCORE_PRECISION - score_scaled
         
-        # ゼロパディングして文字列ソート可能な形式にする
-        return f"{reverse_score:06d}.{int((score * 1000000) % 1):06d}"
+        # 小数部分は常に000000（整数部分のみを使用）
+        return f"{reverse_score:06d}.000000"
     
     def health_check(self) -> bool:
         """

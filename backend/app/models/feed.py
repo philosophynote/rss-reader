@@ -7,6 +7,7 @@ RSSフィードの情報を管理するデータモデル。
 from datetime import datetime
 from typing import Optional, Dict
 from pydantic import Field, HttpUrl, field_validator
+from uuid import uuid4
 from .base import BaseModel
 
 
@@ -23,7 +24,7 @@ class Feed(BaseModel):
         is_active: フィードが有効かどうか
     """
     
-    feed_id: str = Field(default_factory=lambda: BaseModel().generate_id())
+    feed_id: str = Field(default_factory=lambda: str(uuid4()))
     url: HttpUrl
     title: str = ""
     folder: Optional[str] = None

@@ -75,11 +75,15 @@ class BaseModel(PydanticBaseModel):
         if score < 0 or score > max_score:
             raise ValueError(f"Score must be between 0 and {max_score}")
         
-        # スコアを100万倍して整数化し、100万から引く
-        reverse_score = 1000000 - int(score * 1000000)
+        # 精度を向上させるための定数
+        SCORE_PRECISION = 1_000_000
         
-        # ゼロパディングして文字列ソート可能な形式にする
-        return f"{reverse_score:06d}.{int((score * 1000000) % 1):06d}"
+        # スコアを100万倍して整数化し、100万から引く
+        score_scaled = int(score * SCORE_PRECISION)
+        reverse_score = SCORE_PRECISION - score_scaled
+        
+        # 小数部分は常に000000（整数部分のみを使用）
+        return f"{reverse_score:06d}.000000"
     
     def to_dynamodb_item(self) -> Dict:
         """
