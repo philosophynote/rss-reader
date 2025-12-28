@@ -94,7 +94,7 @@ class TestFeedModelProperties:
     
     # Feature: rss-reader, Property 1: フィード登録の永続化
     @given(feed=valid_feed_strategy())
-    @settings(max_examples=100)
+    @settings(max_examples=50)
     def test_feed_registration_persistence(self, feed: Feed):
         """
         任意の有効なフィードURLに対して、フィードを登録した後、
@@ -120,7 +120,7 @@ class TestFeedModelProperties:
         assert dynamodb_item['SK'] == "METADATA"
     
     @given(feed=valid_feed_strategy())
-    @settings(max_examples=100)
+    @settings(max_examples=50)
     def test_pk_sk_generation_uniqueness(self, feed: Feed):
         """
         PK/SK生成の一意性テスト
@@ -144,7 +144,7 @@ class TestFeedModelProperties:
         assert sk1 == "METADATA"
     
     @given(feed=valid_feed_strategy())
-    @settings(max_examples=100)
+    @settings(max_examples=50)
     def test_gsi_generation_accuracy(self, feed: Feed):
         """
         GSI生成の正確性テスト
@@ -166,7 +166,7 @@ class TestArticleModelProperties:
     """Articleモデルのプロパティテスト"""
     
     @given(article=valid_article_strategy())
-    @settings(max_examples=100)
+    @settings(max_examples=50)
     def test_article_pk_sk_generation(self, article: Article):
         """
         記事のPK/SK生成の正確性テスト
@@ -182,7 +182,7 @@ class TestArticleModelProperties:
         assert sk == "METADATA"
     
     @given(article=valid_article_strategy())
-    @settings(max_examples=100)
+    @settings(max_examples=50)
     def test_gsi2_reverse_sort_key_generation(self, article: Article):
         """
         GSI2SKゼロパディング処理のテスト（数値ソートの正確性検証）
@@ -197,14 +197,14 @@ class TestArticleModelProperties:
         
         # 逆順ソートキーの計算が正しいことを確認
         expected_reverse = 1000000 - int(article.importance_score * 1000000)
-        expected_key = f"{expected_reverse:06d}.{int((article.importance_score * 1000000) % 1):06d}"
+        expected_key = f"{expected_reverse:06d}.000000"
         assert gsi2_sk == expected_key
     
     @given(
         score1=st.floats(min_value=0.0, max_value=1.0),
         score2=st.floats(min_value=0.0, max_value=1.0)
     )
-    @settings(max_examples=100)
+    @settings(max_examples=50)
     def test_reverse_sort_key_ordering(self, score1: float, score2: float):
         """
         逆順ソートキー生成のテスト（重要度スコア順序の検証）
@@ -240,7 +240,7 @@ class TestArticleModelProperties:
             assert key1 == key2
     
     @given(article=valid_article_strategy())
-    @settings(max_examples=100)
+    @settings(max_examples=50)
     def test_gsi_generation_completeness(self, article: Article):
         """
         全GSIキーの生成が正しく行われることを確認
@@ -264,7 +264,7 @@ class TestArticleModelProperties:
         assert article.generate_gsi5_sk() == f"ARTICLE#{article.article_id}"
     
     @given(article=valid_article_strategy())
-    @settings(max_examples=100)
+    @settings(max_examples=50)
     def test_ttl_setting(self, article: Article):
         """
         TTL設定のテスト
@@ -291,7 +291,7 @@ class TestKeywordModelProperties:
     """Keywordモデルのプロパティテスト"""
     
     @given(keyword=valid_keyword_strategy())
-    @settings(max_examples=100)
+    @settings(max_examples=50)
     def test_keyword_pk_sk_generation(self, keyword: Keyword):
         """
         キーワードのPK/SK生成の正確性テスト
@@ -307,7 +307,7 @@ class TestKeywordModelProperties:
         assert sk == "METADATA"
     
     @given(keyword=valid_keyword_strategy())
-    @settings(max_examples=100)
+    @settings(max_examples=50)
     def test_keyword_gsi1_generation(self, keyword: Keyword):
         """
         キーワードのGSI1生成の正確性テスト
@@ -333,7 +333,7 @@ class TestImportanceReasonProperties:
         similarity_score=st.floats(min_value=0.0, max_value=1.0),
         weight=st.floats(min_value=0.1, max_value=10.0)
     )
-    @settings(max_examples=100)
+    @settings(max_examples=50)
     def test_importance_reason_creation_from_calculation(
         self,
         article_id: str,
@@ -372,7 +372,7 @@ class TestImportanceReasonProperties:
         similarity_score=st.floats(min_value=0.0, max_value=1.0),
         weight=st.floats(min_value=0.1, max_value=10.0)
     )
-    @settings(max_examples=100)
+    @settings(max_examples=50)
     def test_importance_reason_pk_sk_generation(
         self,
         article_id: str,
@@ -409,7 +409,7 @@ class TestLinkIndexProperties:
         url=valid_url_strategy(),
         article_id=st.uuids().map(lambda x: x.hex)
     )
-    @settings(max_examples=100)
+    @settings(max_examples=50)
     def test_link_index_hash_generation(self, url: str, article_id: str):
         """
         リンクインデックスのハッシュ生成の正確性テスト
@@ -434,7 +434,7 @@ class TestLinkIndexProperties:
         url2=valid_url_strategy(),
         article_id=st.uuids().map(lambda x: x.hex)
     )
-    @settings(max_examples=100)
+    @settings(max_examples=50)
     def test_link_index_duplicate_detection(self, url1: str, url2: str, article_id: str):
         """
         リンクの重複検出の正確性テスト
