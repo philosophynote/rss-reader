@@ -4,8 +4,9 @@
 フィードの登録、取得、更新、削除を担当します。
 """
 
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
+from app.config import settings
 from app.models.feed import Feed
 from app.utils.dynamodb_client import DynamoDBClient
 
@@ -130,11 +131,66 @@ class FeedService:
         if existing_feed is None:
             return False
 
+        self._delete_feed_related_data(feed_id)
         self.dynamodb_client.delete_item(
             pk=f"FEED#{feed_id}",
             sk="METADATA",
         )
         return True
+
+    def _delete_feed_related_data(
+        self,
+        feed_id: str,
+    ) -> Tuple[int, int]:
+        """
+        フィードに紐づく記事と重要度理由を削除
+
+        Args:
+            feed_id: フィードID
+
+        Returns:
+            Tuple[int, int]: (削除した記事数, 削除した理由数)
+        """
+        deleted_articles = 0
+        deleted_reasons = 0
+        delete_keys: List[dict] = []
+        last_evaluated_key = None
+
+        while True:
+            items, last_evaluated_key = self.dynamodb_client.query_articles_by_feed_id(
+                feed_id=feed_id,
+                exclusive_start_key=last_evaluated_key,
+            )
+
+            for item in items:
+                article_id = item.get("article_id")
+                if article_id:
+                    deleted_reasons += (
+                        self.dynamodb_client.delete_importance_reasons_for_article(
+                            article_id
+                        )
+                    )
+
+                delete_keys.append({"PK": item["PK"], "SK": item["SK"]})
+                if len(delete_keys) >= settings.BATCH_SIZE:
+                    self.dynamodb_client.batch_write_item(
+                        items=[],
+                        delete_keys=delete_keys,
+                    )
+                    deleted_articles += len(delete_keys)
+                    delete_keys = []
+
+            if not last_evaluated_key:
+                break
+
+        if delete_keys:
+            self.dynamodb_client.batch_write_item(
+                items=[],
+                delete_keys=delete_keys,
+            )
+            deleted_articles += len(delete_keys)
+
+        return deleted_articles, deleted_reasons
 
     def _convert_item_to_feed(self, item: dict) -> Feed:
         """
