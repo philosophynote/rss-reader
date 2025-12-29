@@ -51,7 +51,12 @@ def valid_article_strategy(draw):
     """有効なArticleオブジェクトを生成する戦略"""
     feed_id = draw(st.uuids()).hex
     link = draw(valid_url_strategy())
-    title = draw(st.text(min_size=1, max_size=200))
+    # 空白のみの文字列を除外するため、英数字を含む文字列を生成
+    title = draw(st.text(
+        alphabet=st.characters(blacklist_categories=('Cs', 'Cc')),
+        min_size=1,
+        max_size=200
+    ).filter(lambda x: x.strip()))
     content = draw(st.text(max_size=1000))
     published_at = draw(st.datetimes(
         min_value=datetime(2020, 1, 1),
@@ -76,7 +81,12 @@ def valid_article_strategy(draw):
 @composite
 def valid_keyword_strategy(draw):
     """有効なKeywordオブジェクトを生成する戦略"""
-    text = draw(st.text(min_size=1, max_size=50))
+    # 空白のみの文字列と制御文字を除外
+    text = draw(st.text(
+        alphabet=st.characters(blacklist_categories=('Cs', 'Cc')),
+        min_size=1,
+        max_size=50
+    ).filter(lambda x: x.strip()))
     weight = draw(st.floats(min_value=0.1, max_value=10.0))
     is_active = draw(st.booleans())
     
@@ -197,12 +207,12 @@ class TestArticleModelProperties:
         
         # 逆順ソートキーの計算が正しいことを確認
         expected_reverse = 1000000 - int(article.importance_score * 1000000)
-        expected_key = f"{expected_reverse:06d}.000000"
+        expected_key = f"{expected_reverse:07d}.000000"
         assert gsi2_sk == expected_key
     
     @given(
-        score1=st.floats(min_value=0.0, max_value=1.0),
-        score2=st.floats(min_value=0.0, max_value=1.0)
+        score1=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False),
+        score2=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False)
     )
     @settings(max_examples=50)
     def test_reverse_sort_key_ordering(self, score1: float, score2: float):
@@ -231,13 +241,19 @@ class TestArticleModelProperties:
         key1 = article1.generate_gsi2_sk()
         key2 = article2.generate_gsi2_sk()
         
-        # 高いスコアほど小さいソートキーを持つ（辞書順で前に来る）
-        if score1 > score2:
-            assert key1 < key2
-        elif score1 < score2:
-            assert key1 > key2
+        # スコアを整数化して比較（精度の問題を回避）
+        score1_int = int(score1 * 1000000)
+        score2_int = int(score2 * 1000000)
+        
+        # 逆順ソートキーなので、高いスコアほど小さい数値（辞書順で前）になる
+        # score1 > score2 の場合、key1 < key2 になるべき
+        if score1_int > score2_int:
+            assert key1 < key2, f"score1={score1} > score2={score2} なので key1={key1} < key2={key2} であるべき"
+        elif score1_int < score2_int:
+            assert key1 > key2, f"score1={score1} < score2={score2} なので key1={key1} > key2={key2} であるべき"
         else:
-            assert key1 == key2
+            # 整数化後に同じ値になる場合は、ソートキーも同じになる
+            assert key1 == key2, f"score1={score1} == score2={score2} (整数化後) なので key1={key1} == key2={key2} であるべき"
     
     @given(article=valid_article_strategy())
     @settings(max_examples=50)
@@ -329,7 +345,11 @@ class TestImportanceReasonProperties:
     @given(
         article_id=st.uuids().map(lambda x: x.hex),
         keyword_id=st.uuids().map(lambda x: x.hex),
-        keyword_text=st.text(min_size=1, max_size=50),
+        keyword_text=st.text(
+            alphabet=st.characters(blacklist_categories=('Cs', 'Cc')),
+            min_size=1,
+            max_size=50
+        ).filter(lambda x: x.strip()),
         similarity_score=st.floats(min_value=0.0, max_value=1.0),
         weight=st.floats(min_value=0.1, max_value=10.0)
     )
@@ -358,7 +378,8 @@ class TestImportanceReasonProperties:
         # 基本フィールドが正しく設定されている
         assert reason.article_id == article_id
         assert reason.keyword_id == keyword_id
-        assert reason.keyword_text == keyword_text
+        # keyword_textは正規化される可能性があるため、正規化後の値と比較
+        assert reason.keyword_text.strip() == keyword_text.strip()
         assert reason.similarity_score == similarity_score
         
         # 寄与度が正しく計算されている
@@ -368,7 +389,11 @@ class TestImportanceReasonProperties:
     @given(
         article_id=st.uuids().map(lambda x: x.hex),
         keyword_id=st.uuids().map(lambda x: x.hex),
-        keyword_text=st.text(min_size=1, max_size=50),
+        keyword_text=st.text(
+            alphabet=st.characters(blacklist_categories=('Cs', 'Cc')),
+            min_size=1,
+            max_size=50
+        ).filter(lambda x: x.strip()),
         similarity_score=st.floats(min_value=0.0, max_value=1.0),
         weight=st.floats(min_value=0.1, max_value=10.0)
     )

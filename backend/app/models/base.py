@@ -83,7 +83,8 @@ class BaseModel(PydanticBaseModel):
         reverse_score = SCORE_PRECISION - score_scaled
         
         # 小数部分は常に000000（整数部分のみを使用）
-        return f"{reverse_score:06d}.000000"
+        # 7桁のゼロパディング（0～1000000の範囲をカバー）
+        return f"{reverse_score:07d}.000000"
     
     def to_dynamodb_item(self) -> Dict:
         """

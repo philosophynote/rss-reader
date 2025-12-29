@@ -1,5 +1,5 @@
 # AWS Lambda Web Adapter用のDockerfile
-FROM public.ecr.aws/lambda/python:3.11
+FROM public.ecr.aws/lambda/python:3.14
 
 # AWS Lambda Web Adapterをインストール
 COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.7.2 /lambda-adapter /opt/extensions/lambda-adapter
