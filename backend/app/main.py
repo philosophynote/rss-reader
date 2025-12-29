@@ -11,7 +11,7 @@ from typing import List
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import feeds_router
+from app.api import articles_router, feeds_router
 
 app = FastAPI(
     title="RSS Reader API",
@@ -49,6 +49,7 @@ app.add_middleware(
 )
 
 app.include_router(feeds_router)
+app.include_router(articles_router)
 
 
 @app.get("/")

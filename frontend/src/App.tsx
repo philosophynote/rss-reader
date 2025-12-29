@@ -1,6 +1,7 @@
 import { Routes, Route } from 'react-router-dom'
 import { Box } from '@chakra-ui/react'
 import Layout from './components/Layout'
+import ArticleManagementPage from './features/articles/ArticleManagementPage'
 import FeedManagementPage from './features/feeds/FeedManagementPage'
 
 /**
@@ -15,7 +16,7 @@ function App() {
         <Routes>
           <Route path="/" element={<div>ホーム画面（実装予定）</div>} />
           <Route path="/feeds" element={<FeedManagementPage />} />
-          <Route path="/articles" element={<div>記事一覧画面（実装予定）</div>} />
+          <Route path="/articles" element={<ArticleManagementPage />} />
           <Route path="/keywords" element={<div>キーワード管理画面（実装予定）</div>} />
         </Routes>
       </Layout>
