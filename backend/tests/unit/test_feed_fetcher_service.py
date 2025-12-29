@@ -7,6 +7,7 @@ FeedFetcherServiceの取得処理が正しく動作することを検証しま�
 from typing import Dict, List, Optional, Tuple
 
 import httpx
+import pytest
 
 from app.models.feed import Feed
 from app.models.link_index import LinkIndex
@@ -288,12 +289,10 @@ class TestFeedFetcherService:
             http_client=fake_http_client,
         )
 
-        try:
+        with pytest.raises(FeedFetchError) as exc_info:
             service.parse_feed("https://example.com/rss.xml")
-        except FeedFetchError as exc:
-            assert "フィード取得に失敗しました" in str(exc)
-        else:
-            raise AssertionError("FeedFetchErrorが発生しませんでした。")
+
+        assert "フィード取得に失敗しました" in str(exc_info.value)
 
     def test_fetch_feed_uses_importance_score_service(self) -> None:
         """重要度スコア計算サービスが呼ばれることを検証"""
