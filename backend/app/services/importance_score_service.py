@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Tuple
 
 import boto3
 import numpy as np
+from botocore.exceptions import BotoCoreError, ClientError
 from sklearn.metrics.pairwise import cosine_similarity
 
 from app.config import settings
@@ -24,6 +25,10 @@ class ImportanceScoreService:
     AWS Bedrock Nova Multimodal Embeddingsを使用して、
     記事とキーワードの意味的類似度を計算し、重要度スコアを算出します。
     """
+
+    # DynamoDBキー形式の定数
+    ARTICLE_PK_PREFIX = "ARTICLE#"
+    REASON_SK_PREFIX = "REASON#"
 
     def __init__(self, region_name: str | None = None) -> None:
         """ImportanceScoreServiceを初期化
@@ -88,7 +93,7 @@ class ImportanceScoreService:
             )
             return embedding
 
-        except Exception as e:
+        except (ClientError, BotoCoreError) as e:
             logger.error(f"Bedrock embedding error: {e}")
             # エラーを呼び出し側に伝播させる
             raise
@@ -107,10 +112,19 @@ class ImportanceScoreService:
         )
         return np.array(embedding)
 
-    def _get_keyword_embedding_cached(
-        self, keyword_text: str
-    ) -> np.ndarray:
-        """キーワードの埋め込みを取得（キャッシュミス時のみ呼び出し）
+    def _evict_oldest_cache_entry(self) -> None:
+        """キャッシュから最も古いエントリを削除
+        
+        Note:
+            このメソッドはロック内で呼び出される前提です。
+        """
+        if len(self._keyword_embedding_cache) >= self._keyword_embedding_cache_max:
+            oldest_key = next(iter(self._keyword_embedding_cache))
+            self._keyword_embedding_cache.pop(oldest_key)
+            logger.debug(f"Evicted oldest cached embedding for keyword: {oldest_key}")
+
+    def get_keyword_embedding(self, keyword_text: str) -> np.ndarray:
+        """キーワードの埋め込みを取得（キャッシュ使用）
 
         Args:
             keyword_text: キーワードテキスト
@@ -131,11 +145,8 @@ class ImportanceScoreService:
         
         # キャッシュに追加（サイズ制限を適用）
         with self._keyword_embedding_cache_lock:
-            # キャッシュサイズが上限に達している場合、最も古いエントリを削除
-            if len(self._keyword_embedding_cache) >= self._keyword_embedding_cache_max:
-                oldest_key = next(iter(self._keyword_embedding_cache))
-                removed_embedding = self._keyword_embedding_cache.pop(oldest_key)
-                logger.debug(f"Evicted oldest cached embedding for keyword: {oldest_key}")
+            # キャッシュサイズ上限チェックとエビクション
+            self._evict_oldest_cache_entry()
             
             # 新しい埋め込みをキャッシュに追加
             self._keyword_embedding_cache[keyword_text] = embedding
@@ -145,17 +156,6 @@ class ImportanceScoreService:
             f"(cache size: {len(self._keyword_embedding_cache)}/{self._keyword_embedding_cache_max})"
         )
         return embedding
-
-    def get_keyword_embedding(self, keyword_text: str) -> np.ndarray:
-        """キーワードの埋め込みを取得（キャッシュ使用）
-
-        Args:
-            keyword_text: キーワードテキスト
-
-        Returns:
-            埋め込みベクトル（numpy配列）
-        """
-        return self._get_keyword_embedding_cached(keyword_text)
 
     def calculate_similarity(
         self, embedding1: np.ndarray, embedding2: np.ndarray
@@ -171,6 +171,35 @@ class ImportanceScoreService:
         """
         similarity = cosine_similarity([embedding1], [embedding2])[0][0]
         return float(similarity)
+
+    def _create_importance_reason(
+        self,
+        article: Dict[str, Any],
+        keyword: Dict[str, Any],
+        similarity: float,
+        contribution: float,
+    ) -> Dict[str, Any]:
+        """重要度理由データを生成
+        
+        Args:
+            article: 記事データ
+            keyword: キーワードデータ
+            similarity: 類似度スコア
+            contribution: 重み付き貢献度
+        
+        Returns:
+            重要度理由データ
+        """
+        return {
+            "PK": f"{self.ARTICLE_PK_PREFIX}{article['article_id']}",
+            "SK": f"{self.REASON_SK_PREFIX}{keyword['keyword_id']}",
+            "EntityType": "ImportanceReason",
+            "article_id": article["article_id"],
+            "keyword_id": keyword["keyword_id"],
+            "keyword_text": keyword["text"],
+            "similarity_score": similarity,
+            "contribution": contribution,
+        }
 
     def calculate_score(
         self, article: Dict[str, Any], keywords: List[Dict[str, Any]]
@@ -211,21 +240,13 @@ class ImportanceScoreService:
             total_score += contribution
 
             # 理由を記録
-            reasons.append(
-                {
-                    "PK": f"ARTICLE#{article['article_id']}",
-                    "SK": f"REASON#{keyword['keyword_id']}",
-                    "EntityType": "ImportanceReason",
-                    "article_id": article["article_id"],
-                    "keyword_id": keyword["keyword_id"],
-                    "keyword_text": keyword["text"],
-                    "similarity_score": similarity,
-                    "contribution": contribution,
-                }
+            reason = self._create_importance_reason(
+                article, keyword, similarity, contribution
             )
+            reasons.append(reason)
 
         logger.info(
-            f"Calculated importance score for article {article['article_id']}: {total_score}"
+            f"Calculated importance score for article {article['article_id'][:8]}...: {total_score}"
         )
         return total_score, reasons
 

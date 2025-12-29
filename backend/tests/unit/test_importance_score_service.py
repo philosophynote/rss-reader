@@ -62,7 +62,7 @@ class TestImportanceScoreService:
             == "amazon.nova-2-multimodal-embeddings-v1:0"
         )
         assert importance_score_service.embedding_dimension == 1024
-        assert importance_score_service.keyword_embeddings_cache == {}
+        assert importance_score_service._keyword_embedding_cache == {}
 
     def test_invoke_bedrock_embeddings_success(
         self,
@@ -131,7 +131,7 @@ class TestImportanceScoreService:
 
         # 初回呼び出し
         embedding1 = importance_score_service.get_keyword_embedding(keyword)
-        assert keyword in importance_score_service.keyword_embeddings_cache
+        assert keyword in importance_score_service._keyword_embedding_cache
 
         # 2回目の呼び出し（キャッシュから取得）
         embedding2 = importance_score_service.get_keyword_embedding(keyword)
@@ -140,7 +140,7 @@ class TestImportanceScoreService:
         assert np.array_equal(embedding1, embedding2)
         assert (
             embedding1
-            is importance_score_service.keyword_embeddings_cache[keyword]
+            is importance_score_service._keyword_embedding_cache[keyword]
         )
 
     def test_calculate_similarity(
@@ -338,14 +338,14 @@ class TestImportanceScoreService:
         キャッシュがクリアされることを確認
         """
         # キャッシュにデータを追加
-        importance_score_service.keyword_embeddings_cache["test"] = (
+        importance_score_service._keyword_embedding_cache["test"] = (
             np.array([1.0] * 1024)
         )
-        assert len(importance_score_service.keyword_embeddings_cache) == 1
+        assert len(importance_score_service._keyword_embedding_cache) == 1
 
         # キャッシュをクリア
         importance_score_service.clear_cache()
-        assert len(importance_score_service.keyword_embeddings_cache) == 0
+        assert len(importance_score_service._keyword_embedding_cache) == 0
 
     def test_calculate_score_with_default_weight(
         self, importance_score_service: ImportanceScoreService

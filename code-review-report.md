@@ -1,7 +1,7 @@
 # Code Review Report
 
 **レビュー日時:** 2025-12-29
-**レビュー対象:** task6ブランチ (main...HEAD) - Task 6: AWS Bedrock重要度スコア計算
+**レビュー対象:** mainブランチとtask6ブランチの差分（commits: 927431f〜915f9b3）
 **レビュアー:** Claude Code
 
 ---
@@ -10,12 +10,12 @@
 
 | 観点 | Critical | High | Medium | Low |
 |------|:--------:|:----:|:------:|:---:|
-| セキュリティ | 0 | 1 | 1 | 0 |
-| パフォーマンス | 0 | 0 | 1 | 0 |
-| 可読性・保守性 | 0 | 0 | 2 | 0 |
-| ベストプラクティス | 0 | 1 | 0 | 0 |
+| セキュリティ | 0 | 0 | 1 | 0 |
+| パフォーマンス | 0 | 0 | 2 | 1 |
+| 可読性・保守性 | 0 | 0 | 2 | 2 |
+| ベストプラクティス | 0 | 1 | 2 | 0 |
 
-**総合評価:** 良好（一部改善推奨事項あり）
+**総合評価:** ✅ **良好** - いくつかの改善点はあるものの、全体的に高品質な実装です。特に包括的なテストカバレッジと適切な型ヒント、詳細なdocstringが評価できます。
 
 ---
 
@@ -23,498 +23,316 @@
 
 ### セキュリティ
 
+#### Critical
+- なし
+
 #### High
-
-**1. エラー時のゼロベクトル返却によるサイレントフェイル**
-
-`backend/app/services/importance_score_service.py:84-87`
-
-```python
-except Exception as e:
-    logger.error(f"Bedrock embedding error: {e}")
-    # エラー時はゼロベクトルを返す
-    return [0.0] * dimension
-```
-
-**問題点:**
-- Bedrock APIエラー時にゼロベクトルを返すことで、エラーが隠蔽される
-- 呼び出し側がエラーを検知できず、誤った重要度スコア（0.0）が計算される
-- ネットワーク障害、認証エラー、レート制限など、すべてのエラーを同一視している
-
-**推奨対応:**
-- エラー種別に応じた処理を実装（リトライ、例外の再スロー）
-- 一時的なエラー（ネットワーク）と恒久的なエラー（認証）を区別
-- 呼び出し側にエラーを伝播させる仕組みを検討
-
-```python
-# 推奨実装例
-except ClientError as e:
-    error_code = e.response['Error']['Code']
-    if error_code in ['ThrottlingException', 'ServiceUnavailableException']:
-        # リトライ可能なエラー
-        logger.warning(f"Bedrock API throttled, retrying...")
-        # 指数バックオフでリトライ
-    else:
-        # リトライ不可能なエラーは再スロー
-        logger.error(f"Bedrock API error: {error_code}")
-        raise
-except Exception as e:
-    logger.error(f"Unexpected error: {e}")
-    raise  # ゼロベクトル返却ではなく例外を伝播
-```
+- なし
 
 #### Medium
-
-**2. AWS認証情報の管理**
-
-`backend/app/services/importance_score_service.py:33-35`
-
-```python
-self.bedrock_runtime = boto3.client(
-    service_name="bedrock-runtime", region_name=self.region_name
-)
-```
-
-**確認事項:**
-- boto3クライアントの認証情報がLambda実行ロールで管理されているか確認
-- ローカル開発環境での認証情報の扱いが適切か（環境変数やIAMロール）
-- AWS認証情報がコードやログに露出していないか
-
-**推奨対応:**
-- README.mdにIAM権限要件を明記（例: `bedrock:InvokeModel`）
-- ローカル開発用の認証情報設定手順をドキュメント化
-- .envファイルの例をREADMEに記載
+1. **ログ出力に機密情報が含まれる可能性**
+   **場所:** `backend/app/services/importance_score_service.py:228`
+   **詳細:** `article['article_id']`や`keyword_text`をログに出力しています。これらが個人情報や機密情報を含む可能性がある場合、適切なマスキング処理を検討してください。
+   ```python
+   logger.info(
+       f"Calculated importance score for article {article['article_id']}: {total_score}"
+   )
+   ```
+   **推奨:** ログレベルをDEBUGにするか、article_idの一部のみを出力（例: `article_id[:8]`）
 
 ---
 
 ### パフォーマンス
 
+#### Critical
+- なし
+
+#### High
+- なし
+
 #### Medium
-
-**1. キャッシュの永続性とメモリ管理**
-
-`backend/app/services/importance_score_service.py:39, 112-117`
-
-```python
-# キーワード埋め込みのキャッシュ
-self.keyword_embeddings_cache: Dict[str, np.ndarray] = {}
-```
-
-**問題点:**
-- キャッシュがメモリ上にのみ存在し、Lambda再起動で消失
-- キーワード数が増加するとメモリ使用量が増大（1キーワード≒4KB × 1024次元）
-- Lambda環境のメモリ制限を超える可能性
-- キャッシュクリア戦略が明確でない
-
-**推奨対応:**
-1. キーワード埋め込みをDynamoDBに永続化
+1. **LRUキャッシュの二重ロック取得**
+   **場所:** `backend/app/services/importance_score_service.py:122-127`
+   **詳細:** キャッシュヒット時に`move_to_end`を呼び出すため、ロックを保持したままアクセス順序を更新しています。OrderedDictの操作自体は軽量ですが、ロック保持時間が長くなる可能性があります。
    ```python
-   # Keywordモデルに埋め込みフィールドを追加
-   embedding: Optional[List[float]] = None
-
-   # 初回計算時にDynamoDBに保存
-   if keyword.embedding is None:
-       embedding = self.invoke_bedrock_embeddings(keyword.text)
-       keyword.embedding = embedding.tolist()
-       # DynamoDBに更新
+   with self._keyword_embedding_cache_lock:
+       cached_embedding = self._keyword_embedding_cache.get(keyword_text)
+       if cached_embedding is not None:
+           self._keyword_embedding_cache.move_to_end(keyword_text)
+           return cached_embedding
    ```
+   **推奨:** Python 3.7以降のOrderedDictは挿入順序を保持するため、アクセス頻度が高い場合は`functools.lru_cache`デコレータの使用も検討してください。
 
-2. メモリキャッシュにLRU戦略を導入
+2. **記事埋め込みのキャッシュがない**
+   **場所:** `backend/app/services/importance_score_service.py:191`
+   **詳細:** `calculate_score`メソッドで記事ごとに埋め込みを毎回生成しています。同じ記事に対して複数回スコア計算を行う場合、記事埋め込みもキャッシュすることでBedrockへのAPI呼び出しを削減できます。
    ```python
-   from functools import lru_cache
-
-   @lru_cache(maxsize=100)  # 最大100キーワードまでキャッシュ
-   def get_keyword_embedding(self, keyword_text: str) -> np.ndarray:
-       ...
+   article_embedding = self.get_embedding(article_text)
    ```
+   **推奨:** 記事埋め込みのキャッシュ機構の追加を検討してください（ただし、記事数が多い場合はメモリ使用量に注意）。
 
-3. Lambda環境でのメモリ使用量をCloudWatch Metricsでモニタリング
+#### Low
+1. **未使用の変数**
+   **場所:** `backend/app/services/importance_score_service.py:137`
+   **詳細:** `removed_embedding`変数が定義されていますが使用されていません。
+   ```python
+   removed_embedding = self._keyword_embedding_cache.pop(oldest_key)
+   ```
+   **推奨:** 変数を削除するか、ログ出力に使用してください。
+   ```python
+   self._keyword_embedding_cache.pop(oldest_key)
+   logger.debug(f"Evicted oldest cached embedding for keyword: {oldest_key}")
+   ```
 
 ---
 
 ### 可読性・保守性
 
+#### High
+- なし
+
 #### Medium
+1. **長いメソッド: `_get_keyword_embedding_cached`**
+   **場所:** `backend/app/services/importance_score_service.py:110-147`
+   **詳細:** メソッドが約37行あり、キャッシュチェック、埋め込み生成、キャッシュ追加の3つの責務を持っています。
+   ```python
+   def _get_keyword_embedding_cached(self, keyword_text: str) -> np.ndarray:
+       # キャッシュチェック
+       with self._keyword_embedding_cache_lock:
+           cached_embedding = self._keyword_embedding_cache.get(keyword_text)
+           if cached_embedding is not None:
+               self._keyword_embedding_cache.move_to_end(keyword_text)
+               return cached_embedding
 
-**1. マジックナンバーの使用**
+       # 埋め込み生成
+       embedding = self.get_embedding(keyword_text)
 
-`backend/app/models/base.py:79`
+       # キャッシュ追加
+       with self._keyword_embedding_cache_lock:
+           if len(self._keyword_embedding_cache) >= self._keyword_embedding_cache_max:
+               oldest_key = next(iter(self._keyword_embedding_cache))
+               removed_embedding = self._keyword_embedding_cache.pop(oldest_key)
+               logger.debug(f"Evicted oldest cached embedding for keyword: {oldest_key}")
+           self._keyword_embedding_cache[keyword_text] = embedding
+       # ...
+   ```
+   **推奨:** キャッシュロジックを別メソッドに分離することを検討してください（例: `_evict_oldest_cache_entry`）。
 
-```python
-SCORE_PRECISION = 1_000_000
-```
+2. **長いメソッド: `calculate_score`**
+   **場所:** `backend/app/services/importance_score_service.py:175-230`
+   **詳細:** メソッドが約55行あり、スコア計算と理由生成の2つの責務を持っています。
+   ```python
+   def calculate_score(
+       self, article: Dict[str, Any], keywords: List[Dict[str, Any]]
+   ) -> Tuple[float, List[Dict[str, Any]]]:
+       # 記事埋め込み生成
+       article_text = f"{article['title']} {article.get('content', '')}"
+       article_embedding = self.get_embedding(article_text)
 
-**問題点:**
-- 100万という値の根拠が不明確
-- 関数ローカル定数として定義されており、他のコードで参照できない
-- スコア精度が変更された場合、複数箇所の修正が必要
+       total_score = 0.0
+       reasons = []
 
-**推奨対応:**
-- クラスレベルまたはモジュールレベルの定数として定義
-- コメントで選定理由を記載
+       # キーワードごとの処理
+       for keyword in keywords:
+           # ... 類似度計算
+           # ... 理由生成
 
-```python
-class BaseModel(PydanticBaseModel):
-    """
-    すべてのDynamoDBモデルの基底クラス
-    """
-    # スコア精度定数（6桁の精度を確保するため）
-    SCORE_PRECISION: int = 1_000_000
+       return total_score, reasons
+   ```
+   **推奨:** 理由生成ロジックを別メソッドに分離することを検討してください（例: `_create_importance_reason`）。
 
-    def generate_gsi2_sk(self, score: float, max_score: float = 1.0) -> str:
-        """逆順ソートキーを生成"""
-        ...
-        score_scaled = int(score * self.SCORE_PRECISION)
-        reverse_score = self.SCORE_PRECISION - score_scaled
-        ...
-```
+#### Low
+1. **マジックストリング: DynamoDBキー形式**
+   **場所:** `backend/app/services/importance_score_service.py:216-217`
+   **詳細:** `"ARTICLE#"`, `"REASON#"`などのプレフィックスがハードコードされています。
+   ```python
+   "PK": f"ARTICLE#{article['article_id']}",
+   "SK": f"REASON#{keyword['keyword_id']}",
+   ```
+   **推奨:** 定数として定義するか、base.pyに移動することを検討してください。
 
-**2. テストデータ生成戦略の複雑性**
-
-`backend/tests/property/test_data_models.py:54-58, 84-88, 348-352`
-
-```python
-title = draw(st.text(
-    alphabet=st.characters(blacklist_categories=('Cs', 'Cc')),
-    min_size=1,
-    max_size=200
-).filter(lambda x: x.strip()))
-```
-
-**問題点:**
-- 文字セット制御とフィルター処理が複雑で、意図が読み取りにくい
-- 同様のパターンが4箇所で重複している（title, keyword_text）
-- `blacklist_categories`の意味がコメントなしでは分からない
-
-**推奨対応:**
-- 共通の戦略を関数化し、意図を明確化
-
-```python
-@st.composite
-def non_empty_text_strategy(draw, min_size=1, max_size=200):
-    """空白のみの文字列を除外したテキスト生成戦略
-
-    制御文字（Cs: Surrogate, Cc: Control）を除外し、
-    空白のみの文字列をフィルターで除外する。
-    """
-    return draw(st.text(
-        alphabet=st.characters(blacklist_categories=('Cs', 'Cc')),
-        min_size=min_size,
-        max_size=max_size
-    ).filter(lambda x: x.strip()))
-
-# 使用例
-title = draw(non_empty_text_strategy(max_size=200))
-keyword_text = draw(non_empty_text_strategy(max_size=50))
-```
+2. **コメントの冗長性**
+   **場所:** `backend/app/services/importance_score_service.py:84`
+   **詳細:** レスポンス形式のコメントは役立ちますが、docstringに記載した方が適切です。
+   ```python
+   # レスポンス形式: {"embeddings": [{"embeddingType": "TEXT", "embedding": [...]}]}
+   embedding = response_body["embeddings"][0]["embedding"]
+   ```
+   **推奨:** docstringのReturnsセクションに記載してください。
 
 ---
 
 ### ベストプラクティス
 
+#### High
+1. **存在しない属性へのアクセス（テストコード）**
+   **場所:** `backend/tests/unit/test_importance_score_service.py:64`
+   **詳細:** テストで`keyword_embeddings_cache`という存在しない属性にアクセスしています。実際の実装では`_keyword_embedding_cache`というプライベート属性です。
+   ```python
+   assert importance_score_service.keyword_embeddings_cache == {}
+   ```
+   **推奨:** 正しい属性名に修正してください。
+   ```python
+   assert importance_score_service._keyword_embedding_cache == {}
+   ```
+   **影響:** このテストは現在失敗しているはずです。CI/CDで検出されるべき問題です。
+
+#### Medium
+1. **汎用的な例外の再スロー**
+   **場所:** `backend/app/services/importance_score_service.py:91-94`
+   **詳細:** `Exception`をキャッチして再スローしていますが、より具体的な例外型を使用することを推奨します。
+   ```python
+   except Exception as e:
+       logger.error(f"Bedrock embedding error: {e}")
+       raise
+   ```
+   **推奨:** Bedrockクライアント固有の例外を定義するか、boto3の例外をインポートして使用してください。
+   ```python
+   from botocore.exceptions import ClientError, BotoCoreError
+
+   except (ClientError, BotoCoreError) as e:
+       logger.error(f"Bedrock embedding error: {e}")
+       raise
+   ```
+
+2. **不要な間接層: `get_keyword_embedding`メソッド**
+   **場所:** `backend/app/services/importance_score_service.py:149-158`
+   **詳細:** `get_keyword_embedding`メソッドが単に`_get_keyword_embedding_cached`を呼び出すだけで、追加の処理がありません。
+   ```python
+   def get_keyword_embedding(self, keyword_text: str) -> np.ndarray:
+       """キーワードの埋め込みを取得（キャッシュ使用）
+
+       Args:
+           keyword_text: キーワードテキスト
+
+       Returns:
+           埋め込みベクトル（numpy配列）
+       """
+       return self._get_keyword_embedding_cached(keyword_text)
+   ```
+   **推奨:** 以下のいずれかを選択してください：
+   - `get_keyword_embedding`をパブリックメソッドとして残し、`_get_keyword_embedding_cached`をインライン化する
+   - `get_keyword_embedding`を削除し、直接`_get_keyword_embedding_cached`を呼び出す（ただし、パブリックAPIの一貫性のため、前者を推奨）
+
+---
+
 ## 良い点
 
-### 1. 包括的なテストカバレッジ
+1. **包括的なテストカバレッジ**
+   - Property-basedテスト（Hypothesis使用）とユニットテストの両方を実装
+   - 設計書のプロパティ20-23を検証するテストが網羅的
+   - エッジケース（空のキーワード、無効なキーワード）のテストも含まれている
 
-**プロパティベーステスト:**
-- `backend/tests/property/test_importance_score.py`: 359行
-- 設計書のプロパティ20-23を忠実に検証
-  - Property 20: 重要度スコアの計算
-  - Property 21: スコア計算の加算性
-  - Property 22: 重要度理由の記録
-  - Property 23: 重要度スコアの再計算
-- Hypothesisを使用した網羅的なテストケース生成
+2. **適切な型ヒント**
+   - すべての関数とメソッドに型ヒントが付与されている
+   - PEP 484/526に準拠した型アノテーション
+   - numpy配列の型も明示的
 
-**ユニットテスト:**
-- `backend/tests/unit/test_importance_score_service.py`: 395行
-- AWS Bedrockクライアントのモック化
-- エラーハンドリングのテスト
-- エッジケース（空入力、無効キーワード）の検証
+3. **詳細なdocstring**
+   - PEP 257に準拠したdocstring
+   - すべてのパラメータと戻り値が説明されている
+   - 公式ドキュメントへのリンクも含まれている
 
-### 2. 型安全性の徹底
+4. **スレッドセーフなキャッシュ実装**
+   - `threading.Lock`を使用したスレッドセーフなキャッシュ
+   - LRUアルゴリズムの正しい実装
 
-```python
-def calculate_score(
-    self, article: Dict[str, Any], keywords: List[Dict[str, Any]]
-) -> Tuple[float, List[Dict[str, Any]]]:
-```
+5. **適切なロギング**
+   - ログレベルの適切な使い分け（info, debug, error）
+   - デバッグに役立つ情報の出力
 
-- すべての関数に型ヒントを適用
-- Python 3.10+のUnion記法（`str | None`）を活用
-- mypy準拠の型チェック
-
-### 3. 適切なドキュメンテーション
-
-**Docstringの徹底:**
-- すべての公開メソッドにPEP 257準拠のdocstringを記載
-- パラメータ、戻り値、例外を明確に記述
-
-**外部APIの参照明記:**
-```python
-"""AWS Bedrockを使用してテキストの埋め込みを生成
-
-公式ドキュメント準拠のAPIフォーマット:
-https://docs.aws.amazon.com/nova/latest/userguide/embeddings-schema.html
-```
-
-### 4. AWS Bedrock Nova Embeddingsへの移行
-
-**最新モデルの採用:**
-- モデルID: `amazon.nova-2-multimodal-embeddings-v1:0`
-- マルチモーダル対応（将来的に画像も処理可能）
-- 埋め込み次元数を設定可能（256, 384, 1024, 3072）
-
-**公式APIスキーマ準拠:**
-```python
-request_body = {
-    "taskType": "SINGLE_EMBEDDING",
-    "singleEmbeddingParams": {
-        "embeddingPurpose": "GENERIC_INDEX",
-        "embeddingDimension": dimension,
-        "text": {"truncationMode": "END", "value": text},
-    },
-}
-```
-
-### 5. データモデルの修正
-
-**GSI2SKゼロパディングの改善:**
-- 6桁 → 7桁に変更し、スコア範囲0～1000000を正確にカバー
-- プロパティテストでソートキーの順序性を検証
-
-```python
-# 修正前: 6桁（0～999999）
-return f"{reverse_score:06d}.000000"
-
-# 修正後: 7桁（0～1000000）
-return f"{reverse_score:07d}.000000"
-```
-
-### 6. キャッシュによるコスト削減
-
-**キーワード埋め込みのキャッシュ:**
-```python
-def get_keyword_embedding(self, keyword_text: str) -> np.ndarray:
-    if keyword_text not in self.keyword_embeddings_cache:
-        self.keyword_embeddings_cache[keyword_text] = self.get_embedding(keyword_text)
-        logger.debug(f"Cached embedding for keyword: {keyword_text}")
-    return self.keyword_embeddings_cache[keyword_text]
-```
-
-- Bedrock APIコールを最小化
-- キャッシュヒット/ミスをログ出力
-- コスト削減と応答速度向上を両立
-
-### 7. テストの品質改善
-
-**プロパティテストの修正:**
-- 浮動小数点の精度問題を整数化で回避
-- NaN/Infinityを除外する戦略の追加
-- 空白のみの文字列を除外するフィルター
-
-```python
-@given(
-    score1=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False),
-    score2=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False)
-)
-```
+6. **設定の柔軟性**
+   - 環境変数による設定のカスタマイズ
+   - デフォルト値の適切な設定
 
 ---
 
 ## 推奨アクション
 
-### 必須対応 (High) - ✅ 完了
+### 必須対応 (Critical/High)
+1. **テストの修正**
+   `test_initialization`メソッドで存在しない属性`keyword_embeddings_cache`にアクセスしている問題を修正してください。正しい属性名は`_keyword_embedding_cache`です。
+   ```python
+   # 修正前
+   assert importance_score_service.keyword_embeddings_cache == {}
 
-**1. エラーハンドリングの改善**
-- 優先度: **High**
-- ファイル: `backend/app/services/importance_score_service.py:84-87`
-- 作業内容:
-  1. ✅ `invoke_bedrock_embeddings()`でゼロベクトル返却を廃止
-  2. ✅ エラーを呼び出し側に伝播させる実装に変更
-  3. ✅ テストを更新（例外の再スローを検証）
-- 完了日: 2025-12-29
-- 結果: 全111テストが成功、カバレッジ82.62%を維持
+   # 修正後
+   assert importance_score_service._keyword_embedding_cache == {}
+   ```
+   **ファイル:** `backend/tests/unit/test_importance_score_service.py:64`
 
-### 推奨対応 (Medium) - ✅ 一部完了
+### 推奨対応 (Medium)
+1. **例外処理の具体化**
+   汎用的な`Exception`ではなく、boto3固有の例外型を使用してください。
+   ```python
+   from botocore.exceptions import ClientError, BotoCoreError
 
-**1. マジックナンバーの定数化** - ✅ 完了
-- 優先度: **Medium**
-- ファイル: `backend/app/models/base.py:79`
-- 作業内容:
-  1. ✅ `SCORE_PRECISION`をクラス属性として定義
-  2. ✅ 選定理由をコメントで説明（「6桁の精度を確保」）
-- 完了日: 2025-12-29
-- 結果: 可読性向上、保守性向上
+   try:
+       response = self.bedrock_runtime.invoke_model(...)
+   except (ClientError, BotoCoreError) as e:
+       logger.error(f"Bedrock embedding error: {e}")
+       raise
+   ```
+   **ファイル:** `backend/app/services/importance_score_service.py:75-94`
 
-**2. テストコードのリファクタリング** - ✅ 完了
-- 優先度: **Medium**
-- ファイル: `backend/tests/property/test_data_models.py`
-- 作業内容:
-  1. ✅ `non_empty_text_strategy()`を共通関数として定義
-  2. ✅ `blacklist_categories`の意図をコメントで説明
-- 完了日: 2025-12-29
-- 結果: テストコードの可読性向上、DRY原則の徹底
+2. **長いメソッドの分割**
+   `_get_keyword_embedding_cached`と`calculate_score`メソッドを小さなメソッドに分割してください。
+   - `_evict_oldest_cache_entry()`: キャッシュからの削除ロジック
+   - `_create_importance_reason(...)`: 重要度理由の生成ロジック
 
-**3. キャッシュ戦略の改善** - 🔄 未対応（推奨）
-- 優先度: **Medium**
-- ファイル: `backend/app/services/importance_score_service.py:112-117`
-- 作業内容:
-  1. Keywordモデルに`embedding: Optional[List[float]]`フィールドを追加
-  2. 初回計算時にDynamoDBに永続化
-  3. メモリキャッシュにLRU戦略を導入（`functools.lru_cache`）
-  4. CloudWatch Metricsでメモリ使用量をモニタリング
-- 期待効果: Lambda再起動後もキャッシュが有効、メモリ使用量の制御
-- 備考: Task 7以降で実装を検討
+   **ファイル:** `backend/app/services/importance_score_service.py:110-147, 175-230`
 
-**4. AWS認証情報のドキュメント化** - 🔄 未対応（推奨）
-- 優先度: **Medium**
-- ファイル: `README.md`
-- 作業内容:
-  1. 必要なIAM権限を明記（`bedrock:InvokeModel`等）
-  2. ローカル開発環境のセットアップ手順を追加
-  3. .envファイルの例を記載
-- 期待効果: オンボーディングの改善、セキュリティの明確化
+3. **ログ出力の見直し**
+   article_idやkeyword_textがログに出力されています。機密情報が含まれる可能性がある場合、マスキング処理を追加してください。
+
+   **ファイル:** `backend/app/services/importance_score_service.py:228`
+
+4. **未使用変数の削除**
+   `removed_embedding`変数を削除するか、ログ出力に使用してください。
+
+   **ファイル:** `backend/app/services/importance_score_service.py:137`
+
+5. **不要な間接層の削除**
+   `get_keyword_embedding`メソッドをインライン化するか、`_get_keyword_embedding_cached`の内容を`get_keyword_embedding`に移動してください。
+
+   **ファイル:** `backend/app/services/importance_score_service.py:149-158`
 
 ### 検討事項 (Low)
+1. **記事埋め込みキャッシュの追加**
+   同じ記事に対して複数回スコア計算を行う可能性がある場合、記事埋め込みもキャッシュすることを検討してください。ただし、記事数が多い場合はメモリ使用量に注意が必要です。
 
-**1. プロパティテストの実行時間最適化**
-- `max_examples=100`が適切か検証
-- CI/CD実行時間とテスト品質のバランスを調整
-- 重要度の低いテストは`max_examples=50`に削減
+2. **マジックストリングの定数化**
+   `"ARTICLE#"`, `"REASON#"`などのプレフィックスを定数として定義してください。
 
-**2. ログレベルの調整**
-- `logger.debug()`の使用箇所を確認
-- 本番環境ではINFO以上のみ出力する設定を推奨
-- CloudWatch Logsのコスト削減
-
----
-
-## 対応完了サマリー (2025-12-29更新)
-
-### ✅ 完了した対応
-
-1. **エラーハンドリングの改善 (High Priority)**
-   - ゼロベクトル返却を廃止し、例外を再スローする実装に変更
-   - テストを更新して例外の再スローを検証
-   - 全111テストが成功、カバレッジ82.62%を維持
-
-2. **マジックナンバーの定数化 (Medium Priority)**
-   - `SCORE_PRECISION`をクラス属性として定義
-   - 選定理由をコメントで明記
-
-3. **テストコードのリファクタリング (Medium Priority)**
-   - `non_empty_text_strategy()`を共通関数として定義
-   - `blacklist_categories`の意図をコメントで説明
-
-### 🔄 未対応（今後の対応推奨）
-
-1. **キャッシュ戦略の改善 (Medium Priority)**
-   - DynamoDB永続化とLRU戦略の導入
-   - Task 7以降で実装を検討
-
-2. **AWS認証情報のドキュメント化 (Medium Priority)**
-   - IAM権限要件の明記
-   - Task 13（API実装）と合わせて対応予定
-
----
-
-## 変更の詳細
-
-### 主要な変更
-
-**1. Python 3.11 → 3.14へのアップグレード**
-- ファイル: `pyproject.toml`, `Dockerfile`, `.python-version`, `README.md`
-- 変更内容: `requires-python = ">=3.14"`
-- 注意: AWS Lambdaサポート状況の確認が必要
-
-**2. AWS Bedrock Nova Multimodal Embeddingsへの移行**
-- 旧モデル: `amazon.titan-embed-text-v1`
-- 新モデル: `amazon.nova-2-multimodal-embeddings-v1:0`
-- 埋め込み次元数: デフォルト1024（設定可能）
-- ファイル: `backend/app/config.py`
-
-**3. ImportanceScoreServiceの新規実装**
-- ファイル: `backend/app/services/importance_score_service.py` (194行)
-- 主な機能:
-  - `invoke_bedrock_embeddings()`: Bedrock API呼び出し
-  - `get_embedding()`: テキスト埋め込み取得
-  - `get_keyword_embedding()`: キャッシュ付きキーワード埋め込み
-  - `calculate_similarity()`: コサイン類似度計算
-  - `calculate_score()`: 記事の重要度スコア計算
-  - `clear_cache()`: キャッシュクリア
-
-**4. データモデルの修正**
-- ファイル: `backend/app/models/base.py`
-- 変更内容: `generate_gsi2_sk()`のゼロパディングを7桁に変更
-- 理由: スコア範囲0～1000000を正確にカバー
-
-**5. テストの追加**
-- プロパティテスト: `backend/tests/property/test_importance_score.py` (359行)
-  - 7つのプロパティを検証
-  - Hypothesisで網羅的なテストケース生成
-- ユニットテスト: `backend/tests/unit/test_importance_score_service.py` (395行)
-  - モックを使用したBedrock APIのテスト
-  - エラーハンドリングのテスト
-
-**6. 既存テストの修正**
-- ファイル: `backend/tests/property/test_data_models.py`, `backend/tests/unit/test_data_models.py`
-- 変更内容:
-  - 空白のみの文字列を除外するフィルター追加
-  - 浮動小数点の精度問題を整数化で回避
-  - GSI2SKのゼロパディング期待値を7桁に更新
-
-### タスク進捗
-
-`.kiro/specs/rss-reader/tasks.md`の更新:
-- [x] タスク4: フィード管理機能の実装
-- [x] タスク5: チェックポイント - すべてのテストが通過
-- [x] タスク6: AWS Bedrockセマンティック検索の実装
-  - [x] 6.1 ImportanceScoreServiceクラスを実装
-  - [x] 6.2 重要度スコア計算のプロパティテストを作成
-  - [x] 6.3 重要度スコア計算のユニットテストを作成
+3. **LRUキャッシュの最適化**
+   アクセス頻度が非常に高い場合、`functools.lru_cache`デコレータの使用も検討してください。
 
 ---
 
 ## 参照したプロジェクト規約
 
-- **CLAUDE.md** - プロジェクト概要と開発ガイドライン
-- **docs/python_coding_conventions.md** - Pythonコーディング規約（PEP 8準拠）
-- **.kiro/specs/rss-reader/design.md** - 技術設計書（プロパティ定義）
-- **.kiro/specs/rss-reader/requirements.md** - 要件定義書
-- **.kiro/specs/rss-reader/tasks.md** - 実装タスク管理
-- **pyproject.toml** - プロジェクト設定とツール設定
+- `docs/python_coding_conventions.md` - PEP 8準拠、型ヒント、docstring規約
+- `CLAUDE.md` - プロジェクト全体のガイドライン
+- `.kiro/specs/rss-reader/requirements.md` - 要件7.1-7.5（重要度スコア計算）
+- `.kiro/specs/rss-reader/design.md` - 技術設計
 
 ---
 
-## 結論
+## 変更ファイルサマリー
 
-Task 6「AWS Bedrockセマンティック検索の実装」は、全体的に高品質なコードで実装されています。
+| ファイル | 追加 | 削除 | 概要 |
+|---------|------|------|------|
+| `backend/app/services/importance_score_service.py` | 236 | 0 | 新規: 重要度スコア計算サービス |
+| `backend/tests/property/test_importance_score.py` | 359 | 0 | 新規: プロパティベーステスト |
+| `backend/tests/unit/test_importance_score_service.py` | 393 | 0 | 新規: ユニットテスト |
+| `backend/app/config.py` | 7 | 1 | Bedrock設定追加 |
+| `backend/app/models/base.py` | 4 | 3 | SCORE_PRECISION定数追加 |
+| `backend/tests/property/test_data_models.py` | 22 | 0 | non_empty_text_strategy追加 |
+| `.kiro/specs/rss-reader/tasks.md` | 4 | 4 | タスク6完了マーク |
+| `README.md` | 20 | 0 | AWS認証情報の説明追加 |
 
-### 特に評価できる点
-
-1. **テストカバレッジの充実**: プロパティテストとユニットテストの両方を実装
-2. **型安全性の徹底**: すべての関数に型ヒントを適用
-3. **適切なドキュメンテーション**: docstringとコメントで意図を明確化
-4. **最新技術の採用**: AWS Bedrock Nova Embeddingsを活用
-
-### 改善完了（2025-12-29更新）
-
-1. ✅ **エラーハンドリング（High）**: ゼロベクトル返却によるサイレントフェイルを修正完了
-2. ✅ **マジックナンバー（Medium）**: 定数化と理由の明記完了
-3. ✅ **テストコードのリファクタリング（Medium）**: 共通関数化とコメント追加完了
-
-### 今後の改善推奨事項
-
-1. **キャッシュ戦略（Medium）**: DynamoDB永続化とLRU戦略の導入（Task 7以降で検討）
-2. **AWS認証情報のドキュメント化（Medium）**: IAM権限要件の明記（Task 13で対応予定）
-
-### 次のステップ
-
-- ✅ **必須対応1件**を完了
-- ✅ **推奨対応2件**を完了
-- 🔄 **推奨対応2件**は今後のタスクで対応予定
-- ✅ Task 7（RSSフィード取得機能の実装）への移行準備完了
+**合計:** +1,485 / -222 行
 
 ---
 
-*このレポートはClaude Codeのcode-reviewスキルにより生成され、2025-12-29に対応完了を反映しました。*
+*このレポートはClaude Codeのcode-reviewスキルにより生成されました。*
