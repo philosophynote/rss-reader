@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# 仮想環境
+.venv/
+venv/
+ENV/
+env/
+
+# テスト関連
+.pytest_cache/
+.hypothesis/
+.coverage
+htmlcov/
+*.cover
+.tox/
+.nox/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+
+# ドキュメント
+*.md
+docs/
+
+# テストファイル
+tests/
+test_*.py
+*_test.py
+
+# 開発用ファイル
+.env
+.env.local
+.env.*.local
+
+# その他
+*.log
+.DS_Store

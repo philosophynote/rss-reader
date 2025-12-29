@@ -84,3 +84,60 @@ uv run mypy app/
 
 AWS Lambda関数としてコンテナイメージでデプロイされます。
 詳細は `infrastructure/` ディレクトリのCDKコードを参照してください。
+
+### Dockerイメージのビルド
+
+```bash
+# Dockerイメージをビルド
+docker build -t rss-reader-backend:latest .
+
+# ローカルでDockerコンテナを起動（テスト用）
+docker run -p 8000:8000 \
+  -e DYNAMODB_TABLE_NAME=rss-reader-dev \
+  -e API_KEY=test-api-key \
+  -e CORS_ORIGINS=http://localhost:3000 \
+  -e AWS_REGION=us-east-1 \
+  -e BEDROCK_REGION=us-east-1 \
+  -e BEDROCK_MODEL_ID=amazon.nova-2-multimodal-embeddings-v1:0 \
+  -e EMBEDDING_DIMENSION=1024 \
+  rss-reader-backend:latest
+```
+
+### Lambda Web Adapterの設定
+
+このプロジェクトは[AWS Lambda Web Adapter](https://github.com/awslabs/aws-lambda-web-adapter)を使用しています。
+
+**主な設定:**
+- `AWS_LWA_ENABLE_COMPRESSION=true`: レスポンス圧縮を有効化
+- `AWS_LWA_INVOKE_MODE=response_stream`: ストリーミングレスポンスモード
+- `AWS_LWA_READINESS_CHECK_PATH=/health`: ヘルスチェックパス
+- `AWS_LWA_READINESS_CHECK_PORT=8000`: ヘルスチェックポート
+- `PORT=8000`: アプリケーションポート
+
+### セキュリティ設定
+
+**認証:**
+- API Key認証を使用（`Authorization: Bearer <API_KEY>`ヘッダー）
+- 環境変数`API_KEY`で設定
+
+**CORS:**
+- 特定のオリジンのみ許可
+- 環境変数`CORS_ORIGINS`で設定（カンマ区切り）
+
+**セキュリティヘッダー:**
+- `SECURITY_HEADERS_ENABLED=true`で有効化
+- X-Content-Type-Options、X-Frame-Options、X-XSS-Protectionなどを設定
+
+### CDKデプロイ
+
+```bash
+# インフラストラクチャディレクトリに移動
+cd ../infrastructure
+
+# 環境変数を設定
+export RSS_READER_API_KEY=your-secure-api-key
+export ENVIRONMENT=development
+
+# CDKデプロイ
+npm run deploy
+```

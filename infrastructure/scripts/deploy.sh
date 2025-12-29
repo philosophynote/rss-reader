@@ -18,6 +18,13 @@ echo "🚀 RSS Reader インフラストラクチャをデプロイしていま�
 echo "環境: $ENVIRONMENT"
 
 # 必要な環境変数をチェック
+if [[ -z "$RSS_READER_API_KEY" ]]; then
+    echo "❌ エラー: RSS_READER_API_KEY 環境変数が設定されていません"
+    echo "以下のコマンドで設定してください:"
+    echo "  export RSS_READER_API_KEY=your-secure-api-key"
+    exit 1
+fi
+
 if [[ -z "$CDK_DEFAULT_ACCOUNT" ]]; then
     echo "警告: CDK_DEFAULT_ACCOUNT が設定されていません"
 fi
@@ -25,6 +32,13 @@ fi
 if [[ -z "$CDK_DEFAULT_REGION" ]]; then
     echo "警告: CDK_DEFAULT_REGION が設定されていません（デフォルト: ap-northeast-1）"
 fi
+
+# 環境変数を設定
+export ENVIRONMENT=$ENVIRONMENT
+
+echo "✅ 環境変数チェック完了"
+echo "  - RSS_READER_API_KEY: ****（設定済み）"
+echo "  - ENVIRONMENT: $ENVIRONMENT"
 
 # TypeScriptをビルド
 echo "📦 TypeScriptをビルドしています..."

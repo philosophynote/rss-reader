@@ -32,6 +32,30 @@ npm run bootstrap
 
 ## デプロイ
 
+### 環境変数の設定
+
+デプロイ前に必要な環境変数を設定してください：
+
+```bash
+# API認証キーを設定（必須）
+export RSS_READER_API_KEY=your-secure-api-key-here
+
+# 環境を設定（development または production）
+export ENVIRONMENT=development
+
+# AWSアカウント情報（オプション、AWS CLIから自動取得）
+export CDK_DEFAULT_ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
+export CDK_DEFAULT_REGION=ap-northeast-1
+
+# CORS許可オリジン（オプション、デフォルト値あり）
+export CORS_ORIGINS=http://localhost:3000,http://localhost:5173
+```
+
+**セキュリティ注意事項:**
+- `RSS_READER_API_KEY`は強力なランダム文字列を使用してください
+- 本番環境では、AWS Secrets ManagerやParameter Storeの使用を推奨します
+- API Keyは絶対にGitにコミットしないでください
+
 ### 環境別デプロイ
 
 ```bash
