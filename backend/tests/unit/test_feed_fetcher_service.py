@@ -6,9 +6,15 @@ FeedFetcherServiceの取得処理が正しく動作することを検証しま�
 
 from typing import Dict, List, Optional, Tuple
 
+import httpx
+import pytest
+
 from app.models.feed import Feed
 from app.models.link_index import LinkIndex
-from app.services.feed_fetcher_service import FeedFetcherService
+from app.services.feed_fetcher_service import (
+    FeedFetchError,
+    FeedFetcherService,
+)
 
 
 class FakeDynamoDBClient:
@@ -58,6 +64,28 @@ class FakeHttpClient:
     def get(self, url: str) -> FakeHttpResponse:
         """指定URLのレスポンスを返す"""
         return self.response
+
+
+class FakeHttpClientError:
+    """HTTPエラーを発生させるテスト用クライアント"""
+
+    def get(self, url: str) -> FakeHttpResponse:
+        """HTTPエラーを発生させる"""
+        request = httpx.Request("GET", url)
+        raise httpx.RequestError("network error", request=request)
+
+
+class FakeImportanceScoreService:
+    """重要度スコア計算サービスのモック"""
+
+    def __init__(self, score: float) -> None:
+        self.score = score
+        self.called_with: List[Tuple[str, str]] = []
+
+    def calculate_score(self, title: str, content: str) -> float:
+        """引数を記録して固定スコアを返す"""
+        self.called_with.append((title, content))
+        return self.score
 
 
 class TestFeedFetcherService:
@@ -193,3 +221,116 @@ class TestFeedFetcherService:
         assert result.created_articles == 0
         assert result.skipped_duplicates == 0
         assert result.skipped_invalid == 1
+
+    def test_parse_feed_supports_rss2(self) -> None:
+        """RSS 2.0フィードを解析できることを検証"""
+        rss_content = b"""
+        <?xml version="1.0" encoding="UTF-8"?>
+        <rss version="2.0">
+          <channel>
+            <title>RSS 2.0 Example</title>
+            <item>
+              <title>Article 1</title>
+              <link>https://example.com/rss-1</link>
+              <description>RSS summary</description>
+              <pubDate>Mon, 18 Sep 2023 12:00:00 GMT</pubDate>
+            </item>
+          </channel>
+        </rss>
+        """
+
+        fake_client = FakeDynamoDBClient()
+        fake_http_client = FakeHttpClient(rss_content)
+        service = FeedFetcherService(
+            dynamodb_client=fake_client,
+            http_client=fake_http_client,
+        )
+
+        parsed_feed = service.parse_feed("https://example.com/rss.xml")
+
+        assert parsed_feed.feed.get("title") == "RSS 2.0 Example"
+        assert len(parsed_feed.entries) == 1
+        assert parsed_feed.entries[0].get("title") == "Article 1"
+
+    def test_parse_feed_supports_atom(self) -> None:
+        """Atomフィードを解析できることを検証"""
+        atom_content = b"""
+        <?xml version="1.0" encoding="utf-8"?>
+        <feed xmlns="http://www.w3.org/2005/Atom">
+          <title>Atom Example</title>
+          <entry>
+            <title>Atom Article</title>
+            <link href="https://example.com/atom-1" />
+            <summary>Atom summary</summary>
+            <updated>2023-09-19T12:00:00Z</updated>
+          </entry>
+        </feed>
+        """
+
+        fake_client = FakeDynamoDBClient()
+        fake_http_client = FakeHttpClient(atom_content)
+        service = FeedFetcherService(
+            dynamodb_client=fake_client,
+            http_client=fake_http_client,
+        )
+
+        parsed_feed = service.parse_feed("https://example.com/atom.xml")
+
+        assert parsed_feed.feed.get("title") == "Atom Example"
+        assert len(parsed_feed.entries) == 1
+        assert parsed_feed.entries[0].get("title") == "Atom Article"
+
+    def test_parse_feed_raises_on_http_error(self) -> None:
+        """HTTP取得失敗時にFeedFetchErrorが発生することを検証"""
+        fake_client = FakeDynamoDBClient()
+        fake_http_client = FakeHttpClientError()
+        service = FeedFetcherService(
+            dynamodb_client=fake_client,
+            http_client=fake_http_client,
+        )
+
+        with pytest.raises(FeedFetchError) as exc_info:
+            service.parse_feed("https://example.com/rss.xml")
+
+        assert "フィード取得に失敗しました" in str(exc_info.value)
+
+    def test_fetch_feed_uses_importance_score_service(self) -> None:
+        """重要度スコア計算サービスが呼ばれることを検証"""
+        rss_content = b"""
+        <?xml version="1.0" encoding="UTF-8"?>
+        <rss version="2.0">
+          <channel>
+            <title>Example Feed</title>
+            <item>
+              <title>Scored Article</title>
+              <link>https://example.com/scored-1</link>
+              <description>Scored content</description>
+              <pubDate>Mon, 18 Sep 2023 12:00:00 GMT</pubDate>
+            </item>
+          </channel>
+        </rss>
+        """
+
+        fake_client = FakeDynamoDBClient()
+        fake_http_client = FakeHttpClient(rss_content)
+        importance_service = FakeImportanceScoreService(score=0.7)
+        feed = Feed(url="https://example.com/rss.xml", title="")
+
+        service = FeedFetcherService(
+            dynamodb_client=fake_client,
+            http_client=fake_http_client,
+            importance_score_service=importance_service,
+        )
+
+        result = service.fetch_feed(feed)
+
+        assert result.created_articles == 1
+        assert importance_service.called_with == [
+            ("Scored Article", "Scored content"),
+        ]
+        article_items = [
+            item
+            for item in fake_client.items.values()
+            if item.get("EntityType") == "Article"
+        ]
+        assert article_items[0]["importance_score"] == 0.7
