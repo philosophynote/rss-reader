@@ -125,6 +125,9 @@ class ImportanceScoreService:
 
     def get_keyword_embedding(self, keyword_text: str) -> np.ndarray:
         """キーワードの埋め込みを取得（キャッシュ使用）
+        
+        ダブルチェックロッキングパターンを使用して、
+        同じキーワードに対する重複した埋め込み生成を防ぎます。
 
         Args:
             keyword_text: キーワードテキスト
@@ -132,7 +135,7 @@ class ImportanceScoreService:
         Returns:
             埋め込みベクトル（numpy配列）
         """
-        # キャッシュから取得を試行（LRUアクセス順序を更新）
+        # 第1回目のキャッシュチェック（ロック取得）
         with self._keyword_embedding_cache_lock:
             cached_embedding = self._keyword_embedding_cache.get(keyword_text)
             if cached_embedding is not None:
@@ -140,22 +143,32 @@ class ImportanceScoreService:
                 self._keyword_embedding_cache.move_to_end(keyword_text)
                 return cached_embedding
 
-        # キャッシュミスの場合、新しい埋め込みを生成
+        # キャッシュミスの場合、ロックを解放して埋め込みを生成
+        # （この間に他のスレッドが同じキーワードの埋め込みを生成する可能性がある）
         embedding = self.get_embedding(keyword_text)
         
-        # キャッシュに追加（サイズ制限を適用）
+        # 第2回目のキャッシュチェック（ダブルチェックロッキング）
         with self._keyword_embedding_cache_lock:
+            # 他のスレッドが既に同じキーワードをキャッシュに追加していないかチェック
+            cached_embedding = self._keyword_embedding_cache.get(keyword_text)
+            if cached_embedding is not None:
+                # 他のスレッドが既に追加済み - 生成した埋め込みは破棄してキャッシュ済みを返す
+                self._keyword_embedding_cache.move_to_end(keyword_text)
+                logger.debug(f"Found keyword embedding cached by another thread: {keyword_text}")
+                return cached_embedding
+            
+            # まだキャッシュにない場合、生成した埋め込みを追加
             # キャッシュサイズ上限チェックとエビクション
             self._evict_oldest_cache_entry()
             
             # 新しい埋め込みをキャッシュに追加
             self._keyword_embedding_cache[keyword_text] = embedding
             
-        logger.debug(
-            f"Cached embedding for keyword: {keyword_text} "
-            f"(cache size: {len(self._keyword_embedding_cache)}/{self._keyword_embedding_cache_max})"
-        )
-        return embedding
+            logger.debug(
+                f"Cached embedding for keyword: {keyword_text} "
+                f"(cache size: {len(self._keyword_embedding_cache)}/{self._keyword_embedding_cache_max})"
+            )
+            return embedding
 
     def calculate_similarity(
         self, embedding1: np.ndarray, embedding2: np.ndarray
