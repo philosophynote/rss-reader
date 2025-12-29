@@ -9,6 +9,7 @@ from unittest.mock import Mock, patch
 
 import numpy as np
 import pytest
+from botocore.exceptions import ClientError
 
 from app.services.importance_score_service import ImportanceScoreService
 
@@ -98,13 +99,21 @@ class TestImportanceScoreService:
         """
         Bedrock APIエラー時に例外が再スローされることを確認
         """
-        # APIエラーをシミュレート
-        importance_score_service.bedrock_runtime.invoke_model.side_effect = (
-            Exception("API Error")
+        # ClientErrorをシミュレート
+        client_error = ClientError(
+            error_response={
+                "Error": {
+                    "Code": "ValidationException",
+                    "Message": "API Error"
+                }
+            },
+            operation_name="InvokeModel"
         )
+        
+        importance_score_service.bedrock_runtime.invoke_model.side_effect = client_error
 
-        # 例外が再スローされることを確認
-        with pytest.raises(Exception, match="API Error"):
+        # ClientErrorが再スローされることを確認
+        with pytest.raises(ClientError, match="API Error"):
             importance_score_service.invoke_bedrock_embeddings(
                 "test", dimension=1024
             )
