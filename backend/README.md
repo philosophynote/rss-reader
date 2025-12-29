@@ -72,13 +72,106 @@ uv run mypy app/
 - `GET /api/articles` - 記事一覧取得
 - `POST /api/keywords` - キーワード登録
 
+## AWS認証情報の設定
+
+### 必要なIAM権限
+
+このアプリケーションは以下のAWS権限が必要です：
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:Query",
+        "dynamodb:Scan"
+      ],
+      "Resource": [
+        "arn:aws:dynamodb:*:*:table/rss-reader-*",
+        "arn:aws:dynamodb:*:*:table/rss-reader-*/index/*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:InvokeModel"
+      ],
+      "Resource": [
+        "arn:aws:bedrock:*::foundation-model/amazon.nova-2-multimodal-embeddings-v1:0"
+      ]
+    }
+  ]
+}
+```
+
+### ローカル開発環境での認証設定
+
+#### 方法1: AWS CLI認証情報を使用
+
+```bash
+# AWS CLIで認証情報を設定
+aws configure
+
+# または環境変数で設定
+export AWS_ACCESS_KEY_ID=your-access-key
+export AWS_SECRET_ACCESS_KEY=your-secret-key
+export AWS_DEFAULT_REGION=us-east-1
+```
+
+#### 方法2: IAMロールを使用（推奨）
+
+```bash
+# IAMロールを引き受ける
+aws sts assume-role --role-arn arn:aws:iam::123456789012:role/RSSReaderDeveloperRole --role-session-name dev-session
+
+# 返された認証情報を環境変数に設定
+export AWS_ACCESS_KEY_ID=returned-access-key
+export AWS_SECRET_ACCESS_KEY=returned-secret-key
+export AWS_SESSION_TOKEN=returned-session-token
+```
+
+#### 方法3: .envファイルを使用
+
+プロジェクトルートに`.env`ファイルを作成：
+
+```bash
+# .env ファイルの例
+AWS_ACCESS_KEY_ID=your-access-key
+AWS_SECRET_ACCESS_KEY=your-secret-key
+AWS_DEFAULT_REGION=us-east-1
+DYNAMODB_TABLE_NAME=rss-reader-dev
+BEDROCK_REGION=us-east-1
+BEDROCK_MODEL_ID=amazon.nova-2-multimodal-embeddings-v1:0
+EMBEDDING_DIMENSION=1024
+API_KEY=dev-api-key-for-testing
+CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+```
+
+**注意:** `.env`ファイルは`.gitignore`に含まれており、リポジトリにコミットされません。
+
+### Lambda環境での認証
+
+本番環境（AWS Lambda）では、Lambda実行ロールを使用して認証が行われます。
+CDKデプロイ時に適切なIAM権限が自動的に設定されます。
+
 ## 環境変数
 
 - `DYNAMODB_TABLE_NAME` - DynamoDBテーブル名
 - `BEDROCK_REGION` - AWS Bedrockリージョン
 - `BEDROCK_MODEL_ID` - Bedrockモデル ID
+- `EMBEDDING_DIMENSION` - 埋め込みベクトルの次元数（デフォルト: 1024）
 - `API_KEY` - API認証キー
 - `CORS_ORIGINS` - CORS許可オリジン（カンマ区切り）
+- `AWS_ACCESS_KEY_ID` - AWS アクセスキー（ローカル開発時のみ）
+- `AWS_SECRET_ACCESS_KEY` - AWS シークレットキー（ローカル開発時のみ）
+- `AWS_SESSION_TOKEN` - AWS セッショントークン（IAMロール使用時）
+- `AWS_DEFAULT_REGION` - AWSデフォルトリージョン
 
 ## デプロイ
 

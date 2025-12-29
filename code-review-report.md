@@ -366,14 +366,16 @@ def get_keyword_embedding(self, keyword_text: str) -> np.ndarray:
 - 期待効果: Lambda再起動後もキャッシュが有効、メモリ使用量の制御
 - 備考: Task 7以降で実装を検討
 
-**4. AWS認証情報のドキュメント化** - 🔄 未対応（推奨）
+**4. AWS認証情報のドキュメント化** - ✅ 完了
 - 優先度: **Medium**
-- ファイル: `README.md`
+- ファイル: `backend/README.md`, `.env.example`
 - 作業内容:
-  1. 必要なIAM権限を明記（`bedrock:InvokeModel`等）
-  2. ローカル開発環境のセットアップ手順を追加
-  3. .envファイルの例を記載
-- 期待効果: オンボーディングの改善、セキュリティの明確化
+  1. ✅ 必要なIAM権限を明記（`bedrock:InvokeModel`, `dynamodb:*`等）
+  2. ✅ ローカル開発環境のセットアップ手順を追加
+  3. ✅ .envファイルの例を記載
+  4. ✅ Lambda実行ロールでの認証について説明
+- 完了日: 2025-12-29
+- 結果: オンボーディングの改善、セキュリティの明確化
 
 **4. テストコードのリファクタリング**
 - 優先度: **Medium**
