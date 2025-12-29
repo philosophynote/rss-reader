@@ -58,6 +58,10 @@ htmlcov/
 .mypy_cache/
 .ruff_cache/
 .pyright/
+.pyrightconfig.json
+
+# pre-commit
+.pre-commit-config.yaml.bak
 
 # =========================
 # Node.js / TypeScript

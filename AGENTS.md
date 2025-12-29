@@ -66,7 +66,72 @@ Feedly 風の RSS リーダーアプリです。セマンティック検索（�
 
 ## セットアップ/実行コマンド
 
-現時点では初期段階のため、具体的な開発コマンドは実装の進行に合わせて確定します。以下を参照してください。
+### 開発環境のセットアップ
+
+```bash
+# 1. 開発環境のセットアップ（全プロジェクト）
+make setup-dev
+
+# 2. 各サービスの起動
+# バックエンド
+cd backend && uv run uvicorn app.main:app --reload
+
+# フロントエンド
+cd frontend && npm run dev
+
+# インフラストラクチャ（デプロイ）
+cd infrastructure && npm run deploy
+```
+
+### 開発コマンド
+
+```bash
+# コード品質チェック
+make lint          # 全プロジェクトのlint
+make format        # 全プロジェクトのフォーマット
+make type-check    # 全プロジェクトの型チェック
+
+# テスト実行
+make test          # 全プロジェクトのテスト
+make test-coverage # カバレッジ付きテスト
+
+# クリーンアップ
+make clean         # ビルド成果物とキャッシュを削除
+```
+
+### コード品質ツール
+
+#### Python (Backend)
+- **Linter/Formatter**: Ruff（Python 3.14対応）
+- **Type Checker**: Pyright（Python 3.14対応）
+- **Test Framework**: pytest + Hypothesis (Property-based testing)
+
+#### TypeScript (Frontend)
+- **Linter**: ESLint 9系 + typescript-eslint（型情報を活用したlint）
+- **Type Checker**: TypeScript Compiler（noEmit）
+- **Test Framework**: Vitest + Testing Library
+
+#### 個別プロジェクト用コマンド
+
+```bash
+# Backend
+make backend-lint        # Ruff lint
+make backend-format      # Ruff format
+make backend-type-check  # Pyright
+make backend-test        # pytest with coverage
+
+# Frontend
+make frontend-lint       # ESLint
+make frontend-format     # ESLint --fix
+make frontend-type-check # tsc --noEmit
+make frontend-test       # Vitest with coverage
+
+# Infrastructure
+make infra-type-check    # tsc --noEmit
+make infra-synth         # cdk synth
+```
+
+以下を参照してください：
 
 * `.kiro/specs/rss-reader/tasks.md`（最新の実装チェックリスト）
 * `.kiro/specs/rss-reader/design.md`（設計判断）
@@ -154,21 +219,23 @@ Feedly 風の RSS リーダーアプリです。セマンティック検索（�
 * 実装詳細ではなく「振る舞い」をテストする
 * 外部 API は適切にモックする
 
-### テスト実行（実装後）
+### テスト実行
 
 ```bash
+# 全プロジェクトのテスト
+make test
+
+# カバレッジ付きテスト
+make test-coverage
+
 # Backend
 cd backend
-pytest --cov
-```
+uv run pytest --cov=app --cov-report=term-missing
 
-```bash
 # Frontend
 cd frontend
-npm test
-```
+npm run test:coverage
 
-```bash
 # Infrastructure
 cd infrastructure
 npm test
@@ -214,6 +281,12 @@ npm run build
 
 ## CI/CD（GitHub Actions）
 
+### CI環境
+
+- **Python**: 3.14 + uv
+- **Node.js**: 18
+- **自動デプロイ**: mainブランチのみ
+
 ### Triggers
 
 * 任意ブランチへの push
@@ -221,12 +294,13 @@ npm run build
 
 ### Pipeline steps
 
-1. Lint / 型チェック
-2. 単体テスト + プロパティベーステスト
-3. カバレッジ検証（80% 以上）
-4. セキュリティスキャン
-5. 結合テスト
-6. 本番デプロイ（main ブランチのみ）
+1. **Lint / Format**: Ruff (Python) + ESLint (TypeScript)
+2. **Type Check**: Pyright (Python) + TypeScript Compiler
+3. **Test**: pytest (Python) + Vitest (TypeScript)
+4. **Coverage**: 80%以上を要求
+5. **Security**: Trivy脆弱性スキャン
+6. **結合テスト**
+7. **本番デプロイ**（main ブランチのみ）
 
 ### Required checks
 
@@ -234,6 +308,12 @@ npm run build
 * Coverage ≥ 80%
 * 既知の脆弱性なし
 * 型チェック成功
+
+### 開発者向けツール
+
+- **pre-commit**: コミット前の自動チェック
+- **VSCode設定**: 推奨拡張機能と設定
+- **detect-secrets**: 機密情報の誤コミット防止
 
 ## 実装上の注意
 

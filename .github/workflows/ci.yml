@@ -1,0 +1,179 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  PYTHON_VERSION: '3.14'
+  NODE_VERSION: '18'
+
+jobs:
+  # Python Backend CI
+  backend-ci:
+    name: Backend CI (Python ${{ env.PYTHON_VERSION }})
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        version: "latest"
+        
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      run: uv python install ${{ env.PYTHON_VERSION }}
+      
+    - name: Install dependencies
+      run: |
+        uv sync --dev
+        
+    - name: Lint with Ruff
+      run: |
+        uv run ruff check .
+        uv run ruff format --check .
+        
+    - name: Type check with Pyright
+      run: |
+        uv run pyright
+        
+    - name: Run tests with coverage
+      run: |
+        uv run pytest --cov=app --cov-report=xml --cov-report=term-missing --cov-fail-under=80
+        
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./backend/coverage.xml
+        flags: backend
+        name: backend-coverage
+        fail_ci_if_error: false
+
+  # Frontend CI
+  frontend-ci:
+    name: Frontend CI (Node.js ${{ env.NODE_VERSION }})
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js ${{ env.NODE_VERSION }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: './frontend/package-lock.json'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Type check
+      run: npm run type-check
+      
+    - name: Lint
+      run: npm run lint
+      
+    - name: Run tests with coverage
+      run: npm run test:coverage
+      
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./frontend/coverage/coverage-final.json
+        flags: frontend
+        name: frontend-coverage
+        fail_ci_if_error: false
+
+  # Infrastructure CI
+  infrastructure-ci:
+    name: Infrastructure CI (CDK)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./infrastructure
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js ${{ env.NODE_VERSION }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: './infrastructure/package-lock.json'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Type check
+      run: npx tsc --noEmit
+      
+    - name: CDK synth
+      run: npx cdk synth
+      
+    - name: CDK diff (if not main branch)
+      if: github.ref != 'refs/heads/main'
+      run: npx cdk diff || true
+
+  # Security scan
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+        
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  # All checks passed
+  ci-success:
+    name: CI Success
+    runs-on: ubuntu-latest
+    needs: [backend-ci, frontend-ci, infrastructure-ci, security-scan]
+    if: always()
+    
+    steps:
+    - name: Check all jobs
+      run: |
+        if [[ "${{ needs.backend-ci.result }}" != "success" ]]; then
+          echo "Backend CI failed"
+          exit 1
+        fi
+        if [[ "${{ needs.frontend-ci.result }}" != "success" ]]; then
+          echo "Frontend CI failed"
+          exit 1
+        fi
+        if [[ "${{ needs.infrastructure-ci.result }}" != "success" ]]; then
+          echo "Infrastructure CI failed"
+          exit 1
+        fi
+        if [[ "${{ needs.security-scan.result }}" != "success" ]]; then
+          echo "Security scan failed"
+          exit 1
+        fi
+        echo "All CI checks passed!"
