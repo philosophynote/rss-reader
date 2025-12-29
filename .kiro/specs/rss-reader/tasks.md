@@ -141,7 +141,7 @@
     - _要件: 7.1, 7.2, 7.3_
 
 - [ ] 7. RSSフィード取得機能の実装
-  - [ ] 7.1 FeedFetcherServiceクラスを実装
+- [x] 7.1 FeedFetcherServiceクラスを実装
     - feedparserを使用してRSSフィードをパース
     - fetch_all_feeds、fetch_feed、parse_feed、save_articlesメソッドを実装
     - ImportanceScoreServiceを使用して重要度スコアを計算
