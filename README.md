@@ -55,6 +55,26 @@ rss-reader/
 - AWS CLI設定済み
 - uv (Python パッケージマネージャー)
 
+### AWS認証情報と権限
+
+ローカル開発では、AWS CLIの認証情報または`AWS_ACCESS_KEY_ID`などの
+環境変数で認証します。Bedrockの埋め込み生成を利用するため、最低限
+以下のIAM権限が必要です。
+
+- `bedrock:InvokeModel`
+
+#### ローカル開発用の環境変数例
+
+```bash
+# backend/.env 例
+AWS_REGION=us-east-1
+BEDROCK_REGION=us-east-1
+BEDROCK_MODEL_ID=amazon.nova-2-multimodal-embeddings-v1:0
+EMBEDDING_DIMENSION=1024
+DYNAMODB_TABLE_NAME=rss-reader
+KEYWORD_EMBEDDING_CACHE_SIZE=100
+```
+
 ### バックエンド
 
 ```bash

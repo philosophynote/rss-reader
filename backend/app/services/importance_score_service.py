@@ -5,6 +5,7 @@ AWS Bedrockを使用してセマンティック検索による重要度スコア
 
 import json
 import logging
+from functools import lru_cache
 from typing import Any, Dict, List, Tuple
 
 import boto3
@@ -35,8 +36,6 @@ class ImportanceScoreService:
         )
         self.model_id = settings.BEDROCK_MODEL_ID
         self.embedding_dimension = settings.EMBEDDING_DIMENSION
-        # キーワード埋め込みのキャッシュ
-        self.keyword_embeddings_cache: Dict[str, np.ndarray] = {}
         logger.info(
             f"ImportanceScoreService initialized with model: {self.model_id}"
         )
@@ -103,21 +102,32 @@ class ImportanceScoreService:
         )
         return np.array(embedding)
 
-    def get_keyword_embedding(self, keyword_text: str) -> np.ndarray:
-        """キーワードの埋め込みを取得（キャッシュ使用）
-        
+    @lru_cache(maxsize=settings.KEYWORD_EMBEDDING_CACHE_SIZE)
+    def _get_keyword_embedding_cached(
+        self, keyword_text: str
+    ) -> np.ndarray:
+        """キーワードの埋め込みを取得（キャッシュミス時のみ呼び出し）
+
         Args:
             keyword_text: キーワードテキスト
-        
+
         Returns:
             埋め込みベクトル（numpy配列）
         """
-        if keyword_text not in self.keyword_embeddings_cache:
-            self.keyword_embeddings_cache[
-                keyword_text
-            ] = self.get_embedding(keyword_text)
-            logger.debug(f"Cached embedding for keyword: {keyword_text}")
-        return self.keyword_embeddings_cache[keyword_text]
+        embedding = self.get_embedding(keyword_text)
+        logger.debug(f"Cached embedding for keyword: {keyword_text}")
+        return embedding
+
+    def get_keyword_embedding(self, keyword_text: str) -> np.ndarray:
+        """キーワードの埋め込みを取得（LRUキャッシュ使用）
+
+        Args:
+            keyword_text: キーワードテキスト
+
+        Returns:
+            埋め込みベクトル（numpy配列）
+        """
+        return self._get_keyword_embedding_cached(keyword_text)
 
     def calculate_similarity(
         self, embedding1: np.ndarray, embedding2: np.ndarray
@@ -129,7 +139,7 @@ class ImportanceScoreService:
             embedding2: 埋め込みベクトル2
         
         Returns:
-            コサイン類似度（0.0～1.0）
+            コサイン類似度（-1.0~1.0）
         """
         similarity = cosine_similarity([embedding1], [embedding2])[0][0]
         return float(similarity)
@@ -193,5 +203,5 @@ class ImportanceScoreService:
 
     def clear_cache(self) -> None:
         """キーワード埋め込みキャッシュをクリア"""
-        self.keyword_embeddings_cache.clear()
+        self._get_keyword_embedding_cached.cache_clear()
         logger.info("Cleared keyword embeddings cache")
