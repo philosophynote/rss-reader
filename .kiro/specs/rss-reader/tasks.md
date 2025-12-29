@@ -141,13 +141,13 @@
     - _要件: 7.1, 7.2, 7.3_
 
 - [ ] 7. RSSフィード取得機能の実装
-  - [ ] 7.1 FeedFetcherServiceクラスを実装
+- [x] 7.1 FeedFetcherServiceクラスを実装
     - feedparserを使用してRSSフィードをパース
     - fetch_all_feeds、fetch_feed、parse_feed、save_articlesメソッドを実装
     - ImportanceScoreServiceを使用して重要度スコアを計算
     - _要件: 2.1, 2.2, 2.3, 2.4, 2.5, 10.1_
 
-  - [ ] 7.2 フィード取得のプロパティテストを作成
+  - [x] 7.2 フィード取得のプロパティテストを作成
     - **プロパティ5: フィード取得エラーのハンドリング**
     - **検証: 要件 2.2**
     - **プロパティ6: 記事の冪等性**
