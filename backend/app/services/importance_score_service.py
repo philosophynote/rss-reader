@@ -5,6 +5,7 @@ AWS Bedrockを使用してセマンティック検索による重要度スコア
 
 import json
 import logging
+from collections import OrderedDict
 from threading import Lock
 from typing import Any, Dict, List, Tuple
 
@@ -36,10 +37,12 @@ class ImportanceScoreService:
         )
         self.model_id = settings.BEDROCK_MODEL_ID
         self.embedding_dimension = settings.EMBEDDING_DIMENSION
-        self._keyword_embedding_cache: Dict[str, np.ndarray] = {}
+        self._keyword_embedding_cache_max = settings.KEYWORD_EMBEDDING_CACHE_SIZE
+        self._keyword_embedding_cache: OrderedDict[str, np.ndarray] = OrderedDict()
         self._keyword_embedding_cache_lock = Lock()
         logger.info(
-            f"ImportanceScoreService initialized with model: {self.model_id}"
+            f"ImportanceScoreService initialized with model: {self.model_id}, "
+            f"cache max size: {self._keyword_embedding_cache_max}"
         )
 
     def invoke_bedrock_embeddings(
@@ -115,14 +118,32 @@ class ImportanceScoreService:
         Returns:
             埋め込みベクトル（numpy配列）
         """
-        cached_embedding = self._keyword_embedding_cache.get(keyword_text)
-        if cached_embedding is not None:
-            return cached_embedding
-
-        embedding = self.get_embedding(keyword_text)
+        # キャッシュから取得を試行（LRUアクセス順序を更新）
         with self._keyword_embedding_cache_lock:
-            self._keyword_embedding_cache.setdefault(keyword_text, embedding)
-        logger.debug(f"Cached embedding for keyword: {keyword_text}")
+            cached_embedding = self._keyword_embedding_cache.get(keyword_text)
+            if cached_embedding is not None:
+                # LRU順序を更新するため、一度削除して再挿入
+                self._keyword_embedding_cache.move_to_end(keyword_text)
+                return cached_embedding
+
+        # キャッシュミスの場合、新しい埋め込みを生成
+        embedding = self.get_embedding(keyword_text)
+        
+        # キャッシュに追加（サイズ制限を適用）
+        with self._keyword_embedding_cache_lock:
+            # キャッシュサイズが上限に達している場合、最も古いエントリを削除
+            if len(self._keyword_embedding_cache) >= self._keyword_embedding_cache_max:
+                oldest_key = next(iter(self._keyword_embedding_cache))
+                removed_embedding = self._keyword_embedding_cache.pop(oldest_key)
+                logger.debug(f"Evicted oldest cached embedding for keyword: {oldest_key}")
+            
+            # 新しい埋め込みをキャッシュに追加
+            self._keyword_embedding_cache[keyword_text] = embedding
+            
+        logger.debug(
+            f"Cached embedding for keyword: {keyword_text} "
+            f"(cache size: {len(self._keyword_embedding_cache)}/{self._keyword_embedding_cache_max})"
+        )
         return embedding
 
     def get_keyword_embedding(self, keyword_text: str) -> np.ndarray:
