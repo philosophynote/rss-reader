@@ -284,7 +284,7 @@ npm run build
 ### CI環境
 
 - **Python**: 3.14 + uv
-- **Node.js**: 18
+- **Node.js**: 22
 - **自動デプロイ**: mainブランチのみ
 
 ### Triggers

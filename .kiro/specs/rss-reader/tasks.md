@@ -140,7 +140,7 @@
     - エラーハンドリングのテスト
     - _要件: 7.1, 7.2, 7.3_
 
-- [ ] 7. RSSフィード取得機能の実装
+- [x] 7. RSSフィード取得機能の実装
 - [x] 7.1 FeedFetcherServiceクラスを実装
     - feedparserを使用してRSSフィードをパース
     - fetch_all_feeds、fetch_feed、parse_feed、save_articlesメソッドを実装
@@ -164,7 +164,7 @@
 - [ ] 8. チェックポイント - すべてのテストが通過することを確認
   - すべてのテストが通過することを確認し、質問があればユーザーに尋ねる
 
-- [ ] 9. 記事管理機能の実装
+- [x] 9. 記事管理機能の実装
   - [x] 9.1 ArticleServiceクラスを実装
     - get_articles、get_article、mark_as_read、mark_as_savedメソッドを実装
     - DynamoDB GSIを使用した時系列順・重要度順のソート

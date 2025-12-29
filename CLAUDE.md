@@ -194,7 +194,7 @@ npm run build
 ### CI Environment
 
 - **Python**: 3.14 + uv
-- **Node.js**: 18
+- **Node.js**:22
 - **Auto Deploy**: main branch only
 
 ### Triggers
@@ -253,7 +253,7 @@ npm run build
 ### Prerequisites
 
 - Python 3.14+
-- Node.js 18+
+- Node.js 22+
 - AWS CLI configured
 - uv (Python package manager)
 

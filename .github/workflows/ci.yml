@@ -8,7 +8,7 @@ on:
 
 env:
   PYTHON_VERSION: '3.14'
-  NODE_VERSION: '18'
+  NODE_VERSION: '22'
 
 jobs:
   # Python Backend CI
