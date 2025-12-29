@@ -55,6 +55,28 @@ rss-reader/
 - AWS CLI設定済み
 - uv (Python パッケージマネージャー)
 
+### AWS認証情報
+
+本プロジェクトはAWS Bedrockを利用します。実行ロールまたは
+ローカル環境の認証情報に、少なくとも`bedrock:InvokeModel`の
+権限が必要です。ローカルでの実行は、以下のいずれかで設定します。
+
+- `aws configure`でCLI認証情報を設定
+- 環境変数で`AWS_ACCESS_KEY_ID`と`AWS_SECRET_ACCESS_KEY`を設定
+- `AWS_PROFILE`で利用するプロファイルを指定
+
+### 環境変数（例）
+
+```bash
+# backend/.env 例
+AWS_REGION=us-east-1
+BEDROCK_REGION=us-east-1
+BEDROCK_MODEL_ID=amazon.nova-2-multimodal-embeddings-v1:0
+EMBEDDING_DIMENSION=1024
+KEYWORD_EMBEDDING_CACHE_SIZE=100
+RSS_READER_API_KEY=local-dev-api-key
+```
+
 ### バックエンド
 
 ```bash

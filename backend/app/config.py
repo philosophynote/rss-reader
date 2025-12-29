@@ -22,6 +22,9 @@ class Settings:
         'amazon.nova-2-multimodal-embeddings-v1:0'
     )
     EMBEDDING_DIMENSION: int = int(os.getenv('EMBEDDING_DIMENSION', '1024'))
+    KEYWORD_EMBEDDING_CACHE_SIZE: int = int(
+        os.getenv('KEYWORD_EMBEDDING_CACHE_SIZE', '100')
+    )
     
     # API設定
     API_KEY: Optional[str] = os.getenv('RSS_READER_API_KEY')

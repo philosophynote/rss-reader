@@ -5,6 +5,7 @@ AWS Bedrockを使用してセマンティック検索による重要度スコア
 
 import json
 import logging
+from collections import OrderedDict
 from typing import Any, Dict, List, Tuple
 
 import boto3
@@ -35,8 +36,13 @@ class ImportanceScoreService:
         )
         self.model_id = settings.BEDROCK_MODEL_ID
         self.embedding_dimension = settings.EMBEDDING_DIMENSION
-        # キーワード埋め込みのキャッシュ
-        self.keyword_embeddings_cache: Dict[str, np.ndarray] = {}
+        # キーワード埋め込みのキャッシュ（LRU）
+        self.keyword_embedding_cache_size = (
+            settings.KEYWORD_EMBEDDING_CACHE_SIZE
+        )
+        self.keyword_embeddings_cache: OrderedDict[str, np.ndarray] = (
+            OrderedDict()
+        )
         logger.info(
             f"ImportanceScoreService initialized with model: {self.model_id}"
         )
@@ -97,6 +103,9 @@ class ImportanceScoreService:
         
         Returns:
             埋め込みベクトル（numpy配列）
+
+        Notes:
+            キャッシュサイズが0以下の場合はキャッシュを使用しません。
         """
         embedding = self.invoke_bedrock_embeddings(
             text, self.embedding_dimension
@@ -112,12 +121,28 @@ class ImportanceScoreService:
         Returns:
             埋め込みベクトル（numpy配列）
         """
-        if keyword_text not in self.keyword_embeddings_cache:
-            self.keyword_embeddings_cache[
-                keyword_text
-            ] = self.get_embedding(keyword_text)
-            logger.debug(f"Cached embedding for keyword: {keyword_text}")
-        return self.keyword_embeddings_cache[keyword_text]
+        if self.keyword_embedding_cache_size <= 0:
+            return self.get_embedding(keyword_text)
+
+        if keyword_text in self.keyword_embeddings_cache:
+            self.keyword_embeddings_cache.move_to_end(keyword_text)
+            return self.keyword_embeddings_cache[keyword_text]
+
+        embedding = self.get_embedding(keyword_text)
+        self.keyword_embeddings_cache[keyword_text] = embedding
+        self.keyword_embeddings_cache.move_to_end(keyword_text)
+        if (
+            len(self.keyword_embeddings_cache)
+            > self.keyword_embedding_cache_size
+        ):
+            evicted_keyword, _ = self.keyword_embeddings_cache.popitem(
+                last=False
+            )
+            logger.debug(
+                "Evicted cached embedding for keyword: %s", evicted_keyword
+            )
+        logger.debug("Cached embedding for keyword: %s", keyword_text)
+        return embedding
 
     def calculate_similarity(
         self, embedding1: np.ndarray, embedding2: np.ndarray
