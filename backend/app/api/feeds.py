@@ -4,7 +4,7 @@
 フィードの登録、取得、更新、削除を提供します。
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from app.schemas.feed import (
     FeedCreateRequest,
@@ -15,6 +15,7 @@ from app.schemas.feed import (
     FeedUpdateRequest,
 )
 from app.services import FeedFetcherService, FeedService
+from app.services.feed_fetcher_service import FeedFetchError
 
 router = APIRouter(prefix="/api/feeds", tags=["feeds"])
 
@@ -97,6 +98,7 @@ async def fetch_feed(
     feed_id: str,
     feed_service: FeedService = Depends(get_feed_service),
     fetcher_service: FeedFetcherService = Depends(get_feed_fetcher_service),
+    response: Response,
 ) -> FeedFetchResponse:
     """指定フィードを取得"""
     feed = feed_service.get_feed(feed_id)
@@ -106,7 +108,18 @@ async def fetch_feed(
             detail="Feed not found",
         )
 
-    result = fetcher_service.fetch_feed(feed)
+    try:
+        result = fetcher_service.fetch_feed(feed)
+    except FeedFetchError as exc:
+        response.status_code = status.HTTP_502_BAD_GATEWAY
+        return FeedFetchResponse(
+            feed_id=feed.feed_id,
+            total_entries=0,
+            created_articles=0,
+            skipped_duplicates=0,
+            skipped_invalid=0,
+            error_message=str(exc),
+        )
     return FeedFetchResponse(
         feed_id=result.feed_id,
         total_entries=result.total_entries,
