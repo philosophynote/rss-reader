@@ -17,7 +17,11 @@ class Settings:
     
     # AWS Bedrock設定
     BEDROCK_REGION: str = os.getenv('BEDROCK_REGION', 'us-east-1')
-    BEDROCK_MODEL_ID: str = os.getenv('BEDROCK_MODEL_ID', 'amazon.titan-embed-text-v1')
+    BEDROCK_MODEL_ID: str = os.getenv(
+        'BEDROCK_MODEL_ID',
+        'amazon.nova-2-multimodal-embeddings-v1:0'
+    )
+    EMBEDDING_DIMENSION: int = int(os.getenv('EMBEDDING_DIMENSION', '1024'))
     
     # API設定
     API_KEY: Optional[str] = os.getenv('RSS_READER_API_KEY')
