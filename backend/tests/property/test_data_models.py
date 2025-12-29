@@ -73,7 +73,12 @@ def valid_article_strategy(draw):
     """有効なArticleオブジェクトを生成する戦略"""
     feed_id = draw(st.uuids()).hex
     link = draw(valid_url_strategy())
-    title = draw(non_empty_text_strategy(max_size=200))
+    # 空白のみの文字列を除外するため、英数字を含む文字列を生成
+    title = draw(st.text(
+        alphabet=st.characters(blacklist_categories=('Cs', 'Cc')),
+        min_size=1,
+        max_size=200
+    ).filter(lambda x: x.strip()))
     content = draw(st.text(max_size=1000))
     published_at = draw(st.datetimes(
         min_value=datetime(2020, 1, 1),
@@ -98,7 +103,12 @@ def valid_article_strategy(draw):
 @composite
 def valid_keyword_strategy(draw):
     """有効なKeywordオブジェクトを生成する戦略"""
-    text = draw(non_empty_text_strategy(max_size=50))
+    # 空白のみの文字列と制御文字を除外
+    text = draw(st.text(
+        alphabet=st.characters(blacklist_categories=('Cs', 'Cc')),
+        min_size=1,
+        max_size=50
+    ).filter(lambda x: x.strip()))
     weight = draw(st.floats(min_value=0.1, max_value=10.0))
     is_active = draw(st.booleans())
     
