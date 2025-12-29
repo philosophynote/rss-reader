@@ -17,6 +17,7 @@ from hypothesis.strategies import (
     composite,
     datetimes,
     floats,
+    just,
     lists,
     text,
 )
@@ -107,7 +108,7 @@ def article_strategy(draw) -> Article:
     title = draw(
         text(min_size=1, max_size=50).filter(lambda value: value.strip())
     )
-    published_at = draw(datetimes(timezones=[UTC]))
+    published_at = draw(datetimes(timezones=just(UTC)))
     importance_score = draw(floats(min_value=0.0, max_value=1.0))
     is_read = draw(booleans())
     is_saved = draw(booleans())

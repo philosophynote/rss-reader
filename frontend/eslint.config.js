@@ -20,7 +20,7 @@ export default [
         ecmaFeatures: {
           jsx: true,
         },
-        project: './tsconfig.json',
+        project: ['./tsconfig.json', './tsconfig.node.json'],
       },
     },
     plugins: {
@@ -37,7 +37,7 @@ export default [
         'warn',
         { allowConstantExport: true },
       ],
-      
+
       // TypeScript specific rules
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/explicit-function-return-type': 'off',
@@ -47,7 +47,7 @@ export default [
       '@typescript-eslint/prefer-optional-chain': 'error',
       '@typescript-eslint/no-unnecessary-type-assertion': 'error',
       '@typescript-eslint/no-floating-promises': 'error',
-      
+
       // General rules
       'no-console': 'warn',
       'prefer-const': 'error',
