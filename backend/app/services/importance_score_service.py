@@ -5,7 +5,7 @@ AWS Bedrockを使用してセマンティック検索による重要度スコア
 
 import json
 import logging
-from functools import lru_cache
+from threading import Lock
 from typing import Any, Dict, List, Tuple
 
 import boto3
@@ -36,6 +36,8 @@ class ImportanceScoreService:
         )
         self.model_id = settings.BEDROCK_MODEL_ID
         self.embedding_dimension = settings.EMBEDDING_DIMENSION
+        self._keyword_embedding_cache: Dict[str, np.ndarray] = {}
+        self._keyword_embedding_cache_lock = Lock()
         logger.info(
             f"ImportanceScoreService initialized with model: {self.model_id}"
         )
@@ -102,7 +104,6 @@ class ImportanceScoreService:
         )
         return np.array(embedding)
 
-    @lru_cache(maxsize=settings.KEYWORD_EMBEDDING_CACHE_SIZE)
     def _get_keyword_embedding_cached(
         self, keyword_text: str
     ) -> np.ndarray:
@@ -114,12 +115,18 @@ class ImportanceScoreService:
         Returns:
             埋め込みベクトル（numpy配列）
         """
+        cached_embedding = self._keyword_embedding_cache.get(keyword_text)
+        if cached_embedding is not None:
+            return cached_embedding
+
         embedding = self.get_embedding(keyword_text)
+        with self._keyword_embedding_cache_lock:
+            self._keyword_embedding_cache.setdefault(keyword_text, embedding)
         logger.debug(f"Cached embedding for keyword: {keyword_text}")
         return embedding
 
     def get_keyword_embedding(self, keyword_text: str) -> np.ndarray:
-        """キーワードの埋め込みを取得（LRUキャッシュ使用）
+        """キーワードの埋め込みを取得（キャッシュ使用）
 
         Args:
             keyword_text: キーワードテキスト
@@ -203,5 +210,6 @@ class ImportanceScoreService:
 
     def clear_cache(self) -> None:
         """キーワード埋め込みキャッシュをクリア"""
-        self._get_keyword_embedding_cached.cache_clear()
+        with self._keyword_embedding_cache_lock:
+            self._keyword_embedding_cache.clear()
         logger.info("Cleared keyword embeddings cache")
