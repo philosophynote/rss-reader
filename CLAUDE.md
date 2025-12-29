@@ -135,7 +135,7 @@ This project follows Kiro-style spec-driven development using custom slash comma
 ```bash
 # Backend tests (when implemented)
 cd backend
-pytest --cov
+uv run pytest --cov
 
 # Frontend tests (when implemented)
 cd frontend
