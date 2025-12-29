@@ -22,7 +22,6 @@ This is a Feedly-style RSS reader application with semantic search-based article
 ### Backend
 - **Language:** Python
 - **Framework:** FastAPI
-- **Data Access:** SQLModel (with DynamoDB backend)
 - **Deployment:** AWS Lambda (containerized via Lambda Web Adapter)
 - **API Gateway:** Lambda Function URL
 - **Scheduler:** EventBridge
