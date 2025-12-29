@@ -19,6 +19,28 @@ from app.models import Feed, Article, Keyword, ImportanceReason, LinkIndex
 # カスタム戦略の定義
 
 @composite
+def non_empty_text_strategy(draw, min_size=1, max_size=200):
+    """空白のみの文字列を除外したテキスト生成戦略
+    
+    制御文字（Cs: Surrogate, Cc: Control）を除外し、
+    空白のみの文字列をフィルターで除外する。
+    
+    Args:
+        draw: Hypothesis描画関数
+        min_size: 最小文字数
+        max_size: 最大文字数
+    
+    Returns:
+        str: 空白のみでないテキスト
+    """
+    return draw(st.text(
+        alphabet=st.characters(blacklist_categories=('Cs', 'Cc')),
+        min_size=min_size,
+        max_size=max_size
+    ).filter(lambda x: x.strip()))
+
+
+@composite
 def valid_url_strategy(draw):
     """有効なURL文字列を生成する戦略"""
     domains = ['example.com', 'test.org', 'sample.net', 'demo.co.jp']

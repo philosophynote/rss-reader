@@ -21,6 +21,10 @@ class BaseModel(PydanticBaseModel):
     - 作成日時・更新日時の管理
     """
     
+    # スコア精度定数（6桁の精度を確保するため）
+    # 0.000001の精度でスコアを表現可能（例: 0.123456）
+    SCORE_PRECISION: int = 1_000_000
+    
     model_config = ConfigDict(
         # 追加フィールドを許可しない
         extra="forbid",
@@ -75,12 +79,9 @@ class BaseModel(PydanticBaseModel):
         if score < 0 or score > max_score:
             raise ValueError(f"Score must be between 0 and {max_score}")
         
-        # 精度を向上させるための定数
-        SCORE_PRECISION = 1_000_000
-        
         # スコアを100万倍して整数化し、100万から引く
-        score_scaled = int(score * SCORE_PRECISION)
-        reverse_score = SCORE_PRECISION - score_scaled
+        score_scaled = int(score * self.SCORE_PRECISION)
+        reverse_score = self.SCORE_PRECISION - score_scaled
         
         # 小数部分は常に000000（整数部分のみを使用）
         # 7桁のゼロパディング（0～1000000の範囲をカバー）
