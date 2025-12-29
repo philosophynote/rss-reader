@@ -96,20 +96,18 @@ class TestImportanceScoreService:
         self, importance_score_service: ImportanceScoreService
     ) -> None:
         """
-        Bedrock APIエラー時にゼロベクトルが返されることを確認
+        Bedrock APIエラー時に例外が再スローされることを確認
         """
         # APIエラーをシミュレート
         importance_score_service.bedrock_runtime.invoke_model.side_effect = (
             Exception("API Error")
         )
 
-        embedding = importance_score_service.invoke_bedrock_embeddings(
-            "test", dimension=1024
-        )
-
-        # ゼロベクトルが返されることを確認
-        assert len(embedding) == 1024
-        assert all(x == 0.0 for x in embedding)
+        # 例外が再スローされることを確認
+        with pytest.raises(Exception, match="API Error"):
+            importance_score_service.invoke_bedrock_embeddings(
+                "test", dimension=1024
+            )
 
     def test_get_embedding(
         self, importance_score_service: ImportanceScoreService

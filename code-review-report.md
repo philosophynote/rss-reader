@@ -1,7 +1,7 @@
-# Code Review Report (再レビュー)
+# Code Review Report
 
-**レビュー日時:** 2025-12-28 (更新)
-**レビュー対象:** mainブランチとの差分（Task 3: DynamoDBクライアントとデータモデルの実装 - 修正版）
+**レビュー日時:** 2025-12-29
+**レビュー対象:** task6ブランチ (main...HEAD) - Task 6: AWS Bedrock重要度スコア計算
 **レビュアー:** Claude Code
 
 ---
@@ -10,136 +10,125 @@
 
 | 観点 | Critical | High | Medium | Low |
 |------|:--------:|:----:|:------:|:---:|
-| セキュリティ | 0 | 0 | 0 | 0 |
-| パフォーマンス | 0 | 0 | 1 | 1 |
-| 可読性・保守性 | 0 | 0 | 1 | 1 |
-| ベストプラクティス | 0 | 1 | 1 | 0 |
+| セキュリティ | 0 | 1 | 1 | 0 |
+| パフォーマンス | 0 | 0 | 1 | 0 |
+| 可読性・保守性 | 0 | 0 | 2 | 0 |
+| ベストプラクティス | 0 | 1 | 0 | 0 |
 
-**総合評価:** ✅ **Excellent** - 前回の主要な問題がすべて修正され、本番環境にデプロイ可能な品質に達しています。
-
----
-
-## 修正済み項目（前回レビューからの改善）
-
-### ✅ Critical/High レベルの修正
-
-**1. ✅ 逆順ソートキー生成の精度改善**
-- **場所:** `backend/app/models/base.py:78-86`
-- **修正内容:**
-  ```python
-  # 修正後
-  SCORE_PRECISION = 1_000_000
-  score_scaled = int(score * SCORE_PRECISION)
-  reverse_score = SCORE_PRECISION - score_scaled
-  return f"{reverse_score:06d}.000000"
-  ```
-- **評価:** ✅ SCORE_PRECISION定数が導入され、小数部分は削除されました。整数部分だけで十分にソート順序が保たれるため、合理的な修正です。
-
-**2. ✅ default_factoryパターンの最適化**
-- **場所:** `backend/app/models/feed.py:27`, `article.py:31`, `keyword.py:24`
-- **修正内容:**
-  ```python
-  # 修正前
-  feed_id: str = Field(default_factory=lambda: BaseModel().generate_id())
-
-  # 修正後
-  from uuid import uuid4
-  feed_id: str = Field(default_factory=lambda: str(uuid4()))
-  ```
-- **評価:** ✅ BaseModelインスタンスを毎回生成する非効率性が解消され、uuid4()を直接使用するように改善されました。
-
-**3. ✅ 環境変数管理の改善**
-- **場所:** 新規ファイル `backend/app/config.py`
-- **修正内容:**
-  - 設定ファイルが新規作成され、環境変数とデフォルト値を一元管理
-  - DynamoDBクライアント（`backend/app/utils/dynamodb_client.py:15,35,38`）が設定ファイルを使用
-  ```python
-  from ..config import settings
-
-  def __init__(self, table_name: Optional[str] = None):
-      self.table_name = table_name or settings.get_table_name()
-      self.dynamodb = boto3.resource('dynamodb', region_name=settings.get_region())
-  ```
-- **評価:** ✅ デフォルト値のハードコードが解消され、設定の一元管理が実現されました。優れた改善です。
-
-### ✅ Medium レベルの修正
-
-**4. ✅ マジックナンバーの定数化**
-- **場所:** `backend/app/models/base.py:79`
-- **修正内容:**
-  ```python
-  # 精度を向上させるための定数
-  SCORE_PRECISION = 1_000_000
-  ```
-- **評価:** ✅ マジックナンバー`1000000`が定数`SCORE_PRECISION`として定義され、可読性が向上しました。
-
-**5. ✅ バリデーションロジックの共通化**
-- **場所:** `backend/app/models/keyword.py:29-53`
-- **修正内容:**
-  ```python
-  @staticmethod
-  def _normalize_text(text: str) -> str:
-      """テキストの正規化処理"""
-      if not text or not text.strip():
-          raise ValueError("Text cannot be empty")
-      text = text.strip()
-      text = text.replace('\n', ' ').replace('\r', ' ')
-      import re
-      text = re.sub(r'\s+', ' ', text)
-      return text
-
-  @field_validator('text')
-  @classmethod
-  def validate_text(cls, v: str) -> str:
-      # 共通の正規化処理を使用
-      text = cls._normalize_text(v)
-      ...
-  ```
-- **評価:** ✅ テキスト正規化ロジックが静的メソッドとして抽出され、DRY原則が徹底されました。
+**総合評価:** 良好（一部改善推奨事項あり）
 
 ---
 
-## 残存する指摘事項
+## 指摘事項
+
+### セキュリティ
+
+#### High
+
+**1. エラー時のゼロベクトル返却によるサイレントフェイル**
+
+`backend/app/services/importance_score_service.py:84-87`
+
+```python
+except Exception as e:
+    logger.error(f"Bedrock embedding error: {e}")
+    # エラー時はゼロベクトルを返す
+    return [0.0] * dimension
+```
+
+**問題点:**
+- Bedrock APIエラー時にゼロベクトルを返すことで、エラーが隠蔽される
+- 呼び出し側がエラーを検知できず、誤った重要度スコア（0.0）が計算される
+- ネットワーク障害、認証エラー、レート制限など、すべてのエラーを同一視している
+
+**推奨対応:**
+- エラー種別に応じた処理を実装（リトライ、例外の再スロー）
+- 一時的なエラー（ネットワーク）と恒久的なエラー（認証）を区別
+- 呼び出し側にエラーを伝播させる仕組みを検討
+
+```python
+# 推奨実装例
+except ClientError as e:
+    error_code = e.response['Error']['Code']
+    if error_code in ['ThrottlingException', 'ServiceUnavailableException']:
+        # リトライ可能なエラー
+        logger.warning(f"Bedrock API throttled, retrying...")
+        # 指数バックオフでリトライ
+    else:
+        # リトライ不可能なエラーは再スロー
+        logger.error(f"Bedrock API error: {error_code}")
+        raise
+except Exception as e:
+    logger.error(f"Unexpected error: {e}")
+    raise  # ゼロベクトル返却ではなく例外を伝播
+```
+
+#### Medium
+
+**2. AWS認証情報の管理**
+
+`backend/app/services/importance_score_service.py:33-35`
+
+```python
+self.bedrock_runtime = boto3.client(
+    service_name="bedrock-runtime", region_name=self.region_name
+)
+```
+
+**確認事項:**
+- boto3クライアントの認証情報がLambda実行ロールで管理されているか確認
+- ローカル開発環境での認証情報の扱いが適切か（環境変数やIAMロール）
+- AWS認証情報がコードやログに露出していないか
+
+**推奨対応:**
+- README.mdにIAM権限要件を明記（例: `bedrock:InvokeModel`）
+- ローカル開発用の認証情報設定手順をドキュメント化
+- .envファイルの例をREADMEに記載
+
+---
 
 ### パフォーマンス
 
 #### Medium
 
-**1. バッチ操作時のリトライロジック欠如**
-- **場所:** `backend/app/utils/dynamodb_client.py:164-189`
-- **説明:** `batch_write_item`メソッドでDynamoDBのスロットリングや部分的失敗に対するリトライロジックがありません。
-- **推奨:** `UnprocessedItems`をチェックし、指数バックオフでリトライする。
+**1. キャッシュの永続性とメモリ管理**
+
+`backend/app/services/importance_score_service.py:39, 112-117`
+
 ```python
-def batch_write_item(self, items: List[Dict], delete_keys: List[Dict] = None) -> None:
-    unprocessed = items.copy()
-    retries = 0
-    max_retries = 3
-
-    while unprocessed and retries < max_retries:
-        try:
-            with self.table.batch_writer() as batch:
-                for item in unprocessed:
-                    batch.put_item(Item=item)
-                if delete_keys:
-                    for key in delete_keys:
-                        batch.delete_item(Key=key)
-            break
-        except ClientError as e:
-            if e.response['Error']['Code'] == 'ProvisionedThroughputExceededException':
-                retries += 1
-                time.sleep(2 ** retries)  # 指数バックオフ
-            else:
-                raise
+# キーワード埋め込みのキャッシュ
+self.keyword_embeddings_cache: Dict[str, np.ndarray] = {}
 ```
-- **優先度:** Medium（実運用での安定性向上のため）
 
-#### Low
+**問題点:**
+- キャッシュがメモリ上にのみ存在し、Lambda再起動で消失
+- キーワード数が増加するとメモリ使用量が増大（1キーワード≒4KB × 1024次元）
+- Lambda環境のメモリ制限を超える可能性
+- キャッシュクリア戦略が明確でない
 
-**2. 過剰なデバッグログ記録**
-- **場所:** `backend/app/utils/dynamodb_client.py` 全般
-- **説明:** すべてのDynamoDB操作で`logger.debug`を呼び出しています。
-- **推奨:** 本番環境では影響は小さいですが、ログレベルチェックを追加することで若干のパフォーマンス向上が見込めます。
-- **優先度:** Low（最適化として検討）
+**推奨対応:**
+1. キーワード埋め込みをDynamoDBに永続化
+   ```python
+   # Keywordモデルに埋め込みフィールドを追加
+   embedding: Optional[List[float]] = None
+
+   # 初回計算時にDynamoDBに保存
+   if keyword.embedding is None:
+       embedding = self.invoke_bedrock_embeddings(keyword.text)
+       keyword.embedding = embedding.tolist()
+       # DynamoDBに更新
+   ```
+
+2. メモリキャッシュにLRU戦略を導入
+   ```python
+   from functools import lru_cache
+
+   @lru_cache(maxsize=100)  # 最大100キーワードまでキャッシュ
+   def get_keyword_embedding(self, keyword_text: str) -> np.ndarray:
+       ...
+   ```
+
+3. Lambda環境でのメモリ使用量をCloudWatch Metricsでモニタリング
 
 ---
 
@@ -147,149 +136,392 @@ def batch_write_item(self, items: List[Dict], delete_keys: List[Dict] = None) ->
 
 #### Medium
 
-**1. URLコンストラクタの直接使用**
-- **場所:** `backend/app/models/link_index.py:135`
-- **説明:** `HttpUrl(link)`を直接呼び出しており、バリデーションエラーのハンドリングが不明確です。
+**1. マジックナンバーの使用**
+
+`backend/app/models/base.py:79`
+
 ```python
-return cls(
-    link=HttpUrl(link),  # バリデーションエラーの可能性
-    article_id=article_id
-)
+SCORE_PRECISION = 1_000_000
 ```
-- **推奨:** ドキュメントで例外の可能性を明記するか、try-exceptでラップする。
-- **優先度:** Medium
 
-#### Low
+**問題点:**
+- 100万という値の根拠が不明確
+- 関数ローカル定数として定義されており、他のコードで参照できない
+- スコア精度が変更された場合、複数箇所の修正が必要
 
-**2. テスト用のfixture名の一貫性**
-- **場所:** `backend/tests/unit/test_dynamodb_client.py:441-455`
-- **説明:** `client_with_error_table`という名前がfixtureとして使われているが、タプルを返しておりやや混乱を招く。
-- **推奨:** 個別のfixtureに分離するか、より明確な命名を使用する。
-- **優先度:** Low
+**推奨対応:**
+- クラスレベルまたはモジュールレベルの定数として定義
+- コメントで選定理由を記載
+
+```python
+class BaseModel(PydanticBaseModel):
+    """
+    すべてのDynamoDBモデルの基底クラス
+    """
+    # スコア精度定数（6桁の精度を確保するため）
+    SCORE_PRECISION: int = 1_000_000
+
+    def generate_gsi2_sk(self, score: float, max_score: float = 1.0) -> str:
+        """逆順ソートキーを生成"""
+        ...
+        score_scaled = int(score * self.SCORE_PRECISION)
+        reverse_score = self.SCORE_PRECISION - score_scaled
+        ...
+```
+
+**2. テストデータ生成戦略の複雑性**
+
+`backend/tests/property/test_data_models.py:54-58, 84-88, 348-352`
+
+```python
+title = draw(st.text(
+    alphabet=st.characters(blacklist_categories=('Cs', 'Cc')),
+    min_size=1,
+    max_size=200
+).filter(lambda x: x.strip()))
+```
+
+**問題点:**
+- 文字セット制御とフィルター処理が複雑で、意図が読み取りにくい
+- 同様のパターンが4箇所で重複している（title, keyword_text）
+- `blacklist_categories`の意味がコメントなしでは分からない
+
+**推奨対応:**
+- 共通の戦略を関数化し、意図を明確化
+
+```python
+@st.composite
+def non_empty_text_strategy(draw, min_size=1, max_size=200):
+    """空白のみの文字列を除外したテキスト生成戦略
+
+    制御文字（Cs: Surrogate, Cc: Control）を除外し、
+    空白のみの文字列をフィルターで除外する。
+    """
+    return draw(st.text(
+        alphabet=st.characters(blacklist_categories=('Cs', 'Cc')),
+        min_size=min_size,
+        max_size=max_size
+    ).filter(lambda x: x.strip()))
+
+# 使用例
+title = draw(non_empty_text_strategy(max_size=200))
+keyword_text = draw(non_empty_text_strategy(max_size=50))
+```
 
 ---
 
 ### ベストプラクティス
 
-#### High
+## 良い点
 
-**1. テストでのMockとMagicMockの混在**
-- **場所:** `backend/tests/unit/test_dynamodb_client.py` 全般
-- **説明:** `Mock`と`MagicMock`が混在しており、一貫性がありません。
-- **推奨:** 基本的に`MagicMock`を使用し、特別な理由がある場合のみ`Mock`を使う。
-- **優先度:** High
+### 1. 包括的なテストカバレッジ
 
-#### Medium
+**プロパティベーステスト:**
+- `backend/tests/property/test_importance_score.py`: 359行
+- 設計書のプロパティ20-23を忠実に検証
+  - Property 20: 重要度スコアの計算
+  - Property 21: スコア計算の加算性
+  - Property 22: 重要度理由の記録
+  - Property 23: 重要度スコアの再計算
+- Hypothesisを使用した網羅的なテストケース生成
 
-**2. プロパティテストのmax_examples設定の一貫性**
-- **場所:** `backend/tests/property/test_data_models.py` 全般
-- **説明:** ほとんどのテストが`max_examples=100`ですが、一部は50に設定されており、一貫性がありません。
-- **推奨:** 全体で統一するか、理由をコメントで説明する。
-- **優先度:** Medium
+**ユニットテスト:**
+- `backend/tests/unit/test_importance_score_service.py`: 395行
+- AWS Bedrockクライアントのモック化
+- エラーハンドリングのテスト
+- エッジケース（空入力、無効キーワード）の検証
 
----
+### 2. 型安全性の徹底
 
-## 新たに追加された良い点
+```python
+def calculate_score(
+    self, article: Dict[str, Any], keywords: List[Dict[str, Any]]
+) -> Tuple[float, List[Dict[str, Any]]]:
+```
 
-### 設計の改善
+- すべての関数に型ヒントを適用
+- Python 3.10+のUnion記法（`str | None`）を活用
+- mypy準拠の型チェック
 
-✅ **設定管理の一元化**
-- `backend/app/config.py`の追加により、環境変数とデフォルト値を一元管理
-- `Settings`クラスによる型安全な設定アクセス
-- `settings`グローバルインスタンスによる簡潔な利用
+### 3. 適切なドキュメンテーション
 
-✅ **コードの簡潔化**
-- uuid4()の直接使用により、不要な依存関係が削減
-- BaseModelインスタンスの生成コストが削減
+**Docstringの徹底:**
+- すべての公開メソッドにPEP 257準拠のdocstringを記載
+- パラメータ、戻り値、例外を明確に記述
 
-✅ **保守性の向上**
-- テキスト正規化ロジックの共通化により、将来の修正が容易に
-- 定数の使用により、マジックナンバーの意図が明確に
+**外部APIの参照明記:**
+```python
+"""AWS Bedrockを使用してテキストの埋め込みを生成
 
----
+公式ドキュメント準拠のAPIフォーマット:
+https://docs.aws.amazon.com/nova/latest/userguide/embeddings-schema.html
+```
 
-## 改善度評価
+### 4. AWS Bedrock Nova Embeddingsへの移行
 
-### 前回レビュー → 今回レビュー
+**最新モデルの採用:**
+- モデルID: `amazon.nova-2-multimodal-embeddings-v1:0`
+- マルチモーダル対応（将来的に画像も処理可能）
+- 埋め込み次元数を設定可能（256, 384, 1024, 3072）
 
-| 観点 | 前回 (Critical/High) | 今回 (Critical/High) | 改善率 |
-|------|:--------------------:|:--------------------:|:------:|
-| セキュリティ | 0件 | 0件 | - |
-| パフォーマンス | 0件 | 0件 | - |
-| 可読性・保守性 | 0件 | 0件 | - |
-| ベストプラクティス | 2件 | 1件 | **50%改善** |
-| **合計 (Critical/High)** | **2件** | **1件** | **50%改善** |
+**公式APIスキーマ準拠:**
+```python
+request_body = {
+    "taskType": "SINGLE_EMBEDDING",
+    "singleEmbeddingParams": {
+        "embeddingPurpose": "GENERIC_INDEX",
+        "embeddingDimension": dimension,
+        "text": {"truncationMode": "END", "value": text},
+    },
+}
+```
 
-| 観点 | 前回 (Medium) | 今回 (Medium) | 改善率 |
-|------|:-------------:|:-------------:|:------:|
-| セキュリティ | 1件 | 0件 | **100%改善** |
-| パフォーマンス | 2件 | 1件 | **50%改善** |
-| 可読性・保守性 | 3件 | 1件 | **67%改善** |
-| ベストプラクティス | 2件 | 1件 | **50%改善** |
-| **合計 (Medium)** | **8件** | **3件** | **63%改善** |
+### 5. データモデルの修正
 
-**総合評価:** 前回の10件の指摘事項のうち7件が解決され、70%の改善が見られます。特にCritical/High優先度の問題が2件から1件に減少し、コード品質が大幅に向上しました。
+**GSI2SKゼロパディングの改善:**
+- 6桁 → 7桁に変更し、スコア範囲0～1000000を正確にカバー
+- プロパティテストでソートキーの順序性を検証
+
+```python
+# 修正前: 6桁（0～999999）
+return f"{reverse_score:06d}.000000"
+
+# 修正後: 7桁（0～1000000）
+return f"{reverse_score:07d}.000000"
+```
+
+### 6. キャッシュによるコスト削減
+
+**キーワード埋め込みのキャッシュ:**
+```python
+def get_keyword_embedding(self, keyword_text: str) -> np.ndarray:
+    if keyword_text not in self.keyword_embeddings_cache:
+        self.keyword_embeddings_cache[keyword_text] = self.get_embedding(keyword_text)
+        logger.debug(f"Cached embedding for keyword: {keyword_text}")
+    return self.keyword_embeddings_cache[keyword_text]
+```
+
+- Bedrock APIコールを最小化
+- キャッシュヒット/ミスをログ出力
+- コスト削減と応答速度向上を両立
+
+### 7. テストの品質改善
+
+**プロパティテストの修正:**
+- 浮動小数点の精度問題を整数化で回避
+- NaN/Infinityを除外する戦略の追加
+- 空白のみの文字列を除外するフィルター
+
+```python
+@given(
+    score1=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False),
+    score2=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False)
+)
+```
 
 ---
 
 ## 推奨アクション
 
-### 推奨対応 (High)
+### 必須対応 (High) - ✅ 完了
 
-1. **テストのMock使用の統一**
-   - `backend/tests/unit/test_dynamodb_client.py`
-   - `MagicMock`への統一でテストの一貫性を向上
+**1. エラーハンドリングの改善**
+- 優先度: **High**
+- ファイル: `backend/app/services/importance_score_service.py:84-87`
+- 作業内容:
+  1. ✅ `invoke_bedrock_embeddings()`でゼロベクトル返却を廃止
+  2. ✅ エラーを呼び出し側に伝播させる実装に変更
+  3. ✅ テストを更新（例外の再スローを検証）
+- 完了日: 2025-12-29
+- 結果: 全111テストが成功、カバレッジ82.62%を維持
 
-### 推奨対応 (Medium)
+### 推奨対応 (Medium) - ✅ 一部完了
 
-1. **バッチ操作のリトライロジック追加**
-   - `backend/app/utils/dynamodb_client.py:164-189`
-   - 本番環境での安定性向上
+**1. マジックナンバーの定数化** - ✅ 完了
+- 優先度: **Medium**
+- ファイル: `backend/app/models/base.py:79`
+- 作業内容:
+  1. ✅ `SCORE_PRECISION`をクラス属性として定義
+  2. ✅ 選定理由をコメントで説明（「6桁の精度を確保」）
+- 完了日: 2025-12-29
+- 結果: 可読性向上、保守性向上
 
-2. **URLコンストラクタのドキュメント改善**
-   - `backend/app/models/link_index.py:135`
-   - 例外の可能性を明記
+**2. テストコードのリファクタリング** - ✅ 完了
+- 優先度: **Medium**
+- ファイル: `backend/tests/property/test_data_models.py`
+- 作業内容:
+  1. ✅ `non_empty_text_strategy()`を共通関数として定義
+  2. ✅ `blacklist_categories`の意図をコメントで説明
+- 完了日: 2025-12-29
+- 結果: テストコードの可読性向上、DRY原則の徹底
 
-3. **プロパティテストのmax_examples統一**
-   - `backend/tests/property/test_data_models.py`
-   - テスト品質の一貫性向上
+**3. キャッシュ戦略の改善** - 🔄 未対応（推奨）
+- 優先度: **Medium**
+- ファイル: `backend/app/services/importance_score_service.py:112-117`
+- 作業内容:
+  1. Keywordモデルに`embedding: Optional[List[float]]`フィールドを追加
+  2. 初回計算時にDynamoDBに永続化
+  3. メモリキャッシュにLRU戦略を導入（`functools.lru_cache`）
+  4. CloudWatch Metricsでメモリ使用量をモニタリング
+- 期待効果: Lambda再起動後もキャッシュが有効、メモリ使用量の制御
+- 備考: Task 7以降で実装を検討
+
+**4. AWS認証情報のドキュメント化** - 🔄 未対応（推奨）
+- 優先度: **Medium**
+- ファイル: `README.md`
+- 作業内容:
+  1. 必要なIAM権限を明記（`bedrock:InvokeModel`等）
+  2. ローカル開発環境のセットアップ手順を追加
+  3. .envファイルの例を記載
+- 期待効果: オンボーディングの改善、セキュリティの明確化
+
+**4. テストコードのリファクタリング**
+- 優先度: **Medium**
+  2. ローカル開発環境のセットアップ手順を追加
+  3. .envファイルの例を記載
+- 期待効果: オンボーディングの改善、セキュリティの明確化
+- 備考: Task 13（API実装）と合わせて対応予定
 
 ### 検討事項 (Low)
 
-1. **デバッグログの最適化**
-   - 本番環境でのわずかなパフォーマンス向上
+**1. プロパティテストの実行時間最適化**
+- `max_examples=100`が適切か検証
+- CI/CD実行時間とテスト品質のバランスを調整
+- 重要度の低いテストは`max_examples=50`に削減
 
-2. **テストfixture名の改善**
-   - テストの可読性向上
+**2. ログレベルの調整**
+- `logger.debug()`の使用箇所を確認
+- 本番環境ではINFO以上のみ出力する設定を推奨
+- CloudWatch Logsのコスト削減
 
 ---
 
-## 結論
+## 対応完了サマリー (2025-12-29更新)
 
-Task 3「DynamoDBクライアントとデータモデルの実装」の修正版は、前回レビューで指摘した主要な問題がすべて解決され、優れた品質に達しています。
+### ✅ 完了した対応
 
-### 特に評価できる改善点
+1. **エラーハンドリングの改善 (High Priority)**
+   - ゼロベクトル返却を廃止し、例外を再スローする実装に変更
+   - テストを更新して例外の再スローを検証
+   - 全111テストが成功、カバレッジ82.62%を維持
 
-1. **設計の質**: 設定管理の一元化により、保守性が大幅に向上
-2. **コードの簡潔性**: uuid4()の直接使用により、不要な複雑性が削減
-3. **DRY原則の徹底**: テキスト正規化ロジックの共通化
-4. **定数の適切な使用**: マジックナンバーの削減で可読性が向上
+2. **マジックナンバーの定数化 (Medium Priority)**
+   - `SCORE_PRECISION`をクラス属性として定義
+   - 選定理由をコメントで明記
 
-### 残存課題
+3. **テストコードのリファクタリング (Medium Priority)**
+   - `non_empty_text_strategy()`を共通関数として定義
+   - `blacklist_categories`の意図をコメントで説明
 
-残存する1件のHigh優先度項目（テストのMock使用の統一）は、機能には影響しないためデプロイを妨げるものではありません。Medium優先度の項目も、実運用上の問題ではなく、さらなる品質向上のための推奨事項です。
+### 🔄 未対応（今後の対応推奨）
 
-**次のステップ**: 本コードは本番環境にデプロイ可能な品質に達しています。Task 4（フィードフェッチャーの実装）への移行を推奨します。残存する推奨事項は、今後のイテレーションで対応することができます。
+1. **キャッシュ戦略の改善 (Medium Priority)**
+   - DynamoDB永続化とLRU戦略の導入
+   - Task 7以降で実装を検討
+
+2. **AWS認証情報のドキュメント化 (Medium Priority)**
+   - IAM権限要件の明記
+   - Task 13（API実装）と合わせて対応予定
+
+---
+
+## 変更の詳細
+
+### 主要な変更
+
+**1. Python 3.11 → 3.14へのアップグレード**
+- ファイル: `pyproject.toml`, `Dockerfile`, `.python-version`, `README.md`
+- 変更内容: `requires-python = ">=3.14"`
+- 注意: AWS Lambdaサポート状況の確認が必要
+
+**2. AWS Bedrock Nova Multimodal Embeddingsへの移行**
+- 旧モデル: `amazon.titan-embed-text-v1`
+- 新モデル: `amazon.nova-2-multimodal-embeddings-v1:0`
+- 埋め込み次元数: デフォルト1024（設定可能）
+- ファイル: `backend/app/config.py`
+
+**3. ImportanceScoreServiceの新規実装**
+- ファイル: `backend/app/services/importance_score_service.py` (194行)
+- 主な機能:
+  - `invoke_bedrock_embeddings()`: Bedrock API呼び出し
+  - `get_embedding()`: テキスト埋め込み取得
+  - `get_keyword_embedding()`: キャッシュ付きキーワード埋め込み
+  - `calculate_similarity()`: コサイン類似度計算
+  - `calculate_score()`: 記事の重要度スコア計算
+  - `clear_cache()`: キャッシュクリア
+
+**4. データモデルの修正**
+- ファイル: `backend/app/models/base.py`
+- 変更内容: `generate_gsi2_sk()`のゼロパディングを7桁に変更
+- 理由: スコア範囲0～1000000を正確にカバー
+
+**5. テストの追加**
+- プロパティテスト: `backend/tests/property/test_importance_score.py` (359行)
+  - 7つのプロパティを検証
+  - Hypothesisで網羅的なテストケース生成
+- ユニットテスト: `backend/tests/unit/test_importance_score_service.py` (395行)
+  - モックを使用したBedrock APIのテスト
+  - エラーハンドリングのテスト
+
+**6. 既存テストの修正**
+- ファイル: `backend/tests/property/test_data_models.py`, `backend/tests/unit/test_data_models.py`
+- 変更内容:
+  - 空白のみの文字列を除外するフィルター追加
+  - 浮動小数点の精度問題を整数化で回避
+  - GSI2SKのゼロパディング期待値を7桁に更新
+
+### タスク進捗
+
+`.kiro/specs/rss-reader/tasks.md`の更新:
+- [x] タスク4: フィード管理機能の実装
+- [x] タスク5: チェックポイント - すべてのテストが通過
+- [x] タスク6: AWS Bedrockセマンティック検索の実装
+  - [x] 6.1 ImportanceScoreServiceクラスを実装
+  - [x] 6.2 重要度スコア計算のプロパティテストを作成
+  - [x] 6.3 重要度スコア計算のユニットテストを作成
 
 ---
 
 ## 参照したプロジェクト規約
 
-- `docs/python_coding_conventions.md` - PEP 8準拠、型ヒント、docstring規約
-- `.kiro/specs/rss-reader/design.md` - DynamoDBシングルテーブル設計、GSI設計
-- `.kiro/specs/rss-reader/requirements.md` - 要件定義（要件1.1: フィード登録の永続化）
-- `.kiro/specs/rss-reader/tasks.md` - Task 3のチェックリスト
+- **CLAUDE.md** - プロジェクト概要と開発ガイドライン
+- **docs/python_coding_conventions.md** - Pythonコーディング規約（PEP 8準拠）
+- **.kiro/specs/rss-reader/design.md** - 技術設計書（プロパティ定義）
+- **.kiro/specs/rss-reader/requirements.md** - 要件定義書
+- **.kiro/specs/rss-reader/tasks.md** - 実装タスク管理
+- **pyproject.toml** - プロジェクト設定とツール設定
 
 ---
 
-*このレポートはClaude Codeのcode-reviewスキルにより生成されました。*
+## 結論
+
+Task 6「AWS Bedrockセマンティック検索の実装」は、全体的に高品質なコードで実装されています。
+
+### 特に評価できる点
+
+1. **テストカバレッジの充実**: プロパティテストとユニットテストの両方を実装
+2. **型安全性の徹底**: すべての関数に型ヒントを適用
+3. **適切なドキュメンテーション**: docstringとコメントで意図を明確化
+4. **最新技術の採用**: AWS Bedrock Nova Embeddingsを活用
+
+### 改善完了（2025-12-29更新）
+
+1. ✅ **エラーハンドリング（High）**: ゼロベクトル返却によるサイレントフェイルを修正完了
+2. ✅ **マジックナンバー（Medium）**: 定数化と理由の明記完了
+3. ✅ **テストコードのリファクタリング（Medium）**: 共通関数化とコメント追加完了
+
+### 今後の改善推奨事項
+
+1. **キャッシュ戦略（Medium）**: DynamoDB永続化とLRU戦略の導入（Task 7以降で検討）
+2. **AWS認証情報のドキュメント化（Medium）**: IAM権限要件の明記（Task 13で対応予定）
+
+### 次のステップ
+
+- ✅ **必須対応1件**を完了
+- ✅ **推奨対応2件**を完了
+- 🔄 **推奨対応2件**は今後のタスクで対応予定
+- ✅ Task 7（RSSフィード取得機能の実装）への移行準備完了
+
+---
+
+*このレポートはClaude Codeのcode-reviewスキルにより生成され、2025-12-29に対応完了を反映しました。*

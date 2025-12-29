@@ -55,6 +55,9 @@ class ImportanceScoreService:
         
         Returns:
             埋め込みベクトル（float型のリスト）
+        
+        Raises:
+            Exception: Bedrock API呼び出しに失敗した場合
         """
         request_body = {
             "taskType": "SINGLE_EMBEDDING",
@@ -83,8 +86,8 @@ class ImportanceScoreService:
 
         except Exception as e:
             logger.error(f"Bedrock embedding error: {e}")
-            # エラー時はゼロベクトルを返す
-            return [0.0] * dimension
+            # エラーを呼び出し側に伝播させる
+            raise
 
     def get_embedding(self, text: str) -> np.ndarray:
         """テキストの埋め込みを取得
