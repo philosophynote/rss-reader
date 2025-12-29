@@ -4,8 +4,6 @@
 記事の取得、更新（既読/保存状態）を担当します。
 """
 
-from typing import Dict, List, Optional, Tuple
-
 from app.models.article import Article
 from app.utils.dynamodb_client import DynamoDBClient
 
@@ -18,7 +16,7 @@ class ArticleService:
     記事データの取得・更新を提供します。
     """
 
-    def __init__(self, dynamodb_client: Optional[DynamoDBClient] = None):
+    def __init__(self, dynamodb_client: DynamoDBClient | None = None):
         """
         ArticleServiceの初期化
 
@@ -30,10 +28,10 @@ class ArticleService:
     def get_articles(
         self,
         sort_by: str = "published_at",
-        filter_by: Optional[str] = None,
+        filter_by: str | None = None,
         limit: int = 100,
-        last_evaluated_key: Optional[Dict] = None,
-    ) -> Tuple[List[Article], Optional[Dict]]:
+        last_evaluated_key: dict | None = None,
+    ) -> tuple[list[Article], dict | None]:
         """
         記事一覧を取得
 
@@ -71,7 +69,7 @@ class ArticleService:
         articles = [self._convert_item_to_article(item) for item in items]
         return articles, last_key
 
-    def get_article(self, article_id: str) -> Optional[Article]:
+    def get_article(self, article_id: str) -> Article | None:
         """
         記事詳細を取得
 
@@ -89,7 +87,7 @@ class ArticleService:
             return None
         return self._convert_item_to_article(item)
 
-    def mark_as_read(self, article_id: str, is_read: bool) -> Optional[Article]:
+    def mark_as_read(self, article_id: str, is_read: bool) -> Article | None:
         """
         記事の既読状態を更新
 
@@ -112,7 +110,7 @@ class ArticleService:
         self.dynamodb_client.put_item(article.to_dynamodb_item())
         return article
 
-    def mark_as_saved(self, article_id: str, is_saved: bool) -> Optional[Article]:
+    def mark_as_saved(self, article_id: str, is_saved: bool) -> Article | None:
         """
         記事の保存状態を更新
 
@@ -133,7 +131,7 @@ class ArticleService:
         self.dynamodb_client.put_item(article.to_dynamodb_item())
         return article
 
-    def _convert_item_to_article(self, item: Dict) -> Article:
+    def _convert_item_to_article(self, item: dict) -> Article:
         """
         DynamoDBアイテムをArticleモデルに変換
 
@@ -144,5 +142,7 @@ class ArticleService:
             Article: 変換済み記事
         """
         article_fields = Article.model_fields.keys()
-        article_data = {key: item[key] for key in article_fields if key in item}
+        article_data = {
+            key: item[key] for key in article_fields if key in item
+        }
         return Article(**article_data)

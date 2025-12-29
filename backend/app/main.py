@@ -6,7 +6,6 @@ AWS Lambda Web Adapterを使用してコンテナとしてデプロイされま�
 """
 
 import os
-from typing import List
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,7 +19,7 @@ app = FastAPI(
 )
 
 
-def get_cors_origins() -> List[str]:
+def get_cors_origins() -> list[str]:
     """
     CORS許可オリジンを環境変数から取得します。
 

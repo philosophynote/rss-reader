@@ -4,8 +4,6 @@
 フィードの登録、取得、更新、削除を担当します。
 """
 
-from typing import List, Optional, Tuple
-
 from app.config import settings
 from app.models.feed import Feed
 from app.utils.dynamodb_client import DynamoDBClient
@@ -19,7 +17,7 @@ class FeedService:
     フィードデータの操作を提供します。
     """
 
-    def __init__(self, dynamodb_client: Optional[DynamoDBClient] = None):
+    def __init__(self, dynamodb_client: DynamoDBClient | None = None):
         """
         FeedServiceの初期化
 
@@ -31,8 +29,8 @@ class FeedService:
     def create_feed(
         self,
         url: str,
-        title: Optional[str],
-        folder: Optional[str],
+        title: str | None,
+        folder: str | None,
     ) -> Feed:
         """
         フィードを作成
@@ -49,7 +47,7 @@ class FeedService:
         self.dynamodb_client.put_item(feed.to_dynamodb_item())
         return feed
 
-    def list_feeds(self) -> List[Feed]:
+    def list_feeds(self) -> list[Feed]:
         """
         フィード一覧を取得
 
@@ -59,7 +57,7 @@ class FeedService:
         items, _ = self.dynamodb_client.query_feeds()
         return [self._convert_item_to_feed(item) for item in items]
 
-    def get_feed(self, feed_id: str) -> Optional[Feed]:
+    def get_feed(self, feed_id: str) -> Feed | None:
         """
         フィードを取得
 
@@ -80,10 +78,10 @@ class FeedService:
     def update_feed(
         self,
         feed_id: str,
-        title: Optional[str],
-        folder: Optional[str],
-        is_active: Optional[bool],
-    ) -> Optional[Feed]:
+        title: str | None,
+        folder: str | None,
+        is_active: bool | None,
+    ) -> Feed | None:
         """
         フィードを更新
 
@@ -141,7 +139,7 @@ class FeedService:
     def _delete_feed_related_data(
         self,
         feed_id: str,
-    ) -> Tuple[int, int]:
+    ) -> tuple[int, int]:
         """
         フィードに紐づく記事と重要度理由を削除
 
@@ -153,22 +151,22 @@ class FeedService:
         """
         deleted_articles = 0
         deleted_reasons = 0
-        delete_keys: List[dict] = []
+        delete_keys: list[dict] = []
         last_evaluated_key = None
 
         while True:
-            items, last_evaluated_key = self.dynamodb_client.query_articles_by_feed_id(
-                feed_id=feed_id,
-                exclusive_start_key=last_evaluated_key,
+            items, last_evaluated_key = (
+                self.dynamodb_client.query_articles_by_feed_id(
+                    feed_id=feed_id,
+                    exclusive_start_key=last_evaluated_key,
+                )
             )
 
             for item in items:
                 article_id = item.get("article_id")
                 if article_id:
-                    deleted_reasons += (
-                        self.dynamodb_client.delete_importance_reasons_for_article(
-                            article_id
-                        )
+                    deleted_reasons += self.dynamodb_client.delete_importance_reasons_for_article(
+                        article_id
                     )
 
                 delete_keys.append({"PK": item["PK"], "SK": item["SK"]})

@@ -8,8 +8,7 @@ Feature: rss-reader, Property 8-15
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Dict, List, Optional, Tuple
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from hypothesis import given, settings
@@ -32,7 +31,7 @@ class StoredItem:
 
     pk: str
     sk: str
-    item: Dict
+    item: dict
 
 
 class FakeDynamoDBClient:
@@ -43,23 +42,23 @@ class FakeDynamoDBClient:
     """
 
     def __init__(self) -> None:
-        self.items: Dict[Tuple[str, str], Dict] = {}
+        self.items: dict[tuple[str, str], dict] = {}
 
-    def put_item(self, item: Dict) -> None:
+    def put_item(self, item: dict) -> None:
         """アイテムを保存する。"""
         self.items[(item["PK"], item["SK"])] = item
 
-    def get_item(self, pk: str, sk: str) -> Optional[Dict]:
+    def get_item(self, pk: str, sk: str) -> dict | None:
         """キーでアイテムを取得する。"""
         return self.items.get((pk, sk))
 
     def query_articles_with_filters(
         self,
         sort_by: str = "published_at",
-        filter_by: Optional[str] = None,
-        limit: Optional[int] = None,
-        exclusive_start_key: Optional[Dict] = None,
-    ) -> Tuple[List[Dict], Optional[Dict]]:
+        filter_by: str | None = None,
+        limit: int | None = None,
+        exclusive_start_key: dict | None = None,
+    ) -> tuple[list[dict], dict | None]:
         """
         記事をソート・フィルタして取得する。
 
@@ -108,7 +107,7 @@ def article_strategy(draw) -> Article:
     title = draw(
         text(min_size=1, max_size=50).filter(lambda value: value.strip())
     )
-    published_at = draw(datetimes(timezones=[timezone.utc]))
+    published_at = draw(datetimes(timezones=[UTC]))
     importance_score = draw(floats(min_value=0.0, max_value=1.0))
     is_read = draw(booleans())
     is_saved = draw(booleans())
@@ -127,7 +126,7 @@ def article_strategy(draw) -> Article:
 
 def seed_articles(
     client: FakeDynamoDBClient,
-    articles: List[Article],
+    articles: list[Article],
 ) -> None:
     """
     記事をFakeDynamoDBClientに保存する。
@@ -147,7 +146,7 @@ class TestArticleServiceProperty:
     @settings(max_examples=50)
     def test_articles_sorted_by_published_at(
         self,
-        articles: List[Article],
+        articles: list[Article],
     ) -> None:
         """
         記事が公開日時の降順で返ることを検証する。
@@ -167,7 +166,7 @@ class TestArticleServiceProperty:
     @settings(max_examples=50)
     def test_articles_sorted_by_importance_score(
         self,
-        articles: List[Article],
+        articles: list[Article],
     ) -> None:
         """
         記事が重要度スコアの降順で返ることを検証する。
@@ -230,7 +229,7 @@ class TestArticleServiceProperty:
     @settings(max_examples=50)
     def test_unread_filter_returns_only_unread(
         self,
-        articles: List[Article],
+        articles: list[Article],
     ) -> None:
         """
         未読フィルタで未読記事のみ返ることを検証する。
@@ -249,7 +248,7 @@ class TestArticleServiceProperty:
     @settings(max_examples=50)
     def test_read_filter_returns_only_read(
         self,
-        articles: List[Article],
+        articles: list[Article],
     ) -> None:
         """
         既読フィルタで既読記事のみ返ることを検証する。
@@ -288,7 +287,7 @@ class TestArticleServiceProperty:
     @settings(max_examples=50)
     def test_saved_filter_returns_only_saved(
         self,
-        articles: List[Article],
+        articles: list[Article],
     ) -> None:
         """
         保存フィルタで保存済み記事のみ返ることを検証する。

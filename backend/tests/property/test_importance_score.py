@@ -3,11 +3,10 @@
 設計書のプロパティ20-23を検証します。
 """
 
-from typing import Any, Dict, List
+from typing import Any
 from unittest.mock import Mock, patch
 
 import numpy as np
-import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
@@ -16,7 +15,7 @@ from app.services.importance_score_service import ImportanceScoreService
 
 # テスト用の戦略定義
 @st.composite
-def article_strategy(draw: Any) -> Dict[str, Any]:
+def article_strategy(draw: Any) -> dict[str, Any]:
     """記事データを生成する戦略"""
     return {
         "article_id": draw(
@@ -51,7 +50,7 @@ def article_strategy(draw: Any) -> Dict[str, Any]:
 
 
 @st.composite
-def keyword_strategy(draw: Any) -> Dict[str, Any]:
+def keyword_strategy(draw: Any) -> dict[str, Any]:
     """キーワードデータを生成する戦略"""
     return {
         "keyword_id": draw(
@@ -112,12 +111,12 @@ class TestImportanceScoreProperties:
     )
     def test_property_20_importance_score_calculation(
         self,
-        article: Dict[str, Any],
-        keywords: List[Dict[str, Any]],
+        article: dict[str, Any],
+        keywords: list[dict[str, Any]],
     ) -> None:
         """
         プロパティ20: 重要度スコアの計算
-        
+
         任意の記事と有効なキーワードのリストに対して、
         重要度スコアを計算すると、スコアは0以上であり、
         各キーワードの寄与度の合計と等しい。
@@ -128,7 +127,7 @@ class TestImportanceScoreProperties:
         # スコアは0以上（類似度が負の場合もあるため、実際には負になる可能性がある）
         # コサイン類似度は-1から1の範囲なので、スコアも負になりうる
         # ただし、重みが正の場合、スコアの範囲は予測可能
-        
+
         # 有効なキーワードの寄与度の合計がスコアと等しい
         active_keywords = [kw for kw in keywords if kw.get("is_active", True)]
         expected_score = sum(
@@ -154,13 +153,13 @@ class TestImportanceScoreProperties:
     )
     def test_property_21_score_additivity(
         self,
-        article: Dict[str, Any],
-        keyword: Dict[str, Any],
+        article: dict[str, Any],
+        keyword: dict[str, Any],
         similarity: float,
     ) -> None:
         """
         プロパティ21: スコア計算の加算性
-        
+
         任意の記事、キーワード、類似度、重みに対して、
         そのキーワードのスコアへの寄与度は、類似度と重みの積に等しい。
         """
@@ -203,12 +202,12 @@ class TestImportanceScoreProperties:
     )
     def test_property_22_importance_reason_recording(
         self,
-        article: Dict[str, Any],
-        keywords: List[Dict[str, Any]],
+        article: dict[str, Any],
+        keywords: list[dict[str, Any]],
     ) -> None:
         """
         プロパティ22: 重要度理由の記録
-        
+
         任意の記事に対して、重要度スコアを計算した後、
         各キーワードの寄与度がImportanceReasonとして記録されている。
         """
@@ -242,7 +241,8 @@ class TestImportanceScoreProperties:
 
             # 寄与度は類似度と重みの積
             matching_keyword = next(
-                kw for kw in active_keywords 
+                kw
+                for kw in active_keywords
                 if kw["keyword_id"] == reason["keyword_id"]
             )
             expected_contribution = (
@@ -261,13 +261,13 @@ class TestImportanceScoreProperties:
     )
     def test_property_23_score_recalculation(
         self,
-        article: Dict[str, Any],
-        keywords: List[Dict[str, Any]],
+        article: dict[str, Any],
+        keywords: list[dict[str, Any]],
         weight_multiplier: float,
     ) -> None:
         """
         プロパティ23: 重要度スコアの再計算
-        
+
         任意の記事とキーワードに対して、
         キーワードの重みを変更して再計算すると、
         記事の重要度スコアが更新される。
@@ -284,19 +284,16 @@ class TestImportanceScoreProperties:
             modified_keywords.append(modified_kw)
 
         # 再計算
-        score2, reasons2 = service.calculate_score(
-            article, modified_keywords
-        )
+        score2, reasons2 = service.calculate_score(article, modified_keywords)
 
         # 有効なキーワードが存在する場合
         active_keywords = [kw for kw in keywords if kw.get("is_active", True)]
         if active_keywords:
             # スコアが変更されている（weight_multiplierが1.0でない場合）
-            if abs(weight_multiplier - 1.0) > 1e-6:
+            if abs(weight_multiplier - 1.0) > 1e-6 and score1 > 0:
                 # スコアの比率が重みの変更倍率と一致する
-                if score1 > 0:
-                    ratio = score2 / score1
-                    assert abs(ratio - weight_multiplier) < 1e-3
+                ratio = score2 / score1
+                assert abs(ratio - weight_multiplier) < 1e-3
 
             # 理由の数は変わらない
             assert len(reasons1) == len(reasons2)
@@ -308,8 +305,8 @@ class TestImportanceScoreProperties:
     )
     def test_score_is_sum_of_contributions(
         self,
-        article: Dict[str, Any],
-        keywords: List[Dict[str, Any]],
+        article: dict[str, Any],
+        keywords: list[dict[str, Any]],
     ) -> None:
         """
         スコアは各キーワードの寄与度の合計であることを確認
@@ -317,7 +314,7 @@ class TestImportanceScoreProperties:
         """
         service = create_mock_service()
         score, reasons = service.calculate_score(article, keywords)
-        
+
         # スコアは寄与度の合計
         expected_score = sum(r["contribution"] for r in reasons)
         assert abs(score - expected_score) < 1e-6
@@ -326,7 +323,7 @@ class TestImportanceScoreProperties:
     @given(article=article_strategy())
     def test_score_zero_with_no_keywords(
         self,
-        article: Dict[str, Any],
+        article: dict[str, Any],
     ) -> None:
         """
         キーワードがない場合、スコアは0になることを確認
@@ -347,8 +344,8 @@ class TestImportanceScoreProperties:
     )
     def test_score_zero_with_all_inactive_keywords(
         self,
-        article: Dict[str, Any],
-        keywords: List[Dict[str, Any]],
+        article: dict[str, Any],
+        keywords: list[dict[str, Any]],
     ) -> None:
         """
         すべてのキーワードが無効な場合、スコアは0になることを確認

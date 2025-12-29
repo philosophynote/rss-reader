@@ -6,20 +6,24 @@ RSSフィードを取得し、記事として保存する処理を提供しま�
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime
-import logging
-from typing import Iterable, List, Optional, Protocol
+from typing import TYPE_CHECKING, Protocol
 
 import feedparser
 import httpx
 
 from app.config import settings
 from app.models.article import Article
-from app.models.feed import Feed
 from app.models.link_index import LinkIndex
 from app.services.feed_service import FeedService
 from app.utils.dynamodb_client import DynamoDBClient
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from app.models.feed import Feed
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +71,7 @@ class FeedFetchResult:
     created_articles: int
     skipped_duplicates: int
     skipped_invalid: int
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
 
 class FeedFetcherService:
@@ -80,9 +84,9 @@ class FeedFetcherService:
 
     def __init__(
         self,
-        dynamodb_client: Optional[DynamoDBClient] = None,
-        http_client: Optional[httpx.Client] = None,
-        importance_score_service: Optional[ImportanceScoreService] = None,
+        dynamodb_client: DynamoDBClient | None = None,
+        http_client: httpx.Client | None = None,
+        importance_score_service: ImportanceScoreService | None = None,
     ) -> None:
         """
         FeedFetcherServiceの初期化。
@@ -99,7 +103,7 @@ class FeedFetcherService:
         )
         self.importance_score_service = importance_score_service
 
-    def fetch_all_feeds(self) -> List[FeedFetchResult]:
+    def fetch_all_feeds(self) -> list[FeedFetchResult]:
         """
         登録済みの全フィードを取得する。
 
@@ -107,7 +111,7 @@ class FeedFetcherService:
             List[FeedFetchResult]: 取得結果の一覧
         """
         feed_service = FeedService(dynamodb_client=self.dynamodb_client)
-        results: List[FeedFetchResult] = []
+        results: list[FeedFetchResult] = []
 
         for feed in feed_service.list_feeds():
             if not feed.is_active:
@@ -147,7 +151,7 @@ class FeedFetcherService:
         created_articles = 0
         skipped_duplicates = 0
         skipped_invalid = 0
-        items_to_save: List[dict] = []
+        items_to_save: list[dict] = []
 
         for entry in entries:
             link = self._extract_link(entry)
@@ -214,7 +218,9 @@ class FeedFetcherService:
                 f"フィード解析に失敗しました: {bozo_exception}"
             )
         if parsed_feed.bozo:
-            logger.warning("フィード解析に警告: %s", parsed_feed.bozo_exception)
+            logger.warning(
+                "フィード解析に警告: %s", parsed_feed.bozo_exception
+            )
 
         return parsed_feed
 
@@ -243,7 +249,7 @@ class FeedFetcherService:
         entry: feedparser.FeedParserDict,
         link: str,
         title: str,
-    ) -> Optional[Article]:
+    ) -> Article | None:
         """
         記事モデルを生成する。
 
@@ -285,7 +291,7 @@ class FeedFetcherService:
         article.set_ttl_for_article(settings.DEFAULT_ARTICLE_TTL_DAYS)
         return article
 
-    def _extract_link(self, entry: feedparser.FeedParserDict) -> Optional[str]:
+    def _extract_link(self, entry: feedparser.FeedParserDict) -> str | None:
         """
         エントリーからリンクを抽出する。
 
@@ -304,7 +310,7 @@ class FeedFetcherService:
     def _extract_title(
         self,
         entry: feedparser.FeedParserDict,
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         エントリーからタイトルを抽出する。
 
@@ -330,14 +336,12 @@ class FeedFetcherService:
         Returns:
             str: 記事本文
         """
-        content_sources: Iterable[Optional[str]] = (
+        content_sources: Iterable[str | None] = (
             entry.get("summary"),
             entry.get("description"),
         )
 
-        content = next(
-            (value for value in content_sources if value), None
-        )
+        content = next((value for value in content_sources if value), None)
         if not content:
             contents = entry.get("content") or []
             if contents:
