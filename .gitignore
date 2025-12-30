@@ -115,8 +115,8 @@ terraform.tfstate.*
 .terraform/
 
 # CDK generated files
-infrastructure/*.js
-infrastructure/*.d.ts
+infrastructure/**/*.js
+infrastructure/**/*.d.ts
 
 # =========================
 # Database / Local runtime
