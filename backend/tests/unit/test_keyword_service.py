@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
 
 import pytest
 
@@ -23,13 +22,13 @@ class FakeDynamoDBClient:
     """
 
     def __init__(self) -> None:
-        self.items: Dict[Tuple[str, str], Dict] = {}
+        self.items: dict[tuple[str, str], dict] = {}
 
-    def put_item(self, item: Dict) -> None:
+    def put_item(self, item: dict) -> None:
         """アイテムを保存。"""
         self.items[(item["PK"], item["SK"])] = item
 
-    def get_item(self, pk: str, sk: str) -> Optional[Dict]:
+    def get_item(self, pk: str, sk: str) -> dict | None:
         """キーでアイテムを取得。"""
         return self.items.get((pk, sk))
 
@@ -39,9 +38,9 @@ class FakeDynamoDBClient:
 
     def query_keywords(
         self,
-        limit: Optional[int] = None,
-        exclusive_start_key: Optional[Dict] = None,
-    ) -> Tuple[List[Dict], Optional[Dict]]:
+        limit: int | None = None,
+        exclusive_start_key: dict | None = None,
+    ) -> tuple[list[dict], dict | None]:
         """キーワード一覧を取得。"""
         items = [
             item
@@ -54,12 +53,12 @@ class FakeDynamoDBClient:
 
     def query_articles_by_published_date(
         self,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-        limit: Optional[int] = None,
-        exclusive_start_key: Optional[Dict] = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        limit: int | None = None,
+        exclusive_start_key: dict | None = None,
         descending: bool = True,
-    ) -> Tuple[List[Dict], Optional[Dict]]:
+    ) -> tuple[list[dict], dict | None]:
         """記事を公開日時順で取得。"""
         items = [
             item
@@ -80,7 +79,7 @@ class FakeDynamoDBClient:
 class FakeImportanceScoreService:
     """重要度再計算の呼び出しを記録するテスト用サービス。"""
 
-    recalculated_article_ids: List[str]
+    recalculated_article_ids: list[str]
 
     def recalculate_score(self, article_id: str) -> None:
         """記事IDを記録する。"""
