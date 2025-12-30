@@ -42,8 +42,12 @@ class ImportanceScoreService:
         )
         self.model_id = settings.BEDROCK_MODEL_ID
         self.embedding_dimension = settings.EMBEDDING_DIMENSION
-        self._keyword_embedding_cache_max = settings.KEYWORD_EMBEDDING_CACHE_SIZE
-        self._keyword_embedding_cache: OrderedDict[str, np.ndarray] = OrderedDict()
+        self._keyword_embedding_cache_max = (
+            settings.KEYWORD_EMBEDDING_CACHE_SIZE
+        )
+        self._keyword_embedding_cache: OrderedDict[str, np.ndarray] = (
+            OrderedDict()
+        )
         self._keyword_embedding_cache_lock = Lock()
         logger.info(
             f"ImportanceScoreService initialized with model: {self.model_id}, "
@@ -88,7 +92,9 @@ class ImportanceScoreService:
             response_body = json.loads(response.get("body").read())
             # レスポンス形式: {"embeddings": [{"embeddingType": "TEXT", "embedding": [...]}]}
             embedding = response_body["embeddings"][0]["embedding"]
-            logger.debug(f"Generated embedding with dimension: {len(embedding)}")
+            logger.debug(
+                f"Generated embedding with dimension: {len(embedding)}"
+            )
             return embedding
 
         except (ClientError, BotoCoreError) as e:
@@ -105,7 +111,9 @@ class ImportanceScoreService:
         Returns:
             埋め込みベクトル（numpy配列）
         """
-        embedding = self.invoke_bedrock_embeddings(text, self.embedding_dimension)
+        embedding = self.invoke_bedrock_embeddings(
+            text, self.embedding_dimension
+        )
         return np.array(embedding)
 
     def _evict_oldest_cache_entry(self) -> None:
@@ -114,10 +122,15 @@ class ImportanceScoreService:
         Note:
             このメソッドはロック内で呼び出される前提です。
         """
-        if len(self._keyword_embedding_cache) >= self._keyword_embedding_cache_max:
+        if (
+            len(self._keyword_embedding_cache)
+            >= self._keyword_embedding_cache_max
+        ):
             oldest_key = next(iter(self._keyword_embedding_cache))
             self._keyword_embedding_cache.pop(oldest_key)
-            logger.debug(f"Evicted oldest cached embedding for keyword: {oldest_key}")
+            logger.debug(
+                f"Evicted oldest cached embedding for keyword: {oldest_key}"
+            )
 
     def get_keyword_embedding(self, keyword_text: str) -> np.ndarray:
         """キーワードの埋め込みを取得（キャッシュ使用）
@@ -239,7 +252,9 @@ class ImportanceScoreService:
             keyword_embedding = self.get_keyword_embedding(keyword["text"])
 
             # 類似度を計算
-            similarity = self.calculate_similarity(article_embedding, keyword_embedding)
+            similarity = self.calculate_similarity(
+                article_embedding, keyword_embedding
+            )
 
             # 重みを適用
             weight = keyword.get("weight", 1.0)

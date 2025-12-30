@@ -175,7 +175,9 @@ class DynamoDBClient:
             raise
 
     def batch_write_item(
-        self, items: list[dict[str, Any]], delete_keys: list[dict[str, Any]] | None = None
+        self,
+        items: list[dict[str, Any]],
+        delete_keys: list[dict[str, Any]] | None = None,
     ) -> None:
         """
         バッチ書き込み操作（リトライロジック付き）

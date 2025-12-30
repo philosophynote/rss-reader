@@ -31,10 +31,14 @@ class Settings:
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
 
     # TTL設定（日数）
-    DEFAULT_ARTICLE_TTL_DAYS: int = int(os.getenv("DEFAULT_ARTICLE_TTL_DAYS", "30"))
+    DEFAULT_ARTICLE_TTL_DAYS: int = int(
+        os.getenv("DEFAULT_ARTICLE_TTL_DAYS", "30")
+    )
 
     # バッチ処理設定
-    BATCH_SIZE: int = int(os.getenv("BATCH_SIZE", "25"))  # DynamoDBのバッチ書き込み上限
+    BATCH_SIZE: int = int(
+        os.getenv("BATCH_SIZE", "25")
+    )  # DynamoDBのバッチ書き込み上限
 
     @classmethod
     def get_table_name(cls) -> str:
