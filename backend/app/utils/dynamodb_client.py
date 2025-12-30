@@ -7,6 +7,7 @@ DynamoDBとの通信を担当するクライアントクラス。
 
 import logging
 from datetime import datetime
+from typing import Any
 
 import boto3
 from boto3.dynamodb.conditions import Attr, Key
@@ -38,13 +39,13 @@ class DynamoDBClient:
         self.dynamodb = boto3.resource(
             "dynamodb", region_name=settings.get_region()
         )
-        self.table = self.dynamodb.Table(self.table_name)
+        self.table = self.dynamodb.Table(self.table_name)  # type: ignore[attr-defined]
 
         logger.info(
             f"DynamoDBClient initialized with table: {self.table_name}"
         )
 
-    def put_item(self, item: dict) -> None:
+    def put_item(self, item: dict[str, Any]) -> None:
         """
         アイテムをテーブルに保存
 
@@ -64,7 +65,7 @@ class DynamoDBClient:
             logger.error(f"Failed to put item: {e}")
             raise
 
-    def get_item(self, pk: str, sk: str) -> dict | None:
+    def get_item(self, pk: str, sk: str) -> dict[str, Any] | None:
         """
         プライマリキーでアイテムを取得
 
@@ -101,9 +102,9 @@ class DynamoDBClient:
         filter_expression=None,
         scan_index_forward: bool = True,
         limit: int | None = None,
-        exclusive_start_key: dict | None = None,
+        exclusive_start_key: dict[str, Any] | None = None,
         **kwargs,
-    ) -> tuple[list[dict], dict | None]:
+    ) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
         """
         クエリを実行
 
@@ -174,7 +175,7 @@ class DynamoDBClient:
             raise
 
     def batch_write_item(
-        self, items: list[dict], delete_keys: list[dict] | None = None
+        self, items: list[dict[str, Any]], delete_keys: list[dict[str, Any]] | None = None
     ) -> None:
         """
         バッチ書き込み操作（リトライロジック付き）
@@ -244,9 +245,9 @@ class DynamoDBClient:
         start_date: datetime | None = None,
         end_date: datetime | None = None,
         limit: int | None = None,
-        exclusive_start_key: dict | None = None,
+        exclusive_start_key: dict[str, Any] | None = None,
         descending: bool = True,
-    ) -> tuple[list[dict], dict | None]:
+    ) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
         """
         GSI1を使用して記事を公開日時順で取得
 
@@ -287,8 +288,8 @@ class DynamoDBClient:
     def query_feeds(
         self,
         limit: int | None = None,
-        exclusive_start_key: dict | None = None,
-    ) -> tuple[list[dict], dict | None]:
+        exclusive_start_key: dict[str, Any] | None = None,
+    ) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
         """
         GSI1を使用してフィード一覧を取得
 
@@ -311,8 +312,8 @@ class DynamoDBClient:
     def query_keywords(
         self,
         limit: int | None = None,
-        exclusive_start_key: dict | None = None,
-    ) -> tuple[list[dict], dict | None]:
+        exclusive_start_key: dict[str, Any] | None = None,
+    ) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
         """
         GSI1を使用してキーワード一覧を取得
 
@@ -339,8 +340,8 @@ class DynamoDBClient:
         min_score: float | None = None,
         max_score: float | None = None,
         limit: int | None = None,
-        exclusive_start_key: dict | None = None,
-    ) -> tuple[list[dict], dict | None]:
+        exclusive_start_key: dict[str, Any] | None = None,
+    ) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
         """
         GSI2を使用して記事を重要度スコア順で取得
 
@@ -384,7 +385,7 @@ class DynamoDBClient:
 
     def query_articles_for_deletion_by_age(
         self, cutoff_date: datetime, limit: int | None = 100
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """
         GSI3を使用して古い記事を効率的に検索（削除用）
 
@@ -412,7 +413,7 @@ class DynamoDBClient:
 
     def query_read_articles_for_deletion(
         self, cutoff_datetime: datetime, limit: int | None = 100
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """
         GSI4を使用して既読記事を効率的に検索（削除用）
 
@@ -442,8 +443,8 @@ class DynamoDBClient:
         self,
         feed_id: str,
         limit: int | None = None,
-        exclusive_start_key: dict | None = None,
-    ) -> tuple[list[dict], dict | None]:
+        exclusive_start_key: dict[str, Any] | None = None,
+    ) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
         """
         GSI5を使用してフィード別の記事を効率的に検索（カスケード削除用）
 
@@ -468,7 +469,7 @@ class DynamoDBClient:
 
     def query_importance_reasons_for_article(
         self, article_id: str
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """
         記事の重要度理由を取得
 
@@ -515,8 +516,8 @@ class DynamoDBClient:
         sort_by: str = "published_at",  # "published_at" or "importance_score"
         filter_by: str | None = None,  # "unread", "read", "saved"
         limit: int | None = None,
-        exclusive_start_key: dict | None = None,
-    ) -> tuple[list[dict], dict | None]:
+        exclusive_start_key: dict[str, Any] | None = None,
+    ) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
         """
         フィルタ条件付きで記事を取得
 

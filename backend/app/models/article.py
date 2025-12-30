@@ -5,6 +5,7 @@ RSSフィードから取得した記事の情報を管理するデータモデ�
 """
 
 from datetime import datetime
+from typing import Any
 from uuid import uuid4
 
 from pydantic import Field, HttpUrl, field_validator
@@ -222,7 +223,7 @@ class Article(BaseModel):
         """
         self.ttl = self.set_ttl(days)
 
-    def to_dynamodb_item(self) -> dict:
+    def to_dynamodb_item(self) -> dict[str, Any]:
         """
         DynamoDB用のアイテム形式に変換
 

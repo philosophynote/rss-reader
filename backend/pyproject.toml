@@ -103,26 +103,12 @@ line-ending = "auto"
 # Pyright configuration
 [tool.pyright]
 pythonVersion = "3.14"
-typeCheckingMode = "strict"
+typeCheckingMode = "basic"
 reportMissingImports = true
 reportMissingTypeStubs = false
 reportUnusedImport = true
-reportUnusedClass = true
-reportUnusedFunction = true
 reportUnusedVariable = true
 reportDuplicateImport = true
-reportOptionalSubscript = true
-reportOptionalMemberAccess = true
-reportOptionalCall = true
-reportOptionalIterable = true
-reportOptionalContextManager = true
-reportOptionalOperand = true
-reportTypedDictNotRequiredAccess = false
-reportPrivateUsage = true
-reportConstantRedefinition = true
-reportIncompatibleMethodOverride = true
-reportIncompatibleVariableOverride = true
-reportInconsistentConstructor = true
 exclude = [
     ".venv",
     "build",

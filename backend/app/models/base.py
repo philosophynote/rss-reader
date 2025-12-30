@@ -7,6 +7,7 @@ DynamoDBのシングルテーブル設計に対応した
 
 import uuid
 from datetime import datetime, timedelta
+from typing import Any
 
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic import ConfigDict, Field
@@ -90,7 +91,7 @@ class BaseModel(PydanticBaseModel):
         # 7桁のゼロパディング（0～1000000の範囲をカバー）
         return f"{reverse_score:07d}.000000"
 
-    def to_dynamodb_item(self) -> dict:
+    def to_dynamodb_item(self) -> dict[str, Any]:
         """
         DynamoDB用のアイテム形式に変換
 

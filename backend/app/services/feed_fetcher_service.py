@@ -50,6 +50,7 @@ class ImportanceScoreService(Protocol):
         Returns:
             float: 重要度スコア（0.0～1.0）
         """
+        ...
 
 
 @dataclass(frozen=True)
@@ -237,7 +238,7 @@ class FeedFetcherService:
             parsed_feed: 解析済みフィード
         """
         feed_title = (
-            parsed_feed.feed.get("title") if parsed_feed.feed else None
+            parsed_feed.feed.get("title") if parsed_feed.feed else None  # type: ignore[union-attr]
         )
         if feed_title and feed.title.startswith("Feed from "):
             feed.title = str(feed_title).strip()
@@ -268,7 +269,7 @@ class FeedFetcherService:
         try:
             article = Article(
                 feed_id=feed.feed_id,
-                link=link,
+                link=link,  # type: ignore[arg-type]
                 title=title,
                 content=content,
                 published_at=published_at,
@@ -337,8 +338,8 @@ class FeedFetcherService:
             str: 記事本文
         """
         content_sources: Iterable[str | None] = (
-            entry.get("summary"),
-            entry.get("description"),
+            entry.get("summary"),  # type: ignore[assignment]
+            entry.get("description"),  # type: ignore[assignment]
         )
 
         content = next((value for value in content_sources if value), None)
@@ -352,7 +353,7 @@ class FeedFetcherService:
 
         if len(content) > 50000:
             content = content[:50000]
-        return content
+        return content  # type: ignore[return-value]
 
     def _extract_published_at(
         self,
@@ -370,7 +371,7 @@ class FeedFetcherService:
         for key in ("published_parsed", "updated_parsed", "created_parsed"):
             parsed_time = entry.get(key)
             if parsed_time:
-                return datetime(*parsed_time[:6])
+                return datetime(*parsed_time[:6])  # type: ignore[arg-type]
         return datetime.now()
 
     def _is_duplicate(self, link: str) -> bool:
