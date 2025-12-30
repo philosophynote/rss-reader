@@ -60,8 +60,8 @@ lint:
 
 format:
 	@echo "🎨 フォーマット実行中..."
-	@echo "Backend (Ruff):"
-	@cd backend && uv run ruff format .
+	@echo "Backend (Ruff check --fix + format):"
+	@cd backend && uv run ruff check --fix . && uv run ruff format .
 	@echo "Frontend (ESLint --fix):"
 	@cd frontend && npm run lint:fix
 	@echo "✅ フォーマット完了"
@@ -132,7 +132,7 @@ backend-lint:
 	@cd backend && uv run ruff check .
 
 backend-format:
-	@cd backend && uv run ruff format .
+	@cd backend && uv run ruff check --fix . && uv run ruff format .
 
 backend-type-check:
 	@cd backend && uv run pyright
