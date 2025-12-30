@@ -1,9 +1,21 @@
 import React, { useState } from "react";
-import { Box, Button, Field, Input, VStack, Alert } from "@chakra-ui/react";
+import {
+  Box,
+  Button,
+  Field,
+  Input,
+  VStack,
+  Alert,
+  createToaster,
+} from "@chakra-ui/react";
 import { useCreateFeed } from "../../hooks";
 import { ApiAuthError, ApiError } from "../../api";
-import { toaster } from "../../test/test-utils";
 import type { CreateFeedRequest } from "../../api";
+
+// toasterを作成
+const toaster = createToaster({
+  placement: "top",
+});
 
 interface FeedFormProps {
   onSuccess?: () => void;
@@ -56,7 +68,7 @@ export function FeedForm({ onSuccess, onCancel }: FeedFormProps) {
 
       toaster.create({
         title: "フィードを追加しました",
-        status: "success",
+        type: "success",
         duration: 3000,
       });
 
@@ -78,7 +90,7 @@ export function FeedForm({ onSuccess, onCancel }: FeedFormProps) {
       toaster.create({
         title: "エラー",
         description: errorMessage,
-        status: "error",
+        type: "error",
         duration: 5000,
       });
     }
@@ -130,7 +142,7 @@ export function FeedForm({ onSuccess, onCancel }: FeedFormProps) {
         <Field.Root invalid={!!errors.folder}>
           <Field.Label>フォルダ（任意）</Field.Label>
           <Input
-            value={formData.folder}
+            value={formData.folder || ""}
             onChange={handleInputChange("folder")}
             placeholder="例: テクノロジー"
             disabled={createFeed.isPending}

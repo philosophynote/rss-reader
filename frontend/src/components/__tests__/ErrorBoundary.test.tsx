@@ -42,7 +42,8 @@ describe("ErrorBoundary", () => {
     );
 
     expect(screen.getByText("アプリケーションエラー")).toBeInTheDocument();
-    expect(screen.getByText("テストエラー")).toBeInTheDocument();
+    // Alert.Description内のテキストを特定するため、より具体的なセレクターを使用
+    expect(screen.getByRole("alert")).toHaveTextContent("テストエラー");
   });
 
   it("should render auth error display for ApiAuthError", () => {
@@ -55,7 +56,8 @@ describe("ErrorBoundary", () => {
     );
 
     expect(screen.getByText("認証エラー")).toBeInTheDocument();
-    expect(screen.getByText("認証に失敗しました")).toBeInTheDocument();
+    // Alert.Description内のテキストを特定するため、より具体的なセレクターを使用
+    expect(screen.getByRole("alert")).toHaveTextContent("認証に失敗しました");
   });
 
   it("should render API error display for ApiError", () => {
@@ -68,9 +70,10 @@ describe("ErrorBoundary", () => {
     );
 
     expect(screen.getByText("API通信エラー")).toBeInTheDocument();
-    expect(
-      screen.getByText("サーバーエラーが発生しました")
-    ).toBeInTheDocument();
+    // Alert.Description内のテキストを特定するため、より具体的なセレクターを使用
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "サーバーエラーが発生しました"
+    );
   });
 
   it("should allow retry functionality", () => {
@@ -158,8 +161,9 @@ describe("AuthErrorBoundary", () => {
     );
 
     expect(screen.getByText("認証が必要です")).toBeInTheDocument();
-    expect(
-      screen.getByText(/API Keyが設定されていないか、無効です/)
-    ).toBeInTheDocument();
+    // Alert.Description内のテキストを特定するため、より具体的なセレクターを使用
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "API Keyが設定されていないか、無効です"
+    );
   });
 });

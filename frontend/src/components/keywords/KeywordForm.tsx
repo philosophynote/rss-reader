@@ -7,11 +7,16 @@ import {
   NumberInput,
   VStack,
   Alert,
+  createToaster,
 } from "@chakra-ui/react";
 import { useCreateKeyword } from "../../hooks";
 import { ApiAuthError, ApiError } from "../../api";
-import { toaster } from "../../test/test-utils";
 import type { CreateKeywordRequest } from "../../api";
+
+// toasterを作成
+const toaster = createToaster({
+  placement: "top",
+});
 
 interface KeywordFormProps {
   onSuccess?: () => void;
@@ -70,7 +75,7 @@ export function KeywordForm({ onSuccess, onCancel }: KeywordFormProps) {
 
       toaster.create({
         title: "キーワードを追加しました",
-        status: "success",
+        type: "success",
         duration: 3000,
       });
 
@@ -92,7 +97,7 @@ export function KeywordForm({ onSuccess, onCancel }: KeywordFormProps) {
       toaster.create({
         title: "エラー",
         description: errorMessage,
-        status: "error",
+        type: "error",
         duration: 5000,
       });
     }
@@ -162,14 +167,14 @@ export function KeywordForm({ onSuccess, onCancel }: KeywordFormProps) {
         <Field.Root invalid={!!errors.weight}>
           <Field.Label>重み（任意）</Field.Label>
           <NumberInput.Root
-            value={formData.weight.toString()}
+            value={formData.weight?.toString() || "1.0"}
             onValueChange={handleWeightChange}
             min={0.1}
             max={10.0}
             step={0.1}
             disabled={createKeyword.isPending}
           >
-            <NumberInput.Field />
+            <NumberInput.Input />
             <NumberInput.Control>
               <NumberInput.IncrementTrigger />
               <NumberInput.DecrementTrigger />
