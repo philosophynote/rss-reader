@@ -57,7 +57,7 @@ database_file = ".hypothesis/examples"
 
 # Ruff configuration
 [tool.ruff]
-target-version = "py313"  # Python 3.14が正式サポートされるまで3.13を使用
+target-version = "py314"
 line-length = 79
 extend-exclude = [
     ".eggs",
