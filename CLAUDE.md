@@ -132,16 +132,23 @@ This project follows Kiro-style spec-driven development using custom slash comma
 - Mock external APIs appropriately
 
 ### Test Execution
+
 ```bash
-# Backend tests (when implemented)
+# All projects
+make test
+
+# With coverage
+make test-coverage
+
+# Backend tests
 cd backend
-uv run pytest --cov
+uv run pytest --cov=app --cov-report=term-missing
 
-# Frontend tests (when implemented)
+# Frontend tests
 cd frontend
-npm test
+npm run test:coverage
 
-# Infrastructure validation (when implemented)
+# Infrastructure validation
 cd infrastructure
 npm test
 ```
@@ -167,15 +174,16 @@ npm test
 - Access patterns defined in `design.md`
 
 ### Deployment
+
 ```bash
-# Deploy infrastructure (when implemented)
+# Deploy infrastructure
 cd infrastructure
 cdk deploy --all
 
-# Deploy backend (when implemented)
+# Backend deployment
 # Containerized and deployed via CDK
 
-# Deploy frontend (when implemented)
+# Frontend deployment
 cd frontend
 npm run build
 # Uploaded to S3 via CDK
@@ -183,23 +191,39 @@ npm run build
 
 ## CI/CD Pipeline (GitHub Actions)
 
+### CI Environment
+
+- **Python**: 3.14 + uv
+- **Node.js**: 22
+- **Auto Deploy**: main branch only
+
 ### Triggers
+
 - Push to any branch
 - Pull request creation
 
 ### Pipeline Steps
-1. Linting and type checking
-2. Unit tests + property-based tests
-3. Coverage validation (80% minimum)
-4. Security scanning
-5. Integration tests
-6. Deploy to production (main branch only)
+
+1. **Lint & Format**: Ruff (Python) + ESLint (TypeScript)
+2. **Type Check**: Pyright (Python) + TypeScript Compiler
+3. **Test**: pytest (Python) + Vitest (TypeScript)
+4. **Coverage**: 80% minimum required
+5. **Security**: Trivy vulnerability scanning
+6. **Integration tests**
+7. **Deploy to production** (main branch only)
 
 ### Required Checks
+
 - All tests pass
 - Coverage ≥ 80%
 - No security vulnerabilities
 - Type checking passes
+
+### Developer Tools
+
+- **pre-commit**: Automatic pre-commit checks
+- **VSCode settings**: Recommended extensions and configuration
+- **detect-secrets**: Prevent accidental secret commits
 
 ## Key Implementation Notes
 
@@ -224,12 +248,79 @@ npm run build
 - Use `feedparser` library for parsing
 - No web scraping or custom RSS builders
 
-## Common Development Tasks
+## Development Setup and Commands
 
-Since this project is in early stages, implementation commands will be defined as development progresses. Refer to:
-- `tasks.md` for current implementation checklist
-- Coding convention docs for language-specific guidelines
-- Design doc for architecture decisions
+### Prerequisites
+
+- Python 3.14+
+- Node.js 22+
+- AWS CLI configured
+- uv (Python package manager)
+
+### Quick Start
+
+```bash
+# 1. Setup development environment (all projects)
+make setup-dev
+
+# 2. Start each service
+# Backend
+cd backend && uv run uvicorn app.main:app --reload
+
+# Frontend
+cd frontend && npm run dev
+
+# Infrastructure (deploy)
+cd infrastructure && npm run deploy
+```
+
+### Development Commands
+
+```bash
+# Code quality checks
+make lint          # Lint all projects
+make format        # Format all projects
+make type-check    # Type check all projects
+
+# Testing
+make test          # Run all project tests
+make test-coverage # Run tests with coverage
+
+# Cleanup
+make clean         # Remove build artifacts and caches
+```
+
+### Code Quality Tools
+
+#### Python (Backend)
+- **Linter/Formatter**: Ruff (Python 3.14 support)
+- **Type Checker**: Pyright (Python 3.14 support)
+- **Test Framework**: pytest + Hypothesis (Property-based testing)
+
+#### TypeScript (Frontend)
+- **Linter**: ESLint 9 + typescript-eslint (type-aware linting)
+- **Type Checker**: TypeScript Compiler (noEmit)
+- **Test Framework**: Vitest + Testing Library
+
+#### Individual Project Commands
+
+```bash
+# Backend
+make backend-lint        # Ruff lint
+make backend-format      # Ruff format
+make backend-type-check  # Pyright
+make backend-test        # pytest with coverage
+
+# Frontend
+make frontend-lint       # ESLint
+make frontend-format     # ESLint --fix
+make frontend-type-check # tsc --noEmit
+make frontend-test       # Vitest with coverage
+
+# Infrastructure
+make infra-type-check    # tsc --noEmit
+make infra-synth         # cdk synth
+```
 
 ## Important Constraints
 

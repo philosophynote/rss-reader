@@ -4,8 +4,7 @@
 ArticleServiceのソート・フィルタ・更新処理が正しく動作することを検証します。
 """
 
-from datetime import datetime, timezone
-from typing import Dict, List, Optional, Tuple
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
@@ -22,23 +21,23 @@ class FakeDynamoDBClient:
     """
 
     def __init__(self) -> None:
-        self.items: Dict[Tuple[str, str], Dict] = {}
+        self.items: dict[tuple[str, str], dict] = {}
 
-    def put_item(self, item: Dict) -> None:
+    def put_item(self, item: dict) -> None:
         """アイテムを保存"""
         self.items[(item["PK"], item["SK"])] = item
 
-    def get_item(self, pk: str, sk: str) -> Optional[Dict]:
+    def get_item(self, pk: str, sk: str) -> dict | None:
         """キーでアイテムを取得"""
         return self.items.get((pk, sk))
 
     def query_articles_with_filters(
         self,
         sort_by: str = "published_at",
-        filter_by: Optional[str] = None,
-        limit: Optional[int] = None,
-        exclusive_start_key: Optional[Dict] = None,
-    ) -> Tuple[List[Dict], Optional[Dict]]:
+        filter_by: str | None = None,
+        limit: int | None = None,
+        exclusive_start_key: dict | None = None,
+    ) -> tuple[list[dict], dict | None]:
         """
         記事をソート・フィルタして取得する。
 
@@ -117,7 +116,7 @@ def build_article(
 
 def seed_articles(
     client: FakeDynamoDBClient,
-    articles: List[Article],
+    articles: list[Article],
 ) -> None:
     """
     記事をFakeDynamoDBClientに保存する。
@@ -139,14 +138,14 @@ class TestArticleService:
         articles = [
             build_article(
                 article_id="a1",
-                published_at=datetime(2024, 1, 1, tzinfo=timezone.utc),
+                published_at=datetime(2024, 1, 1, tzinfo=UTC),
                 importance_score=0.4,
                 is_read=False,
                 is_saved=False,
             ),
             build_article(
                 article_id="a2",
-                published_at=datetime(2024, 1, 3, tzinfo=timezone.utc),
+                published_at=datetime(2024, 1, 3, tzinfo=UTC),
                 importance_score=0.2,
                 is_read=False,
                 is_saved=False,
@@ -165,14 +164,14 @@ class TestArticleService:
         articles = [
             build_article(
                 article_id="a1",
-                published_at=datetime(2024, 1, 1, tzinfo=timezone.utc),
+                published_at=datetime(2024, 1, 1, tzinfo=UTC),
                 importance_score=0.1,
                 is_read=False,
                 is_saved=False,
             ),
             build_article(
                 article_id="a2",
-                published_at=datetime(2024, 1, 2, tzinfo=timezone.utc),
+                published_at=datetime(2024, 1, 2, tzinfo=UTC),
                 importance_score=0.9,
                 is_read=False,
                 is_saved=False,
@@ -191,14 +190,14 @@ class TestArticleService:
         articles = [
             build_article(
                 article_id="a1",
-                published_at=datetime(2024, 1, 1, tzinfo=timezone.utc),
+                published_at=datetime(2024, 1, 1, tzinfo=UTC),
                 importance_score=0.3,
                 is_read=True,
                 is_saved=False,
             ),
             build_article(
                 article_id="a2",
-                published_at=datetime(2024, 1, 2, tzinfo=timezone.utc),
+                published_at=datetime(2024, 1, 2, tzinfo=UTC),
                 importance_score=0.2,
                 is_read=False,
                 is_saved=False,
@@ -217,14 +216,14 @@ class TestArticleService:
         articles = [
             build_article(
                 article_id="a1",
-                published_at=datetime(2024, 1, 1, tzinfo=timezone.utc),
+                published_at=datetime(2024, 1, 1, tzinfo=UTC),
                 importance_score=0.3,
                 is_read=True,
                 is_saved=False,
             ),
             build_article(
                 article_id="a2",
-                published_at=datetime(2024, 1, 2, tzinfo=timezone.utc),
+                published_at=datetime(2024, 1, 2, tzinfo=UTC),
                 importance_score=0.2,
                 is_read=False,
                 is_saved=False,
@@ -243,14 +242,14 @@ class TestArticleService:
         articles = [
             build_article(
                 article_id="a1",
-                published_at=datetime(2024, 1, 1, tzinfo=timezone.utc),
+                published_at=datetime(2024, 1, 1, tzinfo=UTC),
                 importance_score=0.3,
                 is_read=False,
                 is_saved=True,
             ),
             build_article(
                 article_id="a2",
-                published_at=datetime(2024, 1, 2, tzinfo=timezone.utc),
+                published_at=datetime(2024, 1, 2, tzinfo=UTC),
                 importance_score=0.2,
                 is_read=False,
                 is_saved=False,
@@ -277,7 +276,7 @@ class TestArticleService:
         fake_client = FakeDynamoDBClient()
         article = build_article(
             article_id="a1",
-            published_at=datetime(2024, 1, 1, tzinfo=timezone.utc),
+            published_at=datetime(2024, 1, 1, tzinfo=UTC),
             importance_score=0.3,
             is_read=False,
             is_saved=False,
@@ -302,7 +301,7 @@ class TestArticleService:
         fake_client = FakeDynamoDBClient()
         article = build_article(
             article_id="a1",
-            published_at=datetime(2024, 1, 1, tzinfo=timezone.utc),
+            published_at=datetime(2024, 1, 1, tzinfo=UTC),
             importance_score=0.3,
             is_read=False,
             is_saved=False,

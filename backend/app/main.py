@@ -6,7 +6,6 @@ AWS Lambda Web Adapterを使用してコンテナとしてデプロイされま�
 """
 
 import os
-from typing import List
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,12 +19,12 @@ app = FastAPI(
 )
 
 
-def get_cors_origins() -> List[str]:
+def get_cors_origins() -> list[str]:
     """
     CORS許可オリジンを環境変数から取得します。
 
     Returns:
-        List[str]: 許可するオリジンのリスト。
+        list[str]: 許可するオリジンのリスト。
     """
     raw_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000")
     origins = [origin.strip() for origin in raw_origins.split(",")]

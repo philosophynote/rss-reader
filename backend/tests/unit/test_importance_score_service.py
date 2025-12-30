@@ -4,7 +4,7 @@ AWS Bedrockを使用した重要度スコア計算のテストを実施します
 """
 
 import json
-from typing import Any, Dict, List
+from typing import Any
 from unittest.mock import Mock, patch
 
 import numpy as np
@@ -41,10 +41,12 @@ def mock_bedrock_client() -> Mock:
 
 
 @pytest.fixture
-def importance_score_service(mock_bedrock_client: Mock) -> ImportanceScoreService:
+def importance_score_service(
+    mock_bedrock_client: Mock,
+) -> ImportanceScoreService:
     """ImportanceScoreServiceのインスタンスを作成"""
     with patch("boto3.client", return_value=mock_bedrock_client):
-        service = ImportanceScoreService(region_name="us-east-1")
+        service = ImportanceScoreService(region_name="ap-northeast-1")
     return service
 
 
@@ -57,7 +59,7 @@ class TestImportanceScoreService:
         """
         ImportanceScoreServiceが正しく初期化されることを確認
         """
-        assert importance_score_service.region_name == "us-east-1"
+        assert importance_score_service.region_name == "ap-northeast-1"
         assert (
             importance_score_service.model_id
             == "amazon.nova-2-multimodal-embeddings-v1:0"
@@ -84,9 +86,7 @@ class TestImportanceScoreService:
         body = json.loads(call_args.kwargs["body"])
 
         assert body["taskType"] == "SINGLE_EMBEDDING"
-        assert (
-            body["singleEmbeddingParams"]["embeddingDimension"] == 1024
-        )
+        assert body["singleEmbeddingParams"]["embeddingDimension"] == 1024
         assert body["singleEmbeddingParams"]["text"]["value"] == text
 
         # 埋め込みが正しく返されることを確認
@@ -104,13 +104,15 @@ class TestImportanceScoreService:
             error_response={
                 "Error": {
                     "Code": "ValidationException",
-                    "Message": "API Error"
+                    "Message": "API Error",
                 }
             },
-            operation_name="InvokeModel"
+            operation_name="InvokeModel",
         )
-        
-        importance_score_service.bedrock_runtime.invoke_model.side_effect = client_error
+
+        importance_score_service.bedrock_runtime.invoke_model.side_effect = (
+            client_error
+        )
 
         # ClientErrorが再スローされることを確認
         with pytest.raises(ClientError, match="API Error"):
@@ -204,19 +206,21 @@ class TestImportanceScoreService:
         ]
 
         # モックの埋め込みを設定（類似度が計算可能な値）
-        with patch.object(
-            importance_score_service,
-            "get_embedding",
-            return_value=np.array([0.5] * 1024),
-        ):
-            with patch.object(
+        with (
+            patch.object(
+                importance_score_service,
+                "get_embedding",
+                return_value=np.array([0.5] * 1024),
+            ),
+            patch.object(
                 importance_score_service,
                 "get_keyword_embedding",
                 return_value=np.array([0.5] * 1024),
-            ):
-                score, reasons = importance_score_service.calculate_score(
-                    article, keywords
-                )
+            ),
+        ):
+            score, reasons = importance_score_service.calculate_score(
+                article, keywords
+            )
 
         # スコアが計算されることを確認
         assert score > 0.0
@@ -256,19 +260,21 @@ class TestImportanceScoreService:
             },
         ]
 
-        with patch.object(
-            importance_score_service,
-            "get_embedding",
-            return_value=np.array([0.5] * 1024),
-        ):
-            with patch.object(
+        with (
+            patch.object(
+                importance_score_service,
+                "get_embedding",
+                return_value=np.array([0.5] * 1024),
+            ),
+            patch.object(
                 importance_score_service,
                 "get_keyword_embedding",
                 return_value=np.array([0.5] * 1024),
-            ):
-                score, reasons = importance_score_service.calculate_score(
-                    article, keywords
-                )
+            ),
+        ):
+            score, reasons = importance_score_service.calculate_score(
+                article, keywords
+            )
 
         # 有効なキーワードのみが計算されることを確認
         assert len(reasons) == 1
@@ -286,7 +292,7 @@ class TestImportanceScoreService:
             "content": "Test content",
         }
 
-        keywords: List[Dict[str, Any]] = []
+        keywords: list[dict[str, Any]] = []
 
         score, reasons = importance_score_service.calculate_score(
             article, keywords
@@ -317,24 +323,26 @@ class TestImportanceScoreService:
         ]
 
         # 類似度を0.5に固定
-        with patch.object(
-            importance_score_service,
-            "calculate_similarity",
-            return_value=0.5,
-        ):
-            with patch.object(
+        with (
+            patch.object(
+                importance_score_service,
+                "calculate_similarity",
+                return_value=0.5,
+            ),
+            patch.object(
                 importance_score_service,
                 "get_embedding",
                 return_value=np.array([0.5] * 1024),
-            ):
-                with patch.object(
-                    importance_score_service,
-                    "get_keyword_embedding",
-                    return_value=np.array([0.5] * 1024),
-                ):
-                    score, reasons = importance_score_service.calculate_score(
-                        article, keywords
-                    )
+            ),
+            patch.object(
+                importance_score_service,
+                "get_keyword_embedding",
+                return_value=np.array([0.5] * 1024),
+            ),
+        ):
+            score, reasons = importance_score_service.calculate_score(
+                article, keywords
+            )
 
         # スコア = 類似度 * 重み = 0.5 * 2.0 = 1.0
         assert abs(score - 1.0) < 1e-6
@@ -347,8 +355,8 @@ class TestImportanceScoreService:
         キャッシュがクリアされることを確認
         """
         # キャッシュにデータを追加
-        importance_score_service._keyword_embedding_cache["test"] = (
-            np.array([1.0] * 1024)
+        importance_score_service._keyword_embedding_cache["test"] = np.array(
+            [1.0] * 1024
         )
         assert len(importance_score_service._keyword_embedding_cache) == 1
 
@@ -378,28 +386,31 @@ class TestImportanceScoreService:
         ]
 
         # 類似度を0.5に固定
-        with patch.object(
-            importance_score_service,
-            "calculate_similarity",
-            return_value=0.5,
-        ):
-            with patch.object(
+        with (
+            patch.object(
+                importance_score_service,
+                "calculate_similarity",
+                return_value=0.5,
+            ),
+            patch.object(
                 importance_score_service,
                 "get_embedding",
                 return_value=np.array([0.5] * 1024),
-            ):
-                with patch.object(
-                    importance_score_service,
-                    "get_keyword_embedding",
-                    return_value=np.array([0.5] * 1024),
-                ):
-                    score, reasons = importance_score_service.calculate_score(
-                        article, keywords
-                    )
+            ),
+            patch.object(
+                importance_score_service,
+                "get_keyword_embedding",
+                return_value=np.array([0.5] * 1024),
+            ),
+        ):
+            score, reasons = importance_score_service.calculate_score(
+                article, keywords
+            )
 
         # スコア = 類似度 * デフォルト重み = 0.5 * 1.0 = 0.5
         assert abs(score - 0.5) < 1e-6
         assert abs(reasons[0]["contribution"] - 0.5) < 1e-6
+
     def test_concurrent_keyword_embedding_caching(
         self, importance_score_service: ImportanceScoreService
     ) -> None:
@@ -414,48 +425,52 @@ class TestImportanceScoreService:
         keyword = "concurrent_test"
         call_count = 0
         results = []
-        
+
         # get_embeddingの呼び出し回数をカウント
         original_get_embedding = importance_score_service.get_embedding
-        
+
         def mock_get_embedding(text: str) -> np.ndarray:
             nonlocal call_count
             call_count += 1
             # 埋め込み生成に時間がかかることをシミュレート
             time.sleep(0.1)
             return original_get_embedding(text)
-        
+
         def worker():
             """ワーカースレッド：同じキーワードの埋め込みを取得"""
             with patch.object(
-                importance_score_service, 
-                'get_embedding', 
-                side_effect=mock_get_embedding
+                importance_score_service,
+                "get_embedding",
+                side_effect=mock_get_embedding,
             ):
-                embedding = importance_score_service.get_keyword_embedding(keyword)
+                embedding = importance_score_service.get_keyword_embedding(
+                    keyword
+                )
                 results.append(embedding)
-        
+
         # 複数スレッドで同時に同じキーワードの埋め込みを取得
         threads = []
         for _ in range(3):
             thread = threading.Thread(target=worker)
             threads.append(thread)
-        
+
         # すべてのスレッドを開始
         for thread in threads:
             thread.start()
-        
+
         # すべてのスレッドの完了を待機
         for thread in threads:
             thread.join()
-        
+
         # 検証
         assert len(results) == 3, "すべてのスレッドが結果を返すべき"
-        
+
         # すべての結果が同じであることを確認
         for i in range(1, len(results)):
-            assert np.array_equal(results[0], results[i]), "すべての結果が同じであるべき"
-        
+            assert np.array_equal(results[0], results[i]), (
+                "すべての結果が同じであるべき"
+            )
+
         # get_embeddingが1回だけ呼ばれることを確認（ダブルチェックロッキングが機能）
         # 注意: この検証は実際の実装では困難なため、ログやキャッシュ状態で確認
         assert keyword in importance_score_service._keyword_embedding_cache
