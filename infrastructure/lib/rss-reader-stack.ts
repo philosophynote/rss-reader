@@ -47,7 +47,9 @@ export class RssReaderStack extends cdk.Stack {
         environment === "production"
           ? cdk.RemovalPolicy.RETAIN
           : cdk.RemovalPolicy.DESTROY,
-      pointInTimeRecovery: true, // バックアップ有効化
+      pointInTimeRecoverySpecification: {
+        pointInTimeRecoveryEnabled: true, // バックアップ有効化
+      },
     });
 
     // GSI1: 時系列順ソート用
@@ -109,7 +111,7 @@ export class RssReaderStack extends cdk.Stack {
       architecture: lambda.Architecture.X86_64,
       environment: {
         DYNAMODB_TABLE_NAME: this.table.tableName,
-        AWS_REGION: this.region,
+        // AWS_REGIONはLambdaランタイムが自動設定するため不要
         BEDROCK_REGION: "ap-northeast-1",
         BEDROCK_MODEL_ID: "amazon.nova-2-multimodal-embeddings-v1:0",
         EMBEDDING_DIMENSION: "1024",
