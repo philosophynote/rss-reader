@@ -151,7 +151,7 @@ class ImportanceReason(BaseModel):
         keyword_text: str,
         similarity_score: float,
         weight: float,
-    ) -> "ImportanceReason":
+    ) -> ImportanceReason:
         """
         重要度計算結果から ImportanceReason を作成
 

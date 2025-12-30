@@ -88,6 +88,7 @@ ignore = [
     "E501",  # line too long (handled by formatter)
     "B008",  # do not perform function calls in argument defaults
     "B904",  # raise from
+    "TC003", # Move standard library import into TYPE_CHECKING block (causes runtime errors)
 ]
 
 [tool.ruff.lint.per-file-ignores]

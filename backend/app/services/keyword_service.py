@@ -10,6 +10,7 @@ from typing import Protocol
 
 from app.config import settings
 from app.models.keyword import Keyword
+from app.utils.datetime_utils import parse_datetime_string
 from app.utils.dynamodb_client import DynamoDBClient
 
 
@@ -198,4 +199,13 @@ class KeywordService:
         keyword_data = {
             key: item[key] for key in keyword_fields if key in item
         }
+
+        # created_atフィールドの日時文字列を適切に変換
+        if "created_at" in keyword_data and isinstance(
+            keyword_data["created_at"], str
+        ):
+            keyword_data["created_at"] = parse_datetime_string(
+                keyword_data["created_at"]
+            )
+
         return Keyword(**keyword_data)

@@ -6,6 +6,7 @@
 
 from app.config import settings
 from app.models.feed import Feed
+from app.utils.datetime_utils import parse_datetime_string
 from app.utils.dynamodb_client import DynamoDBClient
 
 
@@ -202,4 +203,13 @@ class FeedService:
         """
         feed_fields = Feed.model_fields.keys()
         feed_data = {key: item[key] for key in feed_fields if key in item}
+
+        # created_atフィールドの日時文字列を適切に変換
+        if "created_at" in feed_data and isinstance(
+            feed_data["created_at"], str
+        ):
+            feed_data["created_at"] = parse_datetime_string(
+                feed_data["created_at"]
+            )
+
         return Feed(**feed_data)

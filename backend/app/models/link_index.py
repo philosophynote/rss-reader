@@ -124,7 +124,7 @@ class LinkIndex(BaseModel):
         return item
 
     @classmethod
-    def create_from_article(cls, link: str, article_id: str) -> "LinkIndex":
+    def create_from_article(cls, link: str, article_id: str) -> LinkIndex:
         """
         記事情報からリンクインデックスを作成
 

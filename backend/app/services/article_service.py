@@ -5,6 +5,7 @@
 """
 
 from app.models.article import Article
+from app.utils.datetime_utils import parse_datetime_string
 from app.utils.dynamodb_client import DynamoDBClient
 
 
@@ -141,7 +142,6 @@ class ArticleService:
         Returns:
             Article: 変換済み記事
         """
-        from datetime import datetime
 
         article_fields = Article.model_fields.keys()
         article_data = {
@@ -157,8 +157,8 @@ class ArticleService:
         ]
         for field in datetime_fields:
             if field in article_data and isinstance(article_data[field], str):
-                # ISO形式の文字列をパース（末尾のZを除去）
-                dt_str = article_data[field].rstrip("Z")
-                article_data[field] = datetime.fromisoformat(dt_str)
+                article_data[field] = parse_datetime_string(
+                    article_data[field]
+                )
 
         return Article(**article_data)

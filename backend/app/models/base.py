@@ -103,7 +103,11 @@ class BaseModel(PydanticBaseModel):
         # datetime型をISO文字列に変換
         for key, value in item.items():
             if isinstance(value, datetime):
-                item[key] = value.isoformat() + "Z"
+                iso_str = value.isoformat()
+                # timezone-naiveな場合のみ"Z"を追加
+                if not iso_str.endswith(("+00:00", "-00:00", "Z")):
+                    iso_str += "Z"
+                item[key] = iso_str
 
         return item
 
