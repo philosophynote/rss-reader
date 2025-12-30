@@ -194,7 +194,7 @@ npm run build
 ### CI Environment
 
 - **Python**: 3.14 + uv
-- **Node.js**:22
+- **Node.js**: 22
 - **Auto Deploy**: main branch only
 
 ### Triggers
