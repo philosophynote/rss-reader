@@ -193,7 +193,7 @@
     - フィルタ機能のテスト
     - _要件: 3.1, 3.2, 4.3, 4.4, 5.3_
 
-- [ ] 10. キーワード管理機能の実装
+- [x] 10. キーワード管理機能の実装
   - [x] 10.1 KeywordServiceクラスを実装
     - add_keyword、get_keywords、update_keyword、delete_keyword、recalculate_all_scoresメソッドを実装
     - _要件: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 7.5_
