@@ -15,7 +15,7 @@ interface EnvironmentConfig {
 
 /**
  * RSS Reader CDK アプリケーション
- * 
+ *
  * AWS CDKを使用してRSSリーダーのインフラストラクチャを定義します。
  */
 const app = new cdk.App();

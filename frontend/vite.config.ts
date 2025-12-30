@@ -21,7 +21,7 @@ export default defineConfig({
     testTimeout: 10000,
     env: {
       VITE_API_BASE_URL: "http://localhost:8000",
-      VITE_API_KEY: "test-api-key",
+      VITE_API_KEY: "test-api-key", // pragma: allowlist secret
     },
     coverage: {
       provider: "v8",

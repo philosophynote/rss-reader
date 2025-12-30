@@ -47,7 +47,10 @@ describe("KeywordForm", () => {
     });
     await user.click(submitButton);
 
-    expect(screen.getByText("キーワードは必須です")).toBeInTheDocument();
+    // Field.ErrorTextが表示されるかを確認
+    await waitFor(() => {
+      expect(screen.getByText("キーワードは必須です")).toBeInTheDocument();
+    });
     expect(mockMutateAsync).not.toHaveBeenCalled();
   });
 
@@ -64,9 +67,11 @@ describe("KeywordForm", () => {
     });
     await user.click(submitButton);
 
-    expect(
-      screen.getByText("キーワードは2文字以上で入力してください")
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.getByText("キーワードは2文字以上で入力してください")
+      ).toBeInTheDocument();
+    });
     expect(mockMutateAsync).not.toHaveBeenCalled();
   });
 
@@ -83,9 +88,11 @@ describe("KeywordForm", () => {
     });
     await user.click(submitButton);
 
-    expect(
-      screen.getByText("キーワードは50文字以内で入力してください")
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.getByText("キーワードは50文字以内で入力してください")
+      ).toBeInTheDocument();
+    });
     expect(mockMutateAsync).not.toHaveBeenCalled();
   });
 
@@ -167,9 +174,11 @@ describe("KeywordForm", () => {
     });
     await user.click(submitButton);
 
-    expect(
-      screen.getByText("重みは0.1以上で入力してください")
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.getByText("重みは0.1以上で入力してください")
+      ).toBeInTheDocument();
+    });
     expect(mockMutateAsync).not.toHaveBeenCalled();
   });
 
@@ -190,9 +199,11 @@ describe("KeywordForm", () => {
     });
     await user.click(submitButton);
 
-    expect(
-      screen.getByText("重みは10.0以下で入力してください")
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.getByText("重みは10.0以下で入力してください")
+      ).toBeInTheDocument();
+    });
     expect(mockMutateAsync).not.toHaveBeenCalled();
   });
 
@@ -235,12 +246,18 @@ describe("KeywordForm", () => {
     });
     await user.click(submitButton);
 
-    expect(screen.getByText("キーワードは必須です")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("キーワードは必須です")).toBeInTheDocument();
+    });
 
     // 入力するとエラーが消える
     const keywordInput = screen.getByLabelText("キーワード");
     await user.type(keywordInput, "Python");
 
-    expect(screen.queryByText("キーワードは必須です")).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.queryByText("キーワードは必須です")
+      ).not.toBeInTheDocument();
+    });
   });
 });

@@ -5,7 +5,6 @@ import type {
   ArticleListParams,
   UpdateArticleReadRequest,
   UpdateArticleSaveRequest,
-  ImportanceReason,
 } from "../api";
 
 /**

@@ -1,40 +1,61 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import axios, { AxiosInstance } from "axios";
-import { ApiClient, ApiAuthError, ApiError } from "../client";
 
-// axiosをモック
-vi.mock("axios");
+// axiosをモック（モジュールインポート前に実行）
+vi.mock("axios", () => {
+  const mockInterceptors = {
+    request: { use: vi.fn(), eject: vi.fn() },
+    response: { use: vi.fn(), eject: vi.fn() },
+  };
+
+  const mockAxiosInstance = {
+    get: vi.fn(),
+    post: vi.fn(),
+    put: vi.fn(),
+    delete: vi.fn(),
+    interceptors: mockInterceptors,
+  };
+
+  return {
+    default: {
+      create: vi.fn(() => mockAxiosInstance),
+      isAxiosError: vi.fn(),
+    },
+  };
+});
+
 const mockedAxios = vi.mocked(axios);
+
+// 環境変数をモック（apiClientのモジュールレベル初期化用）
+vi.stubGlobal("import.meta", {
+  env: {
+    VITE_API_BASE_URL: "https://api.example.com",
+    VITE_API_KEY: "test-api-key", // pragma: allowlist secret
+  },
+});
+
+// モック後にApiClientをインポート
+// これにより、apiClientのモジュールレベル初期化でモックされたaxiosが使用される
+import { ApiClient, ApiAuthError, ApiError } from "../client";
 
 describe("ApiClient", () => {
   let apiClient: ApiClient;
-  let mockAxiosInstance: Partial<AxiosInstance>;
+  let mockAxiosInstance: any;
 
   const mockConfig = {
     baseURL: "https://api.example.com",
-    apiKey: "test-api-key",
+    apiKey: "test-api-key", // pragma: allowlist secret
     timeout: 5000,
   };
 
   beforeEach(() => {
-    // axios instanceのモック
-    mockAxiosInstance = {
-      get: vi.fn(),
-      post: vi.fn(),
-      put: vi.fn(),
-      delete: vi.fn(),
-      interceptors: {
-        request: {
-          use: vi.fn(),
-        },
-        response: {
-          use: vi.fn(),
-        },
-      },
-    };
-
-    mockedAxios.create.mockReturnValue(mockAxiosInstance as AxiosInstance);
+    // axios.createから返されるモックインスタンスを取得
+    vi.clearAllMocks();
     apiClient = new ApiClient(mockConfig);
+    // axios.createの最後の呼び出しで返されたインスタンスを取得
+    mockAxiosInstance = mockedAxios.create.mock.results[
+      mockedAxios.create.mock.results.length - 1
+    ]?.value;
   });
 
   afterEach(() => {
@@ -100,7 +121,7 @@ describe("ApiClient", () => {
 
   describe("updateApiKey", () => {
     it("should update API key", () => {
-      const newApiKey = "new-api-key";
+      const newApiKey = "new-api-key"; // pragma: allowlist secret
       apiClient.updateApiKey(newApiKey);
       // API keyの更新は内部的に行われるため、エラーが発生しないことを確認
       expect(true).toBe(true);

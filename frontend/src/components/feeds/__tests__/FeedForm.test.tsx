@@ -45,7 +45,9 @@ describe("FeedForm", () => {
     const submitButton = screen.getByRole("button", { name: "フィードを追加" });
     await user.click(submitButton);
 
-    expect(screen.getByText("フィードURLは必須です")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("フィードURLは必須です")).toBeInTheDocument();
+    });
     expect(mockMutateAsync).not.toHaveBeenCalled();
   });
 
@@ -60,7 +62,11 @@ describe("FeedForm", () => {
     const submitButton = screen.getByRole("button", { name: "フィードを追加" });
     await user.click(submitButton);
 
-    expect(screen.getByText("有効なURLを入力してください")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.getByText("有効なURLを入力してください")
+      ).toBeInTheDocument();
+    });
     expect(mockMutateAsync).not.toHaveBeenCalled();
   });
 
@@ -154,12 +160,18 @@ describe("FeedForm", () => {
     const submitButton = screen.getByRole("button", { name: "フィードを追加" });
     await user.click(submitButton);
 
-    expect(screen.getByText("フィードURLは必須です")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("フィードURLは必須です")).toBeInTheDocument();
+    });
 
     // 入力するとエラーが消える
     const urlInput = screen.getByLabelText("フィードURL");
     await user.type(urlInput, "https://example.com/feed.xml");
 
-    expect(screen.queryByText("フィードURLは必須です")).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.queryByText("フィードURLは必須です")
+      ).not.toBeInTheDocument();
+    });
   });
 });

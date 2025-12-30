@@ -8,7 +8,7 @@ import chakraSystem from './theme'
 
 /**
  * Appコンポーネントのテスト
- * 
+ *
  * React 19 + Vitest + React Testing Libraryを使用したテスト例
  */
 describe('App', () => {

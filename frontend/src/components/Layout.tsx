@@ -7,7 +7,7 @@ interface LayoutProps {
 
 /**
  * アプリケーション全体のレイアウトコンポーネント
- * 
+ *
  * ヘッダー、サイドバー、メインコンテンツエリアを提供します。
  */
 function Layout({ children }: LayoutProps) {

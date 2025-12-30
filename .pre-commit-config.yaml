@@ -1,7 +1,7 @@
 repos:
   # Python: Ruff for linting and formatting
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.4
+    rev: v0.14.10
     hooks:
       - id: ruff
         args: [--fix]
@@ -9,13 +9,15 @@ repos:
       - id: ruff-format
         files: ^backend/
 
-  # Python: Type checking with Pyright
-  - repo: https://github.com/RobertCraigie/pyright-python
-    rev: v1.1.390
+  # Python: Type checking with Pyright (using local installation)
+  - repo: local
     hooks:
       - id: pyright
-        files: ^backend/
-        additional_dependencies: []
+        name: Pyright type check
+        entry: bash -c 'cd backend && uv run pyright'
+        language: system
+        files: ^backend/.*\.py$
+        pass_filenames: false
 
   # TypeScript/JavaScript: ESLint
   - repo: https://github.com/pre-commit/mirrors-eslint
@@ -31,13 +33,15 @@ repos:
           - 'eslint-plugin-react-refresh@^0.4.4'
           - 'typescript@^5.9.3'
 
-  # TypeScript: Type checking
-  - repo: https://github.com/pre-commit/mirrors-typescript
-    rev: v5.9.3
+  # TypeScript: Type checking (using local installation)
+  - repo: local
     hooks:
       - id: typescript
-        files: ^frontend/
-        args: [--noEmit]
+        name: TypeScript type check
+        entry: bash -c 'cd frontend && npx tsc --noEmit'
+        language: system
+        files: ^frontend/.*\.(ts|tsx)$
+        pass_filenames: false
 
   # General: trailing whitespace, end of file, etc.
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -48,6 +52,7 @@ repos:
       - id: end-of-file-fixer
       - id: check-yaml
       - id: check-json
+        exclude: tsconfig.*\.json$
       - id: check-toml
       - id: check-merge-conflict
       - id: check-added-large-files

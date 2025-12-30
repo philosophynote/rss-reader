@@ -48,7 +48,7 @@ export function KeywordForm({ onSuccess, onCancel }: KeywordFormProps) {
     }
 
     // 重み値チェック
-    if (formData.weight !== undefined) {
+    if (formData.weight !== undefined && !isNaN(formData.weight)) {
       if (formData.weight < 0.1) {
         newErrors.weight = "重みは0.1以上で入力してください";
       } else if (formData.weight > 10.0) {
@@ -111,10 +111,11 @@ export function KeywordForm({ onSuccess, onCancel }: KeywordFormProps) {
 
     // エラーをクリア
     if (errors.text) {
-      setErrors((prev) => ({
-        ...prev,
-        text: "",
-      }));
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors.text;
+        return newErrors;
+      });
     }
   };
 
@@ -129,10 +130,11 @@ export function KeywordForm({ onSuccess, onCancel }: KeywordFormProps) {
 
     // エラーをクリア
     if (errors.weight) {
-      setErrors((prev) => ({
-        ...prev,
-        weight: "",
-      }));
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors.weight;
+        return newErrors;
+      });
     }
   };
 
@@ -161,7 +163,7 @@ export function KeywordForm({ onSuccess, onCancel }: KeywordFormProps) {
           <Field.HelperText>
             記事の重要度判定に使用するキーワードを入力してください
           </Field.HelperText>
-          <Field.ErrorText>{errors.text}</Field.ErrorText>
+          {errors.text && <Field.ErrorText>{errors.text}</Field.ErrorText>}
         </Field.Root>
 
         <Field.Root invalid={!!errors.weight}>
@@ -169,8 +171,6 @@ export function KeywordForm({ onSuccess, onCancel }: KeywordFormProps) {
           <NumberInput.Root
             value={formData.weight?.toString() || "1.0"}
             onValueChange={handleWeightChange}
-            min={0.1}
-            max={10.0}
             step={0.1}
             disabled={createKeyword.isPending}
           >
@@ -183,7 +183,7 @@ export function KeywordForm({ onSuccess, onCancel }: KeywordFormProps) {
           <Field.HelperText>
             キーワードの重要度を調整できます（0.1〜10.0、デフォルト: 1.0）
           </Field.HelperText>
-          <Field.ErrorText>{errors.weight}</Field.ErrorText>
+          {errors.weight && <Field.ErrorText>{errors.weight}</Field.ErrorText>}
         </Field.Root>
 
         <VStack gap={2}>
@@ -192,8 +192,9 @@ export function KeywordForm({ onSuccess, onCancel }: KeywordFormProps) {
             colorPalette="blue"
             width="full"
             loading={createKeyword.isPending}
+            loadingText="追加中..."
           >
-            {createKeyword.isPending ? "追加中..." : "キーワードを追加"}
+            キーワードを追加
           </Button>
 
           {onCancel && (
