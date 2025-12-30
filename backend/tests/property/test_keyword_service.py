@@ -171,7 +171,9 @@ class TestKeywordServiceProperties:
 
     @given(payload=keyword_payload_strategy())
     @settings(max_examples=50)
-    def test_keyword_registration_persistence(self, payload: Dict[str, object]):
+    def test_keyword_registration_persistence(
+        self, payload: Dict[str, object]
+    ):
         """
         キーワード登録後に同じキーワードを取得できる。
 
@@ -302,4 +304,7 @@ class TestKeywordServiceProperties:
             f"article-{index}-{payload['text']}"
             for index, payload in enumerate(payloads)
         }
-        assert set(fake_importance_service.recalculated_article_ids) == expected_ids
+        assert (
+            set(fake_importance_service.recalculated_article_ids)
+            == expected_ids
+        )

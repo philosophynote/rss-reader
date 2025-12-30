@@ -195,5 +195,7 @@ class KeywordService:
             Keyword: 変換済みキーワード
         """
         keyword_fields = Keyword.model_fields.keys()
-        keyword_data = {key: item[key] for key in keyword_fields if key in item}
+        keyword_data = {
+            key: item[key] for key in keyword_fields if key in item
+        }
         return Keyword(**keyword_data)
