@@ -92,7 +92,7 @@ make format        # 全プロジェクトのフォーマット
 make type-check    # 全プロジェクトの型チェック
 
 # テスト実行
-make test          # 全プロジェクトのテスト
+make test          # 全プロジェクトのテスト（ユニット + プロパティベース）
 make test-coverage # カバレッジ付きテスト
 
 # クリーンアップ
@@ -222,13 +222,13 @@ make infra-synth         # cdk synth
 ### テスト実行
 
 ```bash
-# 全プロジェクトのテスト
+# 全プロジェクトのテスト（ユニットテスト + プロパティベーステスト）
 make test
 
 # カバレッジ付きテスト
 make test-coverage
 
-# Backend
+# Backend（ユニットテスト + プロパティベーステスト）
 cd backend
 uv run pytest --cov=app --cov-report=term-missing
 
@@ -240,6 +240,12 @@ npm run test:coverage
 cd infrastructure
 npm test
 ```
+
+**重要**: `make test`は以下を含む包括的なテストを実行します：
+- **ユニットテスト**: 特定の例とエッジケースの検証
+- **プロパティベーステスト**: Hypothesisを使用した不変条件の検証
+- **統合テスト**: コンポーネント間の連携テスト
+- **カバレッジ測定**: 80%以上の維持を確認
 
 ## AWS アーキテクチャ
 

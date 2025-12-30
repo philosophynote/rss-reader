@@ -134,13 +134,13 @@ This project follows Kiro-style spec-driven development using custom slash comma
 ### Test Execution
 
 ```bash
-# All projects
+# All projects (Unit tests + Property-based tests)
 make test
 
 # With coverage
 make test-coverage
 
-# Backend tests
+# Backend tests (Unit tests + Property-based tests)
 cd backend
 uv run pytest --cov=app --cov-report=term-missing
 
@@ -152,6 +152,12 @@ npm run test:coverage
 cd infrastructure
 npm test
 ```
+
+**Important**: `make test` runs comprehensive testing including:
+- **Unit tests**: Specific examples and edge case validation using pytest
+- **Property-based tests**: Invariant validation using Hypothesis
+- **Integration tests**: Component interaction testing
+- **Coverage measurement**: Ensures 80%+ coverage is maintained
 
 ## AWS Architecture
 
@@ -283,8 +289,8 @@ make format        # Format all projects
 make type-check    # Type check all projects
 
 # Testing
-make test          # Run all project tests
-make test-coverage # Run tests with coverage
+make test          # 全プロジェクトのテスト（ユニット + プロパティベース）
+make test-coverage # カバレッジ付きテスト
 
 # Cleanup
 make clean         # Remove build artifacts and caches
