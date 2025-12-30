@@ -4,7 +4,6 @@
 FeedServiceのCRUD操作が正しく動作することを検証します。
 """
 
-from typing import Dict, List, Optional, Tuple
 from datetime import datetime
 
 import pytest
@@ -22,13 +21,13 @@ class FakeDynamoDBClient:
     """
 
     def __init__(self) -> None:
-        self.items: Dict[Tuple[str, str], Dict] = {}
+        self.items: dict[tuple[str, str], dict] = {}
 
-    def put_item(self, item: Dict) -> None:
+    def put_item(self, item: dict) -> None:
         """アイテムを保存"""
         self.items[(item["PK"], item["SK"])] = item
 
-    def get_item(self, pk: str, sk: str) -> Optional[Dict]:
+    def get_item(self, pk: str, sk: str) -> dict | None:
         """キーでアイテムを取得"""
         return self.items.get((pk, sk))
 
@@ -38,9 +37,9 @@ class FakeDynamoDBClient:
 
     def query_feeds(
         self,
-        limit: Optional[int] = None,
-        exclusive_start_key: Optional[Dict] = None,
-    ) -> Tuple[List[Dict], Optional[Dict]]:
+        limit: int | None = None,
+        exclusive_start_key: dict | None = None,
+    ) -> tuple[list[dict], dict | None]:
         """フィード一覧を取得"""
         items = [
             item
@@ -54,9 +53,9 @@ class FakeDynamoDBClient:
     def query_articles_by_feed_id(
         self,
         feed_id: str,
-        limit: Optional[int] = None,
-        exclusive_start_key: Optional[Dict] = None,
-    ) -> Tuple[List[Dict], Optional[Dict]]:
+        limit: int | None = None,
+        exclusive_start_key: dict | None = None,
+    ) -> tuple[list[dict], dict | None]:
         """フィードIDに紐づく記事を取得"""
         items = [
             item
@@ -70,13 +69,14 @@ class FakeDynamoDBClient:
     def query_importance_reasons_for_article(
         self,
         article_id: str,
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """記事の重要度理由を取得"""
         pk = f"ARTICLE#{article_id}"
         return [
             item
             for item in self.items.values()
-            if item.get("PK") == pk and item.get("SK", "").startswith("REASON#")
+            if item.get("PK") == pk
+            and item.get("SK", "").startswith("REASON#")
         ]
 
     def delete_importance_reasons_for_article(self, article_id: str) -> int:
@@ -88,8 +88,8 @@ class FakeDynamoDBClient:
 
     def batch_write_item(
         self,
-        items: List[Dict],
-        delete_keys: Optional[List[Dict]] = None,
+        items: list[dict],
+        delete_keys: list[dict] | None = None,
     ) -> None:
         """バッチ書き込みを実行"""
         for item in items:
@@ -219,11 +219,16 @@ class TestFeedService:
         deleted = service.delete_feed(created_feed.feed_id)
 
         assert deleted is True
-        assert fake_client.get_item(
-            pk=article_item["PK"],
-            sk=article_item["SK"],
-        ) is None
         assert (
-            fake_client.query_importance_reasons_for_article(article.article_id)
+            fake_client.get_item(
+                pk=article_item["PK"],
+                sk=article_item["SK"],
+            )
+            is None
+        )
+        assert (
+            fake_client.query_importance_reasons_for_article(
+                article.article_id
+            )
             == []
         )

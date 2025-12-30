@@ -4,8 +4,6 @@ RSSフィード取得サービスのユニットテスト。
 FeedFetcherServiceの取得処理が正しく動作することを検証します。
 """
 
-from typing import Dict, List, Optional, Tuple
-
 import httpx
 import pytest
 
@@ -25,20 +23,20 @@ class FakeDynamoDBClient:
     """
 
     def __init__(self) -> None:
-        self.items: Dict[Tuple[str, str], Dict] = {}
+        self.items: dict[tuple[str, str], dict] = {}
 
-    def put_item(self, item: Dict) -> None:
+    def put_item(self, item: dict) -> None:
         """アイテムを保存"""
         self.items[(item["PK"], item["SK"])] = item
 
-    def get_item(self, pk: str, sk: str) -> Optional[Dict]:
+    def get_item(self, pk: str, sk: str) -> dict | None:
         """キーでアイテムを取得"""
         return self.items.get((pk, sk))
 
     def batch_write_item(
         self,
-        items: List[Dict],
-        delete_keys: Optional[List[Dict]] = None,
+        items: list[dict],
+        delete_keys: list[dict] | None = None,
     ) -> None:
         """バッチ書き込みを実行"""
         for item in items:
@@ -80,7 +78,7 @@ class FakeImportanceScoreService:
 
     def __init__(self, score: float) -> None:
         self.score = score
-        self.called_with: List[Tuple[str, str]] = []
+        self.called_with: list[tuple[str, str]] = []
 
     def calculate_score(self, title: str, content: str) -> float:
         """引数を記録して固定スコアを返す"""

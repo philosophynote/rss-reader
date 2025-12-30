@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
 
 from hypothesis import given, settings
 from hypothesis.strategies import (
@@ -20,7 +19,6 @@ from hypothesis.strategies import (
     text,
 )
 
-from app.models.keyword import Keyword
 from app.services.keyword_service import KeywordService
 
 
@@ -32,13 +30,13 @@ class FakeDynamoDBClient:
     """
 
     def __init__(self) -> None:
-        self.items: Dict[Tuple[str, str], Dict] = {}
+        self.items: dict[tuple[str, str], dict] = {}
 
-    def put_item(self, item: Dict) -> None:
+    def put_item(self, item: dict) -> None:
         """アイテムを保存。"""
         self.items[(item["PK"], item["SK"])] = item
 
-    def get_item(self, pk: str, sk: str) -> Optional[Dict]:
+    def get_item(self, pk: str, sk: str) -> dict | None:
         """キーでアイテムを取得。"""
         return self.items.get((pk, sk))
 
@@ -48,9 +46,9 @@ class FakeDynamoDBClient:
 
     def query_keywords(
         self,
-        limit: Optional[int] = None,
-        exclusive_start_key: Optional[Dict] = None,
-    ) -> Tuple[List[Dict], Optional[Dict]]:
+        limit: int | None = None,
+        exclusive_start_key: dict | None = None,
+    ) -> tuple[list[dict], dict | None]:
         """キーワード一覧を取得。"""
         items = [
             item
@@ -80,12 +78,12 @@ class FakeDynamoDBClient:
 
     def query_articles_by_published_date(
         self,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-        limit: Optional[int] = None,
-        exclusive_start_key: Optional[Dict] = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        limit: int | None = None,
+        exclusive_start_key: dict | None = None,
         descending: bool = True,
-    ) -> Tuple[List[Dict], Optional[Dict]]:
+    ) -> tuple[list[dict], dict | None]:
         """記事を公開日時順で取得。"""
         items = [
             item
@@ -122,7 +120,7 @@ class FakeDynamoDBClient:
 class FakeImportanceScoreService:
     """重要度再計算の呼び出しを記録するテスト用サービス。"""
 
-    recalculated_article_ids: List[str]
+    recalculated_article_ids: list[str]
 
     def recalculate_score(self, article_id: str) -> None:
         """記事IDを記録する。"""
@@ -151,7 +149,7 @@ def keyword_weight_strategy(draw) -> float:
 
 
 @composite
-def keyword_payload_strategy(draw) -> Dict[str, object]:
+def keyword_payload_strategy(draw) -> dict[str, object]:
     """KeywordService用の入力を生成する戦略。"""
     return {
         "text": draw(keyword_text_strategy()),
@@ -161,7 +159,7 @@ def keyword_payload_strategy(draw) -> Dict[str, object]:
 
 
 @composite
-def keyword_payloads_strategy(draw) -> List[Dict[str, object]]:
+def keyword_payloads_strategy(draw) -> list[dict[str, object]]:
     """複数キーワードの入力を生成する戦略。"""
     return draw(lists(keyword_payload_strategy(), min_size=1, max_size=5))
 
@@ -171,7 +169,9 @@ class TestKeywordServiceProperties:
 
     @given(payload=keyword_payload_strategy())
     @settings(max_examples=50)
-    def test_keyword_registration_persistence(self, payload: Dict[str, object]):
+    def test_keyword_registration_persistence(
+        self, payload: dict[str, object]
+    ):
         """
         キーワード登録後に同じキーワードを取得できる。
 
@@ -193,7 +193,7 @@ class TestKeywordServiceProperties:
 
     @given(payload=keyword_payload_strategy())
     @settings(max_examples=50)
-    def test_keyword_weight_persistence(self, payload: Dict[str, object]):
+    def test_keyword_weight_persistence(self, payload: dict[str, object]):
         """
         登録時に指定した重みが保存される。
 
@@ -214,7 +214,7 @@ class TestKeywordServiceProperties:
 
     @given(payload=keyword_payload_strategy())
     @settings(max_examples=50)
-    def test_keyword_activation_toggle(self, payload: Dict[str, object]):
+    def test_keyword_activation_toggle(self, payload: dict[str, object]):
         """
         キーワードの有効/無効が正しく切り替わる。
 
@@ -242,7 +242,7 @@ class TestKeywordServiceProperties:
 
     @given(payloads=keyword_payloads_strategy())
     @settings(max_examples=50)
-    def test_keyword_list_is_complete(self, payloads: List[Dict[str, object]]):
+    def test_keyword_list_is_complete(self, payloads: list[dict[str, object]]):
         """
         登録したキーワードが一覧にすべて含まれる。
 
@@ -270,7 +270,7 @@ class TestKeywordServiceProperties:
     @settings(max_examples=25)
     def test_recalculate_all_scores_triggers_each_article(
         self,
-        payloads: List[Dict[str, object]],
+        payloads: list[dict[str, object]],
     ) -> None:
         """
         重要度スコアの再計算が全記事に対して実行される。
@@ -302,4 +302,7 @@ class TestKeywordServiceProperties:
             f"article-{index}-{payload['text']}"
             for index, payload in enumerate(payloads)
         }
-        assert set(fake_importance_service.recalculated_article_ids) == expected_ids
+        assert (
+            set(fake_importance_service.recalculated_article_ids)
+            == expected_ids
+        )

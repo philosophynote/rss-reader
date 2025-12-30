@@ -6,10 +6,11 @@
 
 from __future__ import annotations
 
-from typing import List, Optional, Protocol
+from typing import Protocol
 
 from app.config import settings
 from app.models.keyword import Keyword
+from app.utils.datetime_utils import parse_datetime_string
 from app.utils.dynamodb_client import DynamoDBClient
 
 
@@ -39,8 +40,8 @@ class KeywordService:
 
     def __init__(
         self,
-        dynamodb_client: Optional[DynamoDBClient] = None,
-        importance_score_service: Optional[ImportanceScoreService] = None,
+        dynamodb_client: DynamoDBClient | None = None,
+        importance_score_service: ImportanceScoreService | None = None,
     ) -> None:
         """
         KeywordServiceの初期化。
@@ -67,7 +68,7 @@ class KeywordService:
         self.dynamodb_client.put_item(keyword.to_dynamodb_item())
         return keyword
 
-    def get_keywords(self) -> List[Keyword]:
+    def get_keywords(self) -> list[Keyword]:
         """
         キーワード一覧を取得。
 
@@ -77,7 +78,7 @@ class KeywordService:
         items, _ = self.dynamodb_client.query_keywords()
         return [self._convert_item_to_keyword(item) for item in items]
 
-    def get_keyword(self, keyword_id: str) -> Optional[Keyword]:
+    def get_keyword(self, keyword_id: str) -> Keyword | None:
         """
         キーワードを取得。
 
@@ -98,10 +99,10 @@ class KeywordService:
     def update_keyword(
         self,
         keyword_id: str,
-        text: Optional[str] = None,
-        weight: Optional[float] = None,
-        is_active: Optional[bool] = None,
-    ) -> Optional[Keyword]:
+        text: str | None = None,
+        weight: float | None = None,
+        is_active: bool | None = None,
+    ) -> Keyword | None:
         """
         キーワードを更新。
 
@@ -195,5 +196,16 @@ class KeywordService:
             Keyword: 変換済みキーワード
         """
         keyword_fields = Keyword.model_fields.keys()
-        keyword_data = {key: item[key] for key in keyword_fields if key in item}
+        keyword_data = {
+            key: item[key] for key in keyword_fields if key in item
+        }
+
+        # created_atフィールドの日時文字列を適切に変換
+        if "created_at" in keyword_data and isinstance(
+            keyword_data["created_at"], str
+        ):
+            keyword_data["created_at"] = parse_datetime_string(
+                keyword_data["created_at"]
+            )
+
         return Keyword(**keyword_data)

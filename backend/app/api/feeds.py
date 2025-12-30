@@ -96,9 +96,9 @@ async def fetch_all_feeds(
 @router.post("/{feed_id}/fetch", response_model=FeedFetchResponse)
 async def fetch_feed(
     feed_id: str,
+    response: Response,
     feed_service: FeedService = Depends(get_feed_service),
     fetcher_service: FeedFetcherService = Depends(get_feed_fetcher_service),
-    response: Response,
 ) -> FeedFetchResponse:
     """指定フィードを取得"""
     feed = feed_service.get_feed(feed_id)

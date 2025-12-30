@@ -7,7 +7,7 @@ import json
 import logging
 from collections import OrderedDict
 from threading import Lock
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 import boto3
 import numpy as np
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 class ImportanceScoreService:
     """重要度スコア計算サービス
-    
+
     AWS Bedrock Nova Multimodal Embeddingsを使用して、
     記事とキーワードの意味的類似度を計算し、重要度スコアを算出します。
     """
@@ -32,9 +32,9 @@ class ImportanceScoreService:
 
     def __init__(self, region_name: str | None = None) -> None:
         """ImportanceScoreServiceを初期化
-        
+
         Args:
-            region_name: AWS Bedrockのリージョン（デフォルト: us-east-1）
+            region_name: AWS Bedrockのリージョン（デフォルト: ap-northeast-1）
         """
         self.region_name = region_name or settings.BEDROCK_REGION
         self.bedrock_runtime = boto3.client(
@@ -42,8 +42,12 @@ class ImportanceScoreService:
         )
         self.model_id = settings.BEDROCK_MODEL_ID
         self.embedding_dimension = settings.EMBEDDING_DIMENSION
-        self._keyword_embedding_cache_max = settings.KEYWORD_EMBEDDING_CACHE_SIZE
-        self._keyword_embedding_cache: OrderedDict[str, np.ndarray] = OrderedDict()
+        self._keyword_embedding_cache_max = (
+            settings.KEYWORD_EMBEDDING_CACHE_SIZE
+        )
+        self._keyword_embedding_cache: OrderedDict[str, np.ndarray] = (
+            OrderedDict()
+        )
         self._keyword_embedding_cache_lock = Lock()
         logger.info(
             f"ImportanceScoreService initialized with model: {self.model_id}, "
@@ -52,19 +56,19 @@ class ImportanceScoreService:
 
     def invoke_bedrock_embeddings(
         self, text: str, dimension: int = 1024
-    ) -> List[float]:
+    ) -> list[float]:
         """AWS Bedrockを使用してテキストの埋め込みを生成
-        
+
         公式ドキュメント準拠のAPIフォーマット:
         https://docs.aws.amazon.com/nova/latest/userguide/embeddings-schema.html
-        
+
         Args:
             text: 埋め込みを生成するテキスト
             dimension: 埋め込みの次元数（256, 384, 1024, 3072から選択）
-        
+
         Returns:
             埋め込みベクトル（float型のリスト）
-        
+
         Raises:
             Exception: Bedrock API呼び出しに失敗した場合
         """
@@ -100,10 +104,10 @@ class ImportanceScoreService:
 
     def get_embedding(self, text: str) -> np.ndarray:
         """テキストの埋め込みを取得
-        
+
         Args:
             text: 埋め込みを生成するテキスト
-        
+
         Returns:
             埋め込みベクトル（numpy配列）
         """
@@ -114,18 +118,23 @@ class ImportanceScoreService:
 
     def _evict_oldest_cache_entry(self) -> None:
         """キャッシュから最も古いエントリを削除
-        
+
         Note:
             このメソッドはロック内で呼び出される前提です。
         """
-        if len(self._keyword_embedding_cache) >= self._keyword_embedding_cache_max:
+        if (
+            len(self._keyword_embedding_cache)
+            >= self._keyword_embedding_cache_max
+        ):
             oldest_key = next(iter(self._keyword_embedding_cache))
             self._keyword_embedding_cache.pop(oldest_key)
-            logger.debug(f"Evicted oldest cached embedding for keyword: {oldest_key}")
+            logger.debug(
+                f"Evicted oldest cached embedding for keyword: {oldest_key}"
+            )
 
     def get_keyword_embedding(self, keyword_text: str) -> np.ndarray:
         """キーワードの埋め込みを取得（キャッシュ使用）
-        
+
         ダブルチェックロッキングパターンを使用して、
         同じキーワードに対する重複した埋め込み生成を防ぎます。
 
@@ -146,7 +155,7 @@ class ImportanceScoreService:
         # キャッシュミスの場合、ロックを解放して埋め込みを生成
         # （この間に他のスレッドが同じキーワードの埋め込みを生成する可能性がある）
         embedding = self.get_embedding(keyword_text)
-        
+
         # 第2回目のキャッシュチェック（ダブルチェックロッキング）
         with self._keyword_embedding_cache_lock:
             # 他のスレッドが既に同じキーワードをキャッシュに追加していないかチェック
@@ -154,16 +163,18 @@ class ImportanceScoreService:
             if cached_embedding is not None:
                 # 他のスレッドが既に追加済み - 生成した埋め込みは破棄してキャッシュ済みを返す
                 self._keyword_embedding_cache.move_to_end(keyword_text)
-                logger.debug(f"Found keyword embedding cached by another thread: {keyword_text}")
+                logger.debug(
+                    f"Found keyword embedding cached by another thread: {keyword_text}"
+                )
                 return cached_embedding
-            
+
             # まだキャッシュにない場合、生成した埋め込みを追加
             # キャッシュサイズ上限チェックとエビクション
             self._evict_oldest_cache_entry()
-            
+
             # 新しい埋め込みをキャッシュに追加
             self._keyword_embedding_cache[keyword_text] = embedding
-            
+
             logger.debug(
                 f"Cached embedding for keyword: {keyword_text} "
                 f"(cache size: {len(self._keyword_embedding_cache)}/{self._keyword_embedding_cache_max})"
@@ -174,11 +185,11 @@ class ImportanceScoreService:
         self, embedding1: np.ndarray, embedding2: np.ndarray
     ) -> float:
         """コサイン類似度を計算
-        
+
         Args:
             embedding1: 埋め込みベクトル1
             embedding2: 埋め込みベクトル2
-        
+
         Returns:
             コサイン類似度（-1.0~1.0）
         """
@@ -187,19 +198,19 @@ class ImportanceScoreService:
 
     def _create_importance_reason(
         self,
-        article: Dict[str, Any],
-        keyword: Dict[str, Any],
+        article: dict[str, Any],
+        keyword: dict[str, Any],
         similarity: float,
         contribution: float,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """重要度理由データを生成
-        
+
         Args:
             article: 記事データ
             keyword: キーワードデータ
             similarity: 類似度スコア
             contribution: 重み付き貢献度
-        
+
         Returns:
             重要度理由データ
         """
@@ -215,21 +226,19 @@ class ImportanceScoreService:
         }
 
     def calculate_score(
-        self, article: Dict[str, Any], keywords: List[Dict[str, Any]]
-    ) -> Tuple[float, List[Dict[str, Any]]]:
+        self, article: dict[str, Any], keywords: list[dict[str, Any]]
+    ) -> tuple[float, list[dict[str, Any]]]:
         """記事の重要度スコアを計算
-        
+
         Args:
             article: 記事データ（title, content, article_idを含む）
             keywords: キーワードリスト（text, weight, is_active, keyword_idを含む）
-        
+
         Returns:
             (重要度スコア, 重要度理由のリスト)
         """
         # 記事のテキストを結合
-        article_text = (
-            f"{article['title']} {article.get('content', '')}"
-        )
+        article_text = f"{article['title']} {article.get('content', '')}"
         article_embedding = self.get_embedding(article_text)
 
         total_score = 0.0

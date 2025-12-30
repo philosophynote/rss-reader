@@ -55,6 +55,67 @@ rss-reader/
 - AWS CLI設定済み
 - uv (Python パッケージマネージャー)
 
+### クイックスタート
+
+```bash
+# 1. 開発環境のセットアップ（全プロジェクト）
+make setup-dev
+
+# 2. 各サービスの起動
+# バックエンド
+cd backend && uv run uvicorn app.main:app --reload
+
+# フロントエンド
+cd frontend && npm run dev
+
+# インフラストラクチャ（デプロイ）
+cd infrastructure && npm run deploy
+```
+
+### 開発コマンド
+
+```bash
+# コード品質チェック
+make lint          # 全プロジェクトのlint
+make format        # 全プロジェクトのフォーマット
+make type-check    # 全プロジェクトの型チェック
+
+# テスト実行
+make test          # 全プロジェクトのテスト
+make test-coverage # カバレッジ付きテスト
+
+# クリーンアップ
+make clean         # ビルド成果物とキャッシュを削除
+```
+
+### CI/CD
+
+このプロジェクトはGitHub Actionsを使用してCI/CDを実行します：
+
+- **Lint & Format**: Ruff (Python) + ESLint (TypeScript)
+- **Type Check**: Pyright (Python) + TypeScript Compiler
+- **Test**: pytest (Python) + Vitest (TypeScript)
+- **Coverage**: 80%以上を要求
+- **Security**: Trivy脆弱性スキャン
+
+#### CI環境
+
+- Python 3.14 + uv
+- Node.js 18
+- 自動デプロイ（mainブランチ）
+
+### コード品質ツール
+
+#### Python (Backend)
+- **Linter/Formatter**: Ruff
+- **Type Checker**: Pyright (basic mode)
+- **Test Framework**: pytest + Hypothesis (Property-based testing)
+
+#### TypeScript (Frontend)
+- **Linter**: ESLint + typescript-eslint
+- **Type Checker**: TypeScript Compiler
+- **Test Framework**: Vitest + Testing Library
+
 ### AWS認証情報と権限
 
 ローカル開発では、AWS CLIの認証情報または`AWS_ACCESS_KEY_ID`などの
@@ -67,8 +128,8 @@ rss-reader/
 
 ```bash
 # backend/.env 例
-AWS_REGION=us-east-1
-BEDROCK_REGION=us-east-1
+AWS_REGION=ap-northeast-1
+BEDROCK_REGION=us-east-1  # Nova 2 multimodal embeddings is only available in us-east-1
 BEDROCK_MODEL_ID=amazon.nova-2-multimodal-embeddings-v1:0
 EMBEDDING_DIMENSION=1024
 DYNAMODB_TABLE_NAME=rss-reader
