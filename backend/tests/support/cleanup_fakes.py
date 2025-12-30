@@ -119,18 +119,38 @@ class FakeDynamoDBClient:
         """条件式から対象キーの比較値を取得する。"""
         if hasattr(expression, "get_expression"):
             expr = expression.get_expression()
-            if expr.get("operator") == operator:
+            expr_operator = expr.get("operator")
+
+            # AND条件の場合、子要素を再帰的に探索
+            if expr_operator == "AND":
+                if hasattr(expression, "_values"):
+                    for child in expression._values:
+                        try:
+                            result = FakeDynamoDBClient._extract_value(
+                                child, operator, key_name
+                            )
+                            if result is not None:
+                                return result
+                        except ValueError:
+                            continue
+
+            # 目的の演算子に一致する場合
+            elif expr_operator == operator:
                 left, value = expr.get("values", (None, None))
                 if getattr(left, "name", None) == key_name:
                     return value
 
+        # 直接_valuesがある場合（後方互換性のため残す）
         if hasattr(expression, "_values"):
             for child in expression._values:
-                result = FakeDynamoDBClient._extract_value(
-                    child, operator, key_name
-                )
-                if result is not None:
-                    return result
+                try:
+                    result = FakeDynamoDBClient._extract_value(
+                        child, operator, key_name
+                    )
+                    if result is not None:
+                        return result
+                except ValueError:
+                    continue
 
         raise ValueError("条件式から値を抽出できませんでした。")
 
