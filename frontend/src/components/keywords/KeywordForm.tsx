@@ -1,0 +1,218 @@
+import React, { useState } from "react";
+import {
+  Box,
+  Button,
+  FormControl,
+  FormLabel,
+  FormErrorMessage,
+  FormHelperText,
+  Input,
+  NumberInput,
+  NumberInputField,
+  NumberInputStepper,
+  NumberIncrementStepper,
+  NumberDecrementStepper,
+  VStack,
+  useToast,
+  Alert,
+  AlertIcon,
+} from "@chakra-ui/react";
+import { useCreateKeyword } from "../../hooks";
+import { ApiAuthError, ApiError } from "../../api";
+import type { CreateKeywordRequest } from "../../api";
+
+interface KeywordFormProps {
+  onSuccess?: () => void;
+  onCancel?: () => void;
+}
+
+/**
+ * キーワード作成フォームコンポーネント
+ */
+export function KeywordForm({ onSuccess, onCancel }: KeywordFormProps) {
+  const [formData, setFormData] = useState<CreateKeywordRequest>({
+    text: "",
+    weight: 1.0,
+  });
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const toast = useToast();
+  const createKeyword = useCreateKeyword();
+
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    // テキスト必須チェック
+    if (!formData.text.trim()) {
+      newErrors.text = "キーワードは必須です";
+    } else if (formData.text.trim().length < 2) {
+      newErrors.text = "キーワードは2文字以上で入力してください";
+    } else if (formData.text.trim().length > 50) {
+      newErrors.text = "キーワードは50文字以内で入力してください";
+    }
+
+    // 重み値チェック
+    if (formData.weight !== undefined) {
+      if (formData.weight < 0.1) {
+        newErrors.weight = "重みは0.1以上で入力してください";
+      } else if (formData.weight > 10.0) {
+        newErrors.weight = "重みは10.0以下で入力してください";
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!validateForm()) {
+      return;
+    }
+
+    try {
+      await createKeyword.mutateAsync({
+        text: formData.text.trim(),
+        weight: formData.weight,
+      });
+
+      toast({
+        title: "キーワードを追加しました",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+
+      // フォームをリセット
+      setFormData({ text: "", weight: 1.0 });
+      setErrors({});
+
+      onSuccess?.();
+    } catch (error) {
+      console.error("キーワード作成エラー:", error);
+
+      let errorMessage = "キーワードの追加に失敗しました";
+      if (error instanceof ApiAuthError) {
+        errorMessage = "認証エラー: API Keyを確認してください";
+      } else if (error instanceof ApiError) {
+        errorMessage = error.message;
+      }
+
+      toast({
+        title: "エラー",
+        description: errorMessage,
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+  };
+
+  const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData((prev) => ({
+      ...prev,
+      text: e.target.value,
+    }));
+
+    // エラーをクリア
+    if (errors.text) {
+      setErrors((prev) => ({
+        ...prev,
+        text: "",
+      }));
+    }
+  };
+
+  const handleWeightChange = (valueString: string, valueNumber: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      weight: valueNumber,
+    }));
+
+    // エラーをクリア
+    if (errors.weight) {
+      setErrors((prev) => ({
+        ...prev,
+        weight: "",
+      }));
+    }
+  };
+
+  return (
+    <Box as="form" onSubmit={handleSubmit}>
+      <VStack spacing={4} align="stretch">
+        {createKeyword.error && (
+          <Alert status="error">
+            <AlertIcon />
+            {createKeyword.error instanceof ApiAuthError
+              ? "認証エラー: API Keyを確認してください"
+              : createKeyword.error instanceof ApiError
+              ? createKeyword.error.message
+              : "キーワードの追加に失敗しました"}
+          </Alert>
+        )}
+
+        <FormControl isInvalid={!!errors.text} isRequired>
+          <FormLabel>キーワード</FormLabel>
+          <Input
+            value={formData.text}
+            onChange={handleTextChange}
+            placeholder="例: Python, 機械学習, React"
+            disabled={createKeyword.isPending}
+          />
+          <FormHelperText>
+            記事の重要度判定に使用するキーワードを入力してください
+          </FormHelperText>
+          <FormErrorMessage>{errors.text}</FormErrorMessage>
+        </FormControl>
+
+        <FormControl isInvalid={!!errors.weight}>
+          <FormLabel>重み（任意）</FormLabel>
+          <NumberInput
+            value={formData.weight}
+            onChange={handleWeightChange}
+            min={0.1}
+            max={10.0}
+            step={0.1}
+            precision={1}
+            disabled={createKeyword.isPending}
+          >
+            <NumberInputField />
+            <NumberInputStepper>
+              <NumberIncrementStepper />
+              <NumberDecrementStepper />
+            </NumberInputStepper>
+          </NumberInput>
+          <FormHelperText>
+            キーワードの重要度を調整できます（0.1〜10.0、デフォルト: 1.0）
+          </FormHelperText>
+          <FormErrorMessage>{errors.weight}</FormErrorMessage>
+        </FormControl>
+
+        <VStack spacing={2}>
+          <Button
+            type="submit"
+            colorScheme="blue"
+            width="full"
+            isLoading={createKeyword.isPending}
+            loadingText="追加中..."
+          >
+            キーワードを追加
+          </Button>
+
+          {onCancel && (
+            <Button
+              variant="ghost"
+              width="full"
+              onClick={onCancel}
+              disabled={createKeyword.isPending}
+            >
+              キャンセル
+            </Button>
+          )}
+        </VStack>
+      </VStack>
+    </Box>
+  );
+}
