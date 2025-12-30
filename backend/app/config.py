@@ -15,7 +15,8 @@ class Settings:
     DYNAMODB_REGION: str = os.getenv("AWS_REGION", "ap-northeast-1")
 
     # AWS Bedrock設定
-    BEDROCK_REGION: str = os.getenv("BEDROCK_REGION", "ap-northeast-1")
+    # Nova 2 multimodal embeddings is only available in us-east-1
+    BEDROCK_REGION: str = os.getenv("BEDROCK_REGION", "us-east-1")
     BEDROCK_MODEL_ID: str = os.getenv(
         "BEDROCK_MODEL_ID", "amazon.nova-2-multimodal-embeddings-v1:0"
     )

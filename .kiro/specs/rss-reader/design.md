@@ -1197,7 +1197,7 @@ export class RssReaderStack extends cdk.Stack {
       }),
       environment: {
         DYNAMODB_TABLE_NAME: table.tableName,
-        BEDROCK_REGION: 'ap-northeast-1',
+        BEDROCK_REGION: 'us-east-1',
         BEDROCK_MODEL_ID: 'amazon.nova-2-multimodal-embeddings-v1:0',
         EMBEDDING_DIMENSION: '1024',
       },

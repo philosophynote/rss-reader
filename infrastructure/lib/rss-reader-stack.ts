@@ -112,7 +112,7 @@ export class RssReaderStack extends cdk.Stack {
       environment: {
         DYNAMODB_TABLE_NAME: this.table.tableName,
         // AWS_REGIONはLambdaランタイムが自動設定するため不要
-        BEDROCK_REGION: "ap-northeast-1",
+        BEDROCK_REGION: "us-east-1", // Nova 2 multimodal embeddings is only available in us-east-1
         BEDROCK_MODEL_ID: "amazon.nova-2-multimodal-embeddings-v1:0",
         EMBEDDING_DIMENSION: "1024",
         // 認証関連の環境変数（環境変数必須）
@@ -133,6 +133,7 @@ export class RssReaderStack extends cdk.Stack {
     const bedrockModelId =
       process.env.BEDROCK_MODEL_ID ||
       "amazon.nova-2-multimodal-embeddings-v1:0";
+    const bedrockRegion = "us-east-1"; // Nova 2 multimodal embeddings is only available in us-east-1
     this.apiFunction.addToRolePolicy(
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
@@ -141,7 +142,7 @@ export class RssReaderStack extends cdk.Stack {
           "bedrock:InvokeModelWithResponseStream",
         ],
         resources: [
-          `arn:aws:bedrock:ap-northeast-1::foundation-model/${bedrockModelId}`,
+          `arn:aws:bedrock:${bedrockRegion}::foundation-model/${bedrockModelId}`,
         ],
       })
     );

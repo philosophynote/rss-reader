@@ -129,7 +129,7 @@ make clean         # ビルド成果物とキャッシュを削除
 ```bash
 # backend/.env 例
 AWS_REGION=ap-northeast-1
-BEDROCK_REGION=ap-northeast-1
+BEDROCK_REGION=us-east-1  # Nova 2 multimodal embeddings is only available in us-east-1
 BEDROCK_MODEL_ID=amazon.nova-2-multimodal-embeddings-v1:0
 EMBEDDING_DIMENSION=1024
 DYNAMODB_TABLE_NAME=rss-reader
