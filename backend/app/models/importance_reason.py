@@ -4,6 +4,8 @@
 記事の重要度スコア計算の根拠となるキーワードとの関連性を記録するデータモデル。
 """
 
+from __future__ import annotations
+
 from pydantic import field_validator
 
 from .base import BaseModel

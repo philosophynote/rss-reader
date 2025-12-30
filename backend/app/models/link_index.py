@@ -4,6 +4,8 @@
 記事の重複チェック用のインデックスを管理するデータモデル。
 """
 
+from __future__ import annotations
+
 import hashlib
 
 from pydantic import Field, HttpUrl, field_validator
