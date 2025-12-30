@@ -1,5 +1,5 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -9,24 +9,29 @@ export default defineConfig({
     host: true,
   },
   build: {
-    outDir: 'dist',
+    outDir: "dist",
     sourcemap: true,
   },
   test: {
     globals: true,
-    environment: 'jsdom',
-    setupFiles: ['./src/test/setup.ts'],
+    environment: "jsdom",
+    setupFiles: ["./src/test/setup.ts"],
     css: true,
+    testTimeout: 10000,
+    env: {
+      VITE_API_BASE_URL: "http://localhost:8000",
+      VITE_API_KEY: "test-api-key",
+    },
     coverage: {
-      provider: 'v8',
-      reporter: ['text', 'html', 'clover', 'json'],
+      provider: "v8",
+      reporter: ["text", "html", "clover", "json"],
       exclude: [
-        'node_modules/',
-        'src/test/',
-        '**/*.d.ts',
-        '**/*.config.*',
-        'dist/',
-        'coverage/',
+        "node_modules/",
+        "src/test/",
+        "**/*.d.ts",
+        "**/*.config.*",
+        "dist/",
+        "coverage/",
       ],
       thresholds: {
         global: {
@@ -38,4 +43,4 @@ export default defineConfig({
       },
     },
   },
-})
+});

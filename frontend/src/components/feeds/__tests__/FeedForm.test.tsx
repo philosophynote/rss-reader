@@ -1,8 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { screen, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { ChakraProvider } from "@chakra-ui/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { render } from "../../../test/test-utils";
 import { FeedForm } from "../FeedForm";
 import { useCreateFeed } from "../../../hooks";
 
@@ -12,22 +11,6 @@ vi.mock("../../../hooks", () => ({
 }));
 
 const mockedUseCreateFeed = vi.mocked(useCreateFeed);
-
-// テスト用のプロバイダー
-function TestProvider({ children }: { children: React.ReactNode }) {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: { retry: false },
-      mutations: { retry: false },
-    },
-  });
-
-  return (
-    <ChakraProvider>
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    </ChakraProvider>
-  );
-}
 
 describe("FeedForm", () => {
   const mockMutateAsync = vi.fn();
@@ -45,11 +28,7 @@ describe("FeedForm", () => {
   });
 
   it("should render form fields correctly", () => {
-    render(
-      <TestProvider>
-        <FeedForm />
-      </TestProvider>
-    );
+    render(<FeedForm />);
 
     expect(screen.getByLabelText("フィードURL")).toBeInTheDocument();
     expect(screen.getByLabelText("フォルダ（任意）")).toBeInTheDocument();
@@ -61,11 +40,7 @@ describe("FeedForm", () => {
   it("should show validation error for empty URL", async () => {
     const user = userEvent.setup();
 
-    render(
-      <TestProvider>
-        <FeedForm />
-      </TestProvider>
-    );
+    render(<FeedForm />);
 
     const submitButton = screen.getByRole("button", { name: "フィードを追加" });
     await user.click(submitButton);
@@ -77,11 +52,7 @@ describe("FeedForm", () => {
   it("should show validation error for invalid URL", async () => {
     const user = userEvent.setup();
 
-    render(
-      <TestProvider>
-        <FeedForm />
-      </TestProvider>
-    );
+    render(<FeedForm />);
 
     const urlInput = screen.getByLabelText("フィードURL");
     await user.type(urlInput, "invalid-url");
@@ -102,11 +73,7 @@ describe("FeedForm", () => {
       is_active: true,
     });
 
-    render(
-      <TestProvider>
-        <FeedForm onSuccess={mockOnSuccess} />
-      </TestProvider>
-    );
+    render(<FeedForm onSuccess={mockOnSuccess} />);
 
     const urlInput = screen.getByLabelText("フィードURL");
     const folderInput = screen.getByLabelText("フォルダ（任意）");
@@ -136,11 +103,7 @@ describe("FeedForm", () => {
       is_active: true,
     });
 
-    render(
-      <TestProvider>
-        <FeedForm />
-      </TestProvider>
-    );
+    render(<FeedForm />);
 
     const urlInput = screen.getByLabelText("フィードURL");
     await user.type(urlInput, "https://example.com/feed.xml");
@@ -156,20 +119,14 @@ describe("FeedForm", () => {
     });
   });
 
-  it("should show loading state during submission", async () => {
-    const user = userEvent.setup();
-
+  it("should show loading state during submission", () => {
     mockedUseCreateFeed.mockReturnValue({
       mutateAsync: mockMutateAsync,
       isPending: true,
       error: null,
     } as any);
 
-    render(
-      <TestProvider>
-        <FeedForm />
-      </TestProvider>
-    );
+    render(<FeedForm />);
 
     const submitButton = screen.getByRole("button", { name: "追加中..." });
     expect(submitButton).toBeDisabled();
@@ -179,11 +136,7 @@ describe("FeedForm", () => {
   });
 
   it("should show cancel button when onCancel is provided", () => {
-    render(
-      <TestProvider>
-        <FeedForm onCancel={mockOnCancel} />
-      </TestProvider>
-    );
+    render(<FeedForm onCancel={mockOnCancel} />);
 
     const cancelButton = screen.getByRole("button", { name: "キャンセル" });
     expect(cancelButton).toBeInTheDocument();
@@ -195,11 +148,7 @@ describe("FeedForm", () => {
   it("should clear validation errors when user types", async () => {
     const user = userEvent.setup();
 
-    render(
-      <TestProvider>
-        <FeedForm />
-      </TestProvider>
-    );
+    render(<FeedForm />);
 
     // まずエラーを表示させる
     const submitButton = screen.getByRole("button", { name: "フィードを追加" });

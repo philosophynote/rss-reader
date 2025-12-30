@@ -1,12 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
-import { ChakraProvider } from "@chakra-ui/react";
+import { screen } from "@testing-library/react";
+import { render } from "../../../test/test-utils";
 import { ArticleStatusBadge } from "../ArticleStatusBadge";
 import type { Article } from "../../../api";
-
-function TestProvider({ children }: { children: React.ReactNode }) {
-  return <ChakraProvider>{children}</ChakraProvider>;
-}
 
 describe("ArticleStatusBadge", () => {
   const baseArticle: Article = {
@@ -23,11 +19,7 @@ describe("ArticleStatusBadge", () => {
   };
 
   it("should show unread badge for unread article", () => {
-    render(
-      <TestProvider>
-        <ArticleStatusBadge article={baseArticle} />
-      </TestProvider>
-    );
+    render(<ArticleStatusBadge article={baseArticle} />);
 
     expect(screen.getByText("未読")).toBeInTheDocument();
     expect(screen.queryByText("既読")).not.toBeInTheDocument();
@@ -36,11 +28,7 @@ describe("ArticleStatusBadge", () => {
   it("should show read badge for read article", () => {
     const readArticle = { ...baseArticle, is_read: true };
 
-    render(
-      <TestProvider>
-        <ArticleStatusBadge article={readArticle} />
-      </TestProvider>
-    );
+    render(<ArticleStatusBadge article={readArticle} />);
 
     expect(screen.getByText("既読")).toBeInTheDocument();
     expect(screen.queryByText("未読")).not.toBeInTheDocument();
@@ -49,40 +37,26 @@ describe("ArticleStatusBadge", () => {
   it("should show saved badge for saved article", () => {
     const savedArticle = { ...baseArticle, is_saved: true };
 
-    render(
-      <TestProvider>
-        <ArticleStatusBadge article={savedArticle} />
-      </TestProvider>
-    );
+    render(<ArticleStatusBadge article={savedArticle} />);
 
     expect(screen.getByText("保存済み")).toBeInTheDocument();
   });
 
   it("should not show saved badge for unsaved article", () => {
-    render(
-      <TestProvider>
-        <ArticleStatusBadge article={baseArticle} />
-      </TestProvider>
-    );
+    render(<ArticleStatusBadge article={baseArticle} />);
 
     expect(screen.queryByText("保存済み")).not.toBeInTheDocument();
   });
 
   it("should show importance score by default", () => {
-    render(
-      <TestProvider>
-        <ArticleStatusBadge article={baseArticle} />
-      </TestProvider>
-    );
+    render(<ArticleStatusBadge article={baseArticle} />);
 
     expect(screen.getByText("0.50")).toBeInTheDocument();
   });
 
   it("should hide importance score when showImportanceScore is false", () => {
     render(
-      <TestProvider>
-        <ArticleStatusBadge article={baseArticle} showImportanceScore={false} />
-      </TestProvider>
+      <ArticleStatusBadge article={baseArticle} showImportanceScore={false} />
     );
 
     expect(screen.queryByText("0.50")).not.toBeInTheDocument();
@@ -95,11 +69,7 @@ describe("ArticleStatusBadge", () => {
       is_saved: true,
     };
 
-    render(
-      <TestProvider>
-        <ArticleStatusBadge article={readAndSavedArticle} />
-      </TestProvider>
-    );
+    render(<ArticleStatusBadge article={readAndSavedArticle} />);
 
     expect(screen.getByText("既読")).toBeInTheDocument();
     expect(screen.getByText("保存済み")).toBeInTheDocument();
@@ -108,11 +78,7 @@ describe("ArticleStatusBadge", () => {
   it("should format importance score correctly", () => {
     const highScoreArticle = { ...baseArticle, importance_score: 0.856 };
 
-    render(
-      <TestProvider>
-        <ArticleStatusBadge article={highScoreArticle} />
-      </TestProvider>
-    );
+    render(<ArticleStatusBadge article={highScoreArticle} />);
 
     expect(screen.getByText("0.86")).toBeInTheDocument();
   });
@@ -120,11 +86,7 @@ describe("ArticleStatusBadge", () => {
   it("should format low importance score correctly", () => {
     const lowScoreArticle = { ...baseArticle, importance_score: 0.123 };
 
-    render(
-      <TestProvider>
-        <ArticleStatusBadge article={lowScoreArticle} />
-      </TestProvider>
-    );
+    render(<ArticleStatusBadge article={lowScoreArticle} />);
 
     expect(screen.getByText("0.12")).toBeInTheDocument();
   });

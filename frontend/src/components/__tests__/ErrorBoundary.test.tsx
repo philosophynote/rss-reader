@@ -1,6 +1,6 @@
-import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
-import { ChakraProvider } from "@chakra-ui/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { screen, fireEvent } from "@testing-library/react";
+import { render } from "../../test/test-utils";
 import { ErrorBoundary, AuthErrorBoundary } from "../ErrorBoundary";
 import { ApiAuthError, ApiError } from "../../api";
 
@@ -10,11 +10,6 @@ function ThrowError({ error }: { error?: Error }) {
     throw error;
   }
   return <div>正常なコンポーネント</div>;
-}
-
-// Chakra UIでラップするヘルパー
-function renderWithChakra(ui: React.ReactElement) {
-  return render(<ChakraProvider>{ui}</ChakraProvider>);
 }
 
 describe("ErrorBoundary", () => {
@@ -28,7 +23,7 @@ describe("ErrorBoundary", () => {
   });
 
   it("should render children when no error occurs", () => {
-    renderWithChakra(
+    render(
       <ErrorBoundary>
         <ThrowError />
       </ErrorBoundary>
@@ -40,7 +35,7 @@ describe("ErrorBoundary", () => {
   it("should render error display when error occurs", () => {
     const error = new Error("テストエラー");
 
-    renderWithChakra(
+    render(
       <ErrorBoundary>
         <ThrowError error={error} />
       </ErrorBoundary>
@@ -53,7 +48,7 @@ describe("ErrorBoundary", () => {
   it("should render auth error display for ApiAuthError", () => {
     const error = new ApiAuthError("認証に失敗しました", 401);
 
-    renderWithChakra(
+    render(
       <ErrorBoundary>
         <ThrowError error={error} />
       </ErrorBoundary>
@@ -66,7 +61,7 @@ describe("ErrorBoundary", () => {
   it("should render API error display for ApiError", () => {
     const error = new ApiError("サーバーエラーが発生しました", 500);
 
-    renderWithChakra(
+    render(
       <ErrorBoundary>
         <ThrowError error={error} />
       </ErrorBoundary>
@@ -81,7 +76,7 @@ describe("ErrorBoundary", () => {
   it("should allow retry functionality", () => {
     const error = new Error("テストエラー");
 
-    const { rerender } = renderWithChakra(
+    const { rerender } = render(
       <ErrorBoundary>
         <ThrowError error={error} />
       </ErrorBoundary>
@@ -94,11 +89,9 @@ describe("ErrorBoundary", () => {
 
     // エラーなしで再レンダリング
     rerender(
-      <ChakraProvider>
-        <ErrorBoundary>
-          <ThrowError />
-        </ErrorBoundary>
-      </ChakraProvider>
+      <ErrorBoundary>
+        <ThrowError />
+      </ErrorBoundary>
     );
 
     expect(screen.getByText("正常なコンポーネント")).toBeInTheDocument();
@@ -107,7 +100,7 @@ describe("ErrorBoundary", () => {
   it("should show error details when toggled", () => {
     const error = new Error("テストエラー");
 
-    renderWithChakra(
+    render(
       <ErrorBoundary>
         <ThrowError error={error} />
       </ErrorBoundary>
@@ -125,7 +118,7 @@ describe("ErrorBoundary", () => {
     const error = new Error("テストエラー");
     const customFallback = <div>カスタムエラー表示</div>;
 
-    renderWithChakra(
+    render(
       <ErrorBoundary fallback={customFallback}>
         <ThrowError error={error} />
       </ErrorBoundary>
@@ -146,7 +139,7 @@ describe("AuthErrorBoundary", () => {
   });
 
   it("should render children when no error occurs", () => {
-    renderWithChakra(
+    render(
       <AuthErrorBoundary>
         <ThrowError />
       </AuthErrorBoundary>
@@ -158,7 +151,7 @@ describe("AuthErrorBoundary", () => {
   it("should render auth-specific error message when error occurs", () => {
     const error = new Error("テストエラー");
 
-    renderWithChakra(
+    render(
       <AuthErrorBoundary>
         <ThrowError error={error} />
       </AuthErrorBoundary>

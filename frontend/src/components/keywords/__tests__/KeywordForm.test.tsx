@@ -1,8 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { ChakraProvider } from "@chakra-ui/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { render } from "../../../test/test-utils";
 import { KeywordForm } from "../KeywordForm";
 import { useCreateKeyword } from "../../../hooks";
 
@@ -12,22 +11,6 @@ vi.mock("../../../hooks", () => ({
 }));
 
 const mockedUseCreateKeyword = vi.mocked(useCreateKeyword);
-
-// テスト用のプロバイダー
-function TestProvider({ children }: { children: React.ReactNode }) {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: { retry: false },
-      mutations: { retry: false },
-    },
-  });
-
-  return (
-    <ChakraProvider>
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    </ChakraProvider>
-  );
-}
 
 describe("KeywordForm", () => {
   const mockMutateAsync = vi.fn();
@@ -45,11 +28,7 @@ describe("KeywordForm", () => {
   });
 
   it("should render form fields correctly", () => {
-    render(
-      <TestProvider>
-        <KeywordForm />
-      </TestProvider>
-    );
+    render(<KeywordForm />);
 
     expect(screen.getByLabelText("キーワード")).toBeInTheDocument();
     expect(screen.getByLabelText("重み（任意）")).toBeInTheDocument();
@@ -61,11 +40,7 @@ describe("KeywordForm", () => {
   it("should show validation error for empty keyword", async () => {
     const user = userEvent.setup();
 
-    render(
-      <TestProvider>
-        <KeywordForm />
-      </TestProvider>
-    );
+    render(<KeywordForm />);
 
     const submitButton = screen.getByRole("button", {
       name: "キーワードを追加",
@@ -79,11 +54,7 @@ describe("KeywordForm", () => {
   it("should show validation error for short keyword", async () => {
     const user = userEvent.setup();
 
-    render(
-      <TestProvider>
-        <KeywordForm />
-      </TestProvider>
-    );
+    render(<KeywordForm />);
 
     const keywordInput = screen.getByLabelText("キーワード");
     await user.type(keywordInput, "a");
@@ -102,11 +73,7 @@ describe("KeywordForm", () => {
   it("should show validation error for long keyword", async () => {
     const user = userEvent.setup();
 
-    render(
-      <TestProvider>
-        <KeywordForm />
-      </TestProvider>
-    );
+    render(<KeywordForm />);
 
     const keywordInput = screen.getByLabelText("キーワード");
     await user.type(keywordInput, "a".repeat(51)); // 51文字
@@ -131,11 +98,7 @@ describe("KeywordForm", () => {
       is_active: true,
     });
 
-    render(
-      <TestProvider>
-        <KeywordForm onSuccess={mockOnSuccess} />
-      </TestProvider>
-    );
+    render(<KeywordForm onSuccess={mockOnSuccess} />);
 
     const keywordInput = screen.getByLabelText("キーワード");
     const weightInput = screen.getByRole("spinbutton");
@@ -169,11 +132,7 @@ describe("KeywordForm", () => {
       is_active: true,
     });
 
-    render(
-      <TestProvider>
-        <KeywordForm />
-      </TestProvider>
-    );
+    render(<KeywordForm />);
 
     const keywordInput = screen.getByLabelText("キーワード");
     await user.type(keywordInput, "JavaScript");
@@ -194,11 +153,7 @@ describe("KeywordForm", () => {
   it("should show validation error for weight too low", async () => {
     const user = userEvent.setup();
 
-    render(
-      <TestProvider>
-        <KeywordForm />
-      </TestProvider>
-    );
+    render(<KeywordForm />);
 
     const keywordInput = screen.getByLabelText("キーワード");
     const weightInput = screen.getByRole("spinbutton");
@@ -221,11 +176,7 @@ describe("KeywordForm", () => {
   it("should show validation error for weight too high", async () => {
     const user = userEvent.setup();
 
-    render(
-      <TestProvider>
-        <KeywordForm />
-      </TestProvider>
-    );
+    render(<KeywordForm />);
 
     const keywordInput = screen.getByLabelText("キーワード");
     const weightInput = screen.getByRole("spinbutton");
@@ -252,11 +203,7 @@ describe("KeywordForm", () => {
       error: null,
     } as any);
 
-    render(
-      <TestProvider>
-        <KeywordForm />
-      </TestProvider>
-    );
+    render(<KeywordForm />);
 
     const submitButton = screen.getByRole("button", { name: "追加中..." });
     expect(submitButton).toBeDisabled();
@@ -268,11 +215,7 @@ describe("KeywordForm", () => {
   it("should show cancel button when onCancel is provided", async () => {
     const user = userEvent.setup();
 
-    render(
-      <TestProvider>
-        <KeywordForm onCancel={mockOnCancel} />
-      </TestProvider>
-    );
+    render(<KeywordForm onCancel={mockOnCancel} />);
 
     const cancelButton = screen.getByRole("button", { name: "キャンセル" });
     expect(cancelButton).toBeInTheDocument();
@@ -284,11 +227,7 @@ describe("KeywordForm", () => {
   it("should clear validation errors when user types", async () => {
     const user = userEvent.setup();
 
-    render(
-      <TestProvider>
-        <KeywordForm />
-      </TestProvider>
-    );
+    render(<KeywordForm />);
 
     // まずエラーを表示させる
     const submitButton = screen.getByRole("button", {
