@@ -1,18 +1,8 @@
 import React, { useState } from "react";
-import {
-  Box,
-  Button,
-  FormControl,
-  FormLabel,
-  FormErrorMessage,
-  Input,
-  VStack,
-  useToast,
-  Alert,
-  AlertIcon,
-} from "@chakra-ui/react";
+import { Box, Button, Field, Input, VStack, Alert } from "@chakra-ui/react";
 import { useCreateFeed } from "../../hooks";
 import { ApiAuthError, ApiError } from "../../api";
+import { toaster } from "../../test/test-utils";
 import type { CreateFeedRequest } from "../../api";
 
 interface FeedFormProps {
@@ -30,7 +20,6 @@ export function FeedForm({ onSuccess, onCancel }: FeedFormProps) {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const toast = useToast();
   const createFeed = useCreateFeed();
 
   const validateForm = (): boolean => {
@@ -65,11 +54,10 @@ export function FeedForm({ onSuccess, onCancel }: FeedFormProps) {
         folder: formData.folder.trim() || undefined,
       });
 
-      toast({
+      toaster.create({
         title: "フィードを追加しました",
         status: "success",
         duration: 3000,
-        isClosable: true,
       });
 
       // フォームをリセット
@@ -87,12 +75,11 @@ export function FeedForm({ onSuccess, onCancel }: FeedFormProps) {
         errorMessage = error.message;
       }
 
-      toast({
+      toaster.create({
         title: "エラー",
         description: errorMessage,
         status: "error",
         duration: 5000,
-        isClosable: true,
       });
     }
   };
@@ -116,20 +103,20 @@ export function FeedForm({ onSuccess, onCancel }: FeedFormProps) {
 
   return (
     <Box as="form" onSubmit={handleSubmit}>
-      <VStack spacing={4} align="stretch">
+      <VStack gap={4} align="stretch">
         {createFeed.error && (
-          <Alert status="error">
-            <AlertIcon />
+          <Alert.Root status="error">
+            <Alert.Indicator />
             {createFeed.error instanceof ApiAuthError
               ? "認証エラー: API Keyを確認してください"
               : createFeed.error instanceof ApiError
               ? createFeed.error.message
               : "フィードの追加に失敗しました"}
-          </Alert>
+          </Alert.Root>
         )}
 
-        <FormControl isInvalid={!!errors.url} isRequired>
-          <FormLabel>フィードURL</FormLabel>
+        <Field.Root invalid={!!errors.url} required>
+          <Field.Label>フィードURL</Field.Label>
           <Input
             type="url"
             value={formData.url}
@@ -137,29 +124,28 @@ export function FeedForm({ onSuccess, onCancel }: FeedFormProps) {
             placeholder="https://example.com/feed.xml"
             disabled={createFeed.isPending}
           />
-          <FormErrorMessage>{errors.url}</FormErrorMessage>
-        </FormControl>
+          <Field.ErrorText>{errors.url}</Field.ErrorText>
+        </Field.Root>
 
-        <FormControl isInvalid={!!errors.folder}>
-          <FormLabel>フォルダ（任意）</FormLabel>
+        <Field.Root invalid={!!errors.folder}>
+          <Field.Label>フォルダ（任意）</Field.Label>
           <Input
             value={formData.folder}
             onChange={handleInputChange("folder")}
             placeholder="例: テクノロジー"
             disabled={createFeed.isPending}
           />
-          <FormErrorMessage>{errors.folder}</FormErrorMessage>
-        </FormControl>
+          <Field.ErrorText>{errors.folder}</Field.ErrorText>
+        </Field.Root>
 
-        <VStack spacing={2}>
+        <VStack gap={2}>
           <Button
             type="submit"
-            colorScheme="blue"
+            colorPalette="blue"
             width="full"
-            isLoading={createFeed.isPending}
-            loadingText="追加中..."
+            loading={createFeed.isPending}
           >
-            フィードを追加
+            {createFeed.isPending ? "追加中..." : "フィードを追加"}
           </Button>
 
           {onCancel && (

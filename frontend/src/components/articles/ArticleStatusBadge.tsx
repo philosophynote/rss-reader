@@ -18,17 +18,17 @@ export function ArticleStatusBadge({
     return score.toFixed(2);
   };
 
-  const getScoreColorScheme = (score: number) => {
+  const getScoreColorPalette = (score: number) => {
     if (score >= 0.7) return "red";
     if (score >= 0.4) return "orange";
     return "gray";
   };
 
   return (
-    <HStack spacing={2}>
+    <HStack gap={2}>
       {/* 未読/既読状態 */}
       <Badge
-        colorScheme={article.is_read ? "gray" : "blue"}
+        colorPalette={article.is_read ? "gray" : "blue"}
         size="sm"
         variant={article.is_read ? "subtle" : "solid"}
       >
@@ -37,7 +37,7 @@ export function ArticleStatusBadge({
 
       {/* 保存状態 */}
       {article.is_saved && (
-        <Badge colorScheme="orange" size="sm" variant="solid">
+        <Badge colorPalette="orange" size="sm" variant="solid">
           保存済み
         </Badge>
       )}
@@ -45,11 +45,11 @@ export function ArticleStatusBadge({
       {/* 重要度スコア */}
       {showImportanceScore && (
         <Tooltip
-          label={`重要度スコア: ${formatScore(article.importance_score)}`}
-          placement="top"
+          content={`重要度スコア: ${formatScore(article.importance_score)}`}
+          positioning={{ placement: "top" }}
         >
           <Badge
-            colorScheme={getScoreColorScheme(article.importance_score)}
+            colorPalette={getScoreColorPalette(article.importance_score)}
             size="sm"
             variant="subtle"
           >

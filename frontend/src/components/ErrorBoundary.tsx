@@ -1,16 +1,12 @@
-import React, { Component, ErrorInfo, ReactNode } from "react";
+import { Component, ErrorInfo, ReactNode } from "react";
 import {
   Box,
   Alert,
-  AlertIcon,
-  AlertTitle,
-  AlertDescription,
   Button,
   VStack,
   Text,
   Code,
-  Collapse,
-  useDisclosure,
+  Collapsible,
 } from "@chakra-ui/react";
 import { ApiAuthError, ApiError } from "../api";
 
@@ -92,8 +88,6 @@ interface ErrorDisplayProps {
 }
 
 function ErrorDisplay({ error, errorInfo, onRetry }: ErrorDisplayProps) {
-  const { isOpen, onToggle } = useDisclosure();
-
   const getErrorMessage = (
     error: Error | null
   ): { title: string; description: string; status: "error" | "warning" } => {
@@ -134,71 +128,74 @@ function ErrorDisplay({ error, errorInfo, onRetry }: ErrorDisplayProps) {
 
   return (
     <Box p={6} maxW="600px" mx="auto" mt={8}>
-      <VStack spacing={4} align="stretch">
-        <Alert status={status} borderRadius="md">
-          <AlertIcon />
+      <VStack gap={4} align="stretch">
+        <Alert.Root status={status} borderRadius="md">
+          <Alert.Indicator />
           <Box>
-            <AlertTitle>{title}</AlertTitle>
-            <AlertDescription>{description}</AlertDescription>
+            <Alert.Title>{title}</Alert.Title>
+            <Alert.Description>{description}</Alert.Description>
           </Box>
-        </Alert>
+        </Alert.Root>
 
-        <VStack spacing={3}>
-          <Button colorScheme="blue" onClick={onRetry}>
+        <VStack gap={3}>
+          <Button colorPalette="blue" onClick={onRetry}>
             再試行
           </Button>
 
-          <Button variant="ghost" size="sm" onClick={onToggle}>
-            {isOpen ? "詳細を隠す" : "詳細を表示"}
-          </Button>
+          <Collapsible.Root>
+            <Collapsible.Trigger asChild>
+              <Button variant="ghost" size="sm">
+                詳細を表示
+              </Button>
+            </Collapsible.Trigger>
+            <Collapsible.Content>
+              <Box p={4} bg="gray.50" borderRadius="md" fontSize="sm">
+                {error && (
+                  <VStack gap={2} align="stretch">
+                    <Text fontWeight="bold">エラー名:</Text>
+                    <Code p={2} bg="white" borderRadius="sm">
+                      {error.name}
+                    </Code>
 
-          <Collapse in={isOpen} animateOpacity>
-            <Box p={4} bg="gray.50" borderRadius="md" fontSize="sm">
-              {error && (
-                <VStack spacing={2} align="stretch">
-                  <Text fontWeight="bold">エラー名:</Text>
-                  <Code p={2} bg="white" borderRadius="sm">
-                    {error.name}
-                  </Code>
+                    <Text fontWeight="bold">エラーメッセージ:</Text>
+                    <Code p={2} bg="white" borderRadius="sm">
+                      {error.message}
+                    </Code>
 
-                  <Text fontWeight="bold">エラーメッセージ:</Text>
-                  <Code p={2} bg="white" borderRadius="sm">
-                    {error.message}
-                  </Code>
+                    {error.stack && (
+                      <>
+                        <Text fontWeight="bold">スタックトレース:</Text>
+                        <Code
+                          p={2}
+                          bg="white"
+                          borderRadius="sm"
+                          whiteSpace="pre-wrap"
+                          fontSize="xs"
+                        >
+                          {error.stack}
+                        </Code>
+                      </>
+                    )}
 
-                  {error.stack && (
-                    <>
-                      <Text fontWeight="bold">スタックトレース:</Text>
-                      <Code
-                        p={2}
-                        bg="white"
-                        borderRadius="sm"
-                        whiteSpace="pre-wrap"
-                        fontSize="xs"
-                      >
-                        {error.stack}
-                      </Code>
-                    </>
-                  )}
-
-                  {errorInfo?.componentStack && (
-                    <>
-                      <Text fontWeight="bold">コンポーネントスタック:</Text>
-                      <Code
-                        p={2}
-                        bg="white"
-                        borderRadius="sm"
-                        whiteSpace="pre-wrap"
-                        fontSize="xs"
-                      >
-                        {errorInfo.componentStack}
-                      </Code>
-                    </>
-                  )}
-                </VStack>
-              )}
-            </Box>
-          </Collapse>
+                    {errorInfo?.componentStack && (
+                      <>
+                        <Text fontWeight="bold">コンポーネントスタック:</Text>
+                        <Code
+                          p={2}
+                          bg="white"
+                          borderRadius="sm"
+                          whiteSpace="pre-wrap"
+                          fontSize="xs"
+                        >
+                          {errorInfo.componentStack}
+                        </Code>
+                      </>
+                    )}
+                  </VStack>
+                )}
+              </Box>
+            </Collapsible.Content>
+          </Collapsible.Root>
         </VStack>
       </VStack>
     </Box>
@@ -213,16 +210,16 @@ export function AuthErrorBoundary({ children }: { children: ReactNode }) {
     <ErrorBoundary
       fallback={
         <Box p={6} maxW="400px" mx="auto" mt={8}>
-          <Alert status="warning" borderRadius="md">
-            <AlertIcon />
+          <Alert.Root status="warning" borderRadius="md">
+            <Alert.Indicator />
             <Box>
-              <AlertTitle>認証が必要です</AlertTitle>
-              <AlertDescription>
+              <Alert.Title>認証が必要です</Alert.Title>
+              <Alert.Description>
                 API Keyが設定されていないか、無効です。
                 環境変数VITE_API_KEYを確認してください。
-              </AlertDescription>
+              </Alert.Description>
             </Box>
-          </Alert>
+          </Alert.Root>
         </Box>
       }
     >

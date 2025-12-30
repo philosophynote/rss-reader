@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import axios from "axios";
+import axios, { AxiosInstance } from "axios";
 import { ApiClient, ApiAuthError, ApiError } from "../client";
 
 // axiosをモック
@@ -8,6 +8,8 @@ const mockedAxios = vi.mocked(axios);
 
 describe("ApiClient", () => {
   let apiClient: ApiClient;
+  let mockAxiosInstance: Partial<AxiosInstance>;
+
   const mockConfig = {
     baseURL: "https://api.example.com",
     apiKey: "test-api-key",
@@ -15,8 +17,8 @@ describe("ApiClient", () => {
   };
 
   beforeEach(() => {
-    // axios.createのモック
-    const mockAxiosInstance = {
+    // axios instanceのモック
+    mockAxiosInstance = {
       get: vi.fn(),
       post: vi.fn(),
       put: vi.fn(),
@@ -31,23 +33,7 @@ describe("ApiClient", () => {
       },
     };
 
-    mockedAxios.create.mockReturnValue(mockAxiosInstance as any);
-
-    // ApiClientのコンストラクタをモック
-    vi.doMock("../client", async () => {
-      const actual = await vi.importActual("../client");
-      return {
-        ...actual,
-        ApiClient: vi.fn().mockImplementation(() => ({
-          get: mockAxiosInstance.get,
-          post: mockAxiosInstance.post,
-          put: mockAxiosInstance.put,
-          delete: mockAxiosInstance.delete,
-          updateApiKey: vi.fn(),
-        })),
-      };
-    });
-
+    mockedAxios.create.mockReturnValue(mockAxiosInstance as AxiosInstance);
     apiClient = new ApiClient(mockConfig);
   });
 
@@ -56,23 +42,23 @@ describe("ApiClient", () => {
   });
 
   describe("HTTP methods", () => {
-    let mockInstance: any;
-
-    beforeEach(() => {
-      mockInstance = mockedAxios.create.mock.results[0]?.value;
-    });
-
     describe("get", () => {
       it("should make GET request and return data", async () => {
         const mockResponse = { data: { message: "success" } };
-        if (mockInstance) {
-          mockInstance.get.mockResolvedValue(mockResponse);
-          const result = await apiClient.get("/test", { param: "value" });
-          expect(result).toEqual(mockResponse.data);
-        } else {
-          // モックが利用できない場合はスキップ
-          expect(true).toBe(true);
-        }
+        mockAxiosInstance.get = vi.fn().mockResolvedValue(mockResponse);
+
+        const result = await apiClient.get("/test", { param: "value" });
+        expect(result).toEqual(mockResponse.data);
+        expect(mockAxiosInstance.get).toHaveBeenCalledWith("/test", {
+          params: { param: "value" },
+        });
+      });
+
+      it("should handle GET request error", async () => {
+        const error = new Error("Network error");
+        mockAxiosInstance.get = vi.fn().mockRejectedValue(error);
+
+        await expect(apiClient.get("/test")).rejects.toThrow("Network error");
       });
     });
 
@@ -80,13 +66,11 @@ describe("ApiClient", () => {
       it("should make POST request and return data", async () => {
         const mockResponse = { data: { id: 1 } };
         const postData = { name: "test" };
-        if (mockInstance) {
-          mockInstance.post.mockResolvedValue(mockResponse);
-          const result = await apiClient.post("/test", postData);
-          expect(result).toEqual(mockResponse.data);
-        } else {
-          expect(true).toBe(true);
-        }
+        mockAxiosInstance.post = vi.fn().mockResolvedValue(mockResponse);
+
+        const result = await apiClient.post("/test", postData);
+        expect(result).toEqual(mockResponse.data);
+        expect(mockAxiosInstance.post).toHaveBeenCalledWith("/test", postData);
       });
     });
 
@@ -94,27 +78,32 @@ describe("ApiClient", () => {
       it("should make PUT request and return data", async () => {
         const mockResponse = { data: { updated: true } };
         const putData = { name: "updated" };
-        if (mockInstance) {
-          mockInstance.put.mockResolvedValue(mockResponse);
-          const result = await apiClient.put("/test/1", putData);
-          expect(result).toEqual(mockResponse.data);
-        } else {
-          expect(true).toBe(true);
-        }
+        mockAxiosInstance.put = vi.fn().mockResolvedValue(mockResponse);
+
+        const result = await apiClient.put("/test/1", putData);
+        expect(result).toEqual(mockResponse.data);
+        expect(mockAxiosInstance.put).toHaveBeenCalledWith("/test/1", putData);
       });
     });
 
     describe("delete", () => {
       it("should make DELETE request and return data", async () => {
         const mockResponse = { data: { deleted: true } };
-        if (mockInstance) {
-          mockInstance.delete.mockResolvedValue(mockResponse);
-          const result = await apiClient.delete("/test/1");
-          expect(result).toEqual(mockResponse.data);
-        } else {
-          expect(true).toBe(true);
-        }
+        mockAxiosInstance.delete = vi.fn().mockResolvedValue(mockResponse);
+
+        const result = await apiClient.delete("/test/1");
+        expect(result).toEqual(mockResponse.data);
+        expect(mockAxiosInstance.delete).toHaveBeenCalledWith("/test/1");
       });
+    });
+  });
+
+  describe("updateApiKey", () => {
+    it("should update API key", () => {
+      const newApiKey = "new-api-key";
+      apiClient.updateApiKey(newApiKey);
+      // API keyの更新は内部的に行われるため、エラーが発生しないことを確認
+      expect(true).toBe(true);
     });
   });
 });

@@ -2,23 +2,15 @@ import React, { useState } from "react";
 import {
   Box,
   Button,
-  FormControl,
-  FormLabel,
-  FormErrorMessage,
-  FormHelperText,
+  Field,
   Input,
   NumberInput,
-  NumberInputField,
-  NumberInputStepper,
-  NumberIncrementStepper,
-  NumberDecrementStepper,
   VStack,
-  useToast,
   Alert,
-  AlertIcon,
 } from "@chakra-ui/react";
 import { useCreateKeyword } from "../../hooks";
 import { ApiAuthError, ApiError } from "../../api";
+import { toaster } from "../../test/test-utils";
 import type { CreateKeywordRequest } from "../../api";
 
 interface KeywordFormProps {
@@ -36,7 +28,6 @@ export function KeywordForm({ onSuccess, onCancel }: KeywordFormProps) {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const toast = useToast();
   const createKeyword = useCreateKeyword();
 
   const validateForm = (): boolean => {
@@ -77,11 +68,10 @@ export function KeywordForm({ onSuccess, onCancel }: KeywordFormProps) {
         weight: formData.weight,
       });
 
-      toast({
+      toaster.create({
         title: "キーワードを追加しました",
         status: "success",
         duration: 3000,
-        isClosable: true,
       });
 
       // フォームをリセット
@@ -99,12 +89,11 @@ export function KeywordForm({ onSuccess, onCancel }: KeywordFormProps) {
         errorMessage = error.message;
       }
 
-      toast({
+      toaster.create({
         title: "エラー",
         description: errorMessage,
         status: "error",
         duration: 5000,
-        isClosable: true,
       });
     }
   };
@@ -124,10 +113,13 @@ export function KeywordForm({ onSuccess, onCancel }: KeywordFormProps) {
     }
   };
 
-  const handleWeightChange = (valueString: string, valueNumber: number) => {
+  const handleWeightChange = (details: {
+    value: string;
+    valueAsNumber: number;
+  }) => {
     setFormData((prev) => ({
       ...prev,
-      weight: valueNumber,
+      weight: details.valueAsNumber,
     }));
 
     // エラーをクリア
@@ -141,64 +133,62 @@ export function KeywordForm({ onSuccess, onCancel }: KeywordFormProps) {
 
   return (
     <Box as="form" onSubmit={handleSubmit}>
-      <VStack spacing={4} align="stretch">
+      <VStack gap={4} align="stretch">
         {createKeyword.error && (
-          <Alert status="error">
-            <AlertIcon />
+          <Alert.Root status="error">
+            <Alert.Indicator />
             {createKeyword.error instanceof ApiAuthError
               ? "認証エラー: API Keyを確認してください"
               : createKeyword.error instanceof ApiError
               ? createKeyword.error.message
               : "キーワードの追加に失敗しました"}
-          </Alert>
+          </Alert.Root>
         )}
 
-        <FormControl isInvalid={!!errors.text} isRequired>
-          <FormLabel>キーワード</FormLabel>
+        <Field.Root invalid={!!errors.text} required>
+          <Field.Label>キーワード</Field.Label>
           <Input
             value={formData.text}
             onChange={handleTextChange}
             placeholder="例: Python, 機械学習, React"
             disabled={createKeyword.isPending}
           />
-          <FormHelperText>
+          <Field.HelperText>
             記事の重要度判定に使用するキーワードを入力してください
-          </FormHelperText>
-          <FormErrorMessage>{errors.text}</FormErrorMessage>
-        </FormControl>
+          </Field.HelperText>
+          <Field.ErrorText>{errors.text}</Field.ErrorText>
+        </Field.Root>
 
-        <FormControl isInvalid={!!errors.weight}>
-          <FormLabel>重み（任意）</FormLabel>
-          <NumberInput
-            value={formData.weight}
-            onChange={handleWeightChange}
+        <Field.Root invalid={!!errors.weight}>
+          <Field.Label>重み（任意）</Field.Label>
+          <NumberInput.Root
+            value={formData.weight.toString()}
+            onValueChange={handleWeightChange}
             min={0.1}
             max={10.0}
             step={0.1}
-            precision={1}
             disabled={createKeyword.isPending}
           >
-            <NumberInputField />
-            <NumberInputStepper>
-              <NumberIncrementStepper />
-              <NumberDecrementStepper />
-            </NumberInputStepper>
-          </NumberInput>
-          <FormHelperText>
+            <NumberInput.Field />
+            <NumberInput.Control>
+              <NumberInput.IncrementTrigger />
+              <NumberInput.DecrementTrigger />
+            </NumberInput.Control>
+          </NumberInput.Root>
+          <Field.HelperText>
             キーワードの重要度を調整できます（0.1〜10.0、デフォルト: 1.0）
-          </FormHelperText>
-          <FormErrorMessage>{errors.weight}</FormErrorMessage>
-        </FormControl>
+          </Field.HelperText>
+          <Field.ErrorText>{errors.weight}</Field.ErrorText>
+        </Field.Root>
 
-        <VStack spacing={2}>
+        <VStack gap={2}>
           <Button
             type="submit"
-            colorScheme="blue"
+            colorPalette="blue"
             width="full"
-            isLoading={createKeyword.isPending}
-            loadingText="追加中..."
+            loading={createKeyword.isPending}
           >
-            キーワードを追加
+            {createKeyword.isPending ? "追加中..." : "キーワードを追加"}
           </Button>
 
           {onCancel && (
