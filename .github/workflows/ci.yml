@@ -13,7 +13,7 @@ env:
 jobs:
   # Python Backend CI
   backend-ci:
-    name: Backend CI (Python ${{ env.PYTHON_VERSION }})
+    name: Backend CI (Python 3.14)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -58,7 +58,7 @@ jobs:
 
   # Frontend CI
   frontend-ci:
-    name: Frontend CI (Node.js ${{ env.NODE_VERSION }})
+    name: Frontend CI (Node.js 22)
     runs-on: ubuntu-latest
     defaults:
       run:
