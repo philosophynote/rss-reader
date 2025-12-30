@@ -6,7 +6,6 @@ Pydanticスキーマを定義します。
 """
 
 from datetime import datetime
-from typing import Optional, List
 
 from pydantic import BaseModel, Field, HttpUrl
 
@@ -22,8 +21,8 @@ class FeedCreateRequest(BaseModel):
     """
 
     url: HttpUrl
-    title: Optional[str] = Field(default=None, max_length=200)
-    folder: Optional[str] = Field(default=None, max_length=100)
+    title: str | None = Field(default=None, max_length=200)
+    folder: str | None = Field(default=None, max_length=100)
 
 
 class FeedUpdateRequest(BaseModel):
@@ -36,9 +35,9 @@ class FeedUpdateRequest(BaseModel):
         is_active: 有効/無効フラグ
     """
 
-    title: Optional[str] = Field(default=None, max_length=200)
-    folder: Optional[str] = Field(default=None, max_length=100)
-    is_active: Optional[bool] = None
+    title: str | None = Field(default=None, max_length=200)
+    folder: str | None = Field(default=None, max_length=100)
+    is_active: bool | None = None
 
 
 class FeedResponse(BaseModel):
@@ -59,11 +58,11 @@ class FeedResponse(BaseModel):
     feed_id: str
     url: HttpUrl
     title: str
-    folder: Optional[str] = None
-    last_fetched_at: Optional[datetime] = None
+    folder: str | None = None
+    last_fetched_at: datetime | None = None
     is_active: bool
     created_at: datetime
-    updated_at: Optional[datetime] = None
+    updated_at: datetime | None = None
 
 
 class FeedListResponse(BaseModel):
@@ -74,7 +73,7 @@ class FeedListResponse(BaseModel):
         items: フィード一覧
     """
 
-    items: List[FeedResponse]
+    items: list[FeedResponse]
 
 
 class FeedFetchResponse(BaseModel):
@@ -95,7 +94,7 @@ class FeedFetchResponse(BaseModel):
     created_articles: int
     skipped_duplicates: int
     skipped_invalid: int
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
 
 class FeedFetchListResponse(BaseModel):
@@ -106,4 +105,4 @@ class FeedFetchListResponse(BaseModel):
         items: 取得結果一覧
     """
 
-    items: List[FeedFetchResponse]
+    items: list[FeedFetchResponse]

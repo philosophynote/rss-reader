@@ -1,0 +1,62 @@
+repos:
+  # Python: Ruff for linting and formatting
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.4
+    hooks:
+      - id: ruff
+        args: [--fix]
+        files: ^backend/
+      - id: ruff-format
+        files: ^backend/
+
+  # Python: Type checking with Pyright
+  - repo: https://github.com/RobertCraigie/pyright-python
+    rev: v1.1.390
+    hooks:
+      - id: pyright
+        files: ^backend/
+        additional_dependencies: []
+
+  # TypeScript/JavaScript: ESLint
+  - repo: https://github.com/pre-commit/mirrors-eslint
+    rev: v9.20.0
+    hooks:
+      - id: eslint
+        files: ^frontend/.*\.(ts|tsx)$
+        types: [file]
+        additional_dependencies:
+          - '@typescript-eslint/eslint-plugin@^8.20.0'
+          - '@typescript-eslint/parser@^8.20.0'
+          - 'eslint-plugin-react-hooks@^5.1.0'
+          - 'eslint-plugin-react-refresh@^0.4.4'
+          - 'typescript@^5.9.3'
+
+  # TypeScript: Type checking
+  - repo: https://github.com/pre-commit/mirrors-typescript
+    rev: v5.9.3
+    hooks:
+      - id: typescript
+        files: ^frontend/
+        args: [--noEmit]
+
+  # General: trailing whitespace, end of file, etc.
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: \.md$
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+
+  # Security: detect secrets
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: ['--baseline', '.secrets.baseline']
+        exclude: \.lock$|package-lock\.json$

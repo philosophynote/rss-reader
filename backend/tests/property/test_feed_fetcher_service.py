@@ -8,7 +8,6 @@ Feature: rss-reader, Property 5-7
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
 
 import httpx
 import pytest
@@ -22,7 +21,10 @@ from hypothesis.strategies import (
 )
 
 from app.models.feed import Feed
-from app.services.feed_fetcher_service import FeedFetchError, FeedFetcherService
+from app.services.feed_fetcher_service import (
+    FeedFetchError,
+    FeedFetcherService,
+)
 
 
 @dataclass
@@ -61,20 +63,20 @@ class FakeDynamoDBClient:
     """RSS取得テスト用のDynamoDBクライアント。"""
 
     def __init__(self) -> None:
-        self.items: Dict[Tuple[str, str], Dict] = {}
+        self.items: dict[tuple[str, str], dict] = {}
 
-    def put_item(self, item: Dict) -> None:
+    def put_item(self, item: dict) -> None:
         """アイテムを保存する。"""
         self.items[(item["PK"], item["SK"])] = item
 
-    def get_item(self, pk: str, sk: str) -> Optional[Dict]:
+    def get_item(self, pk: str, sk: str) -> dict | None:
         """キーでアイテムを取得する。"""
         return self.items.get((pk, sk))
 
     def batch_write_item(
         self,
-        items: List[Dict],
-        delete_keys: Optional[List[Dict]] = None,
+        items: list[dict],
+        delete_keys: list[dict] | None = None,
     ) -> None:
         """バッチ書き込みを実行する。"""
         for item in items:
@@ -94,7 +96,7 @@ def valid_url_strategy(draw) -> str:
 
 
 @composite
-def rss_entry_strategy(draw) -> Tuple[str, str]:
+def rss_entry_strategy(draw) -> tuple[str, str]:
     """RSSエントリーのリンクとタイトルを生成する戦略。"""
     link = draw(valid_url_strategy())
     title = draw(
@@ -110,7 +112,7 @@ def rss_entry_strategy(draw) -> Tuple[str, str]:
     return link, title
 
 
-def build_rss_content(entries: List[Tuple[str, str]]) -> bytes:
+def build_rss_content(entries: list[tuple[str, str]]) -> bytes:
     """
     RSS 2.0形式のXMLを構築する。
 
@@ -132,8 +134,8 @@ def build_rss_content(entries: List[Tuple[str, str]]) -> bytes:
         for link, title in entries
     )
     rss_xml = (
-        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
-        "<rss version=\"2.0\">"
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<rss version="2.0">'
         "<channel>"
         "<title>Example Feed</title>"
         f"{items_xml}"
@@ -165,7 +167,9 @@ class TestFeedFetcherProperty:
 
     @given(entries=lists(rss_entry_strategy(), min_size=1, max_size=5))
     @settings(max_examples=50)
-    def test_fetch_feed_is_idempotent(self, entries: List[Tuple[str, str]]) -> None:
+    def test_fetch_feed_is_idempotent(
+        self, entries: list[tuple[str, str]]
+    ) -> None:
         """
         同じフィードを繰り返し取得しても記事が重複しない。
 
@@ -192,7 +196,9 @@ class TestFeedFetcherProperty:
 
     @given(entries=lists(rss_entry_strategy(), min_size=1, max_size=5))
     @settings(max_examples=50)
-    def test_new_articles_are_unread(self, entries: List[Tuple[str, str]]) -> None:
+    def test_new_articles_are_unread(
+        self, entries: list[tuple[str, str]]
+    ) -> None:
         """
         新規記事は未読状態で保存される。
 
