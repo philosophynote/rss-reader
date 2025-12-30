@@ -206,14 +206,17 @@ class TestImportanceScoreService:
         ]
 
         # モックの埋め込みを設定（類似度が計算可能な値）
-        with patch.object(
-            importance_score_service,
-            "get_embedding",
-            return_value=np.array([0.5] * 1024),
-        ), patch.object(
-            importance_score_service,
-            "get_keyword_embedding",
-            return_value=np.array([0.5] * 1024),
+        with (
+            patch.object(
+                importance_score_service,
+                "get_embedding",
+                return_value=np.array([0.5] * 1024),
+            ),
+            patch.object(
+                importance_score_service,
+                "get_keyword_embedding",
+                return_value=np.array([0.5] * 1024),
+            ),
         ):
             score, reasons = importance_score_service.calculate_score(
                 article, keywords
@@ -257,14 +260,17 @@ class TestImportanceScoreService:
             },
         ]
 
-        with patch.object(
-            importance_score_service,
-            "get_embedding",
-            return_value=np.array([0.5] * 1024),
-        ), patch.object(
-            importance_score_service,
-            "get_keyword_embedding",
-            return_value=np.array([0.5] * 1024),
+        with (
+            patch.object(
+                importance_score_service,
+                "get_embedding",
+                return_value=np.array([0.5] * 1024),
+            ),
+            patch.object(
+                importance_score_service,
+                "get_keyword_embedding",
+                return_value=np.array([0.5] * 1024),
+            ),
         ):
             score, reasons = importance_score_service.calculate_score(
                 article, keywords
@@ -317,18 +323,22 @@ class TestImportanceScoreService:
         ]
 
         # 類似度を0.5に固定
-        with patch.object(
-            importance_score_service,
-            "calculate_similarity",
-            return_value=0.5,
-        ), patch.object(
-            importance_score_service,
-            "get_embedding",
-            return_value=np.array([0.5] * 1024),
-        ), patch.object(
-            importance_score_service,
-            "get_keyword_embedding",
-            return_value=np.array([0.5] * 1024),
+        with (
+            patch.object(
+                importance_score_service,
+                "calculate_similarity",
+                return_value=0.5,
+            ),
+            patch.object(
+                importance_score_service,
+                "get_embedding",
+                return_value=np.array([0.5] * 1024),
+            ),
+            patch.object(
+                importance_score_service,
+                "get_keyword_embedding",
+                return_value=np.array([0.5] * 1024),
+            ),
         ):
             score, reasons = importance_score_service.calculate_score(
                 article, keywords
@@ -376,18 +386,22 @@ class TestImportanceScoreService:
         ]
 
         # 類似度を0.5に固定
-        with patch.object(
-            importance_score_service,
-            "calculate_similarity",
-            return_value=0.5,
-        ), patch.object(
-            importance_score_service,
-            "get_embedding",
-            return_value=np.array([0.5] * 1024),
-        ), patch.object(
-            importance_score_service,
-            "get_keyword_embedding",
-            return_value=np.array([0.5] * 1024),
+        with (
+            patch.object(
+                importance_score_service,
+                "calculate_similarity",
+                return_value=0.5,
+            ),
+            patch.object(
+                importance_score_service,
+                "get_embedding",
+                return_value=np.array([0.5] * 1024),
+            ),
+            patch.object(
+                importance_score_service,
+                "get_keyword_embedding",
+                return_value=np.array([0.5] * 1024),
+            ),
         ):
             score, reasons = importance_score_service.calculate_score(
                 article, keywords
