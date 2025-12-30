@@ -7,10 +7,9 @@ from typing import Any
 from unittest.mock import Mock, patch
 
 import numpy as np
+from app.services.importance_score_service import ImportanceScoreService
 from hypothesis import given, settings
 from hypothesis import strategies as st
-
-from app.services.importance_score_service import ImportanceScoreService
 
 
 # テスト用の戦略定義
@@ -32,9 +31,7 @@ def article_strategy(draw: Any) -> dict[str, Any]:
             st.text(
                 min_size=1,
                 max_size=200,
-                alphabet=st.characters(
-                    whitelist_categories=("Lu", "Ll", "Nd", "Zs")
-                ),
+                alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd", "Zs")),
             ).filter(lambda x: x.strip())
         ),
         "content": draw(
@@ -67,9 +64,7 @@ def keyword_strategy(draw: Any) -> dict[str, Any]:
             st.text(
                 min_size=1,
                 max_size=100,
-                alphabet=st.characters(
-                    whitelist_categories=("Lu", "Ll", "Nd", "Zs")
-                ),
+                alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd", "Zs")),
             ).filter(lambda x: x.strip())
         ),
         "weight": draw(st.floats(min_value=0.1, max_value=10.0)),
@@ -81,7 +76,7 @@ def create_mock_service() -> ImportanceScoreService:
     """モックされたImportanceScoreServiceを作成"""
     mock_client = Mock()
     with patch("boto3.client", return_value=mock_client):
-        service = ImportanceScoreService(region_name="us-east-1")
+        service = ImportanceScoreService(region_name="ap-northeast-1")
 
     # 埋め込み生成をモック（ランダムな正規化ベクトル）
     def mock_get_embedding(text: str) -> np.ndarray:
@@ -133,8 +128,7 @@ class TestImportanceScoreProperties:
         expected_score = sum(
             reason["contribution"]
             for reason in reasons
-            if reason["keyword_id"]
-            in [kw["keyword_id"] for kw in active_keywords]
+            if reason["keyword_id"] in [kw["keyword_id"] for kw in active_keywords]
         )
 
         # 浮動小数点の誤差を考慮
@@ -241,9 +235,7 @@ class TestImportanceScoreProperties:
 
             # 寄与度は類似度と重みの積
             matching_keyword = next(
-                kw
-                for kw in active_keywords
-                if kw["keyword_id"] == reason["keyword_id"]
+                kw for kw in active_keywords if kw["keyword_id"] == reason["keyword_id"]
             )
             expected_contribution = (
                 reason["similarity_score"] * matching_keyword["weight"]

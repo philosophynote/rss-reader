@@ -9,9 +9,8 @@ from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
-from botocore.exceptions import ClientError
-
 from app.utils.dynamodb_client import DynamoDBClient
+from botocore.exceptions import ClientError
 
 
 class TestDynamoDBClient:
@@ -27,9 +26,7 @@ class TestDynamoDBClient:
     @pytest.fixture
     def client(self, mock_table):
         """DynamoDBクライアントのフィクスチャ"""
-        with patch(
-            "app.utils.dynamodb_client.boto3.resource"
-        ) as mock_resource:
+        with patch("app.utils.dynamodb_client.boto3.resource") as mock_resource:
             mock_dynamodb = MagicMock()
             mock_dynamodb.Table.return_value = mock_table
             mock_resource.return_value = mock_dynamodb
@@ -40,9 +37,7 @@ class TestDynamoDBClient:
 
     def test_client_initialization(self):
         """クライアント初期化のテスト"""
-        with patch(
-            "app.utils.dynamodb_client.boto3.resource"
-        ) as mock_resource:
+        with patch("app.utils.dynamodb_client.boto3.resource") as mock_resource:
             mock_dynamodb = MagicMock()
             mock_table = MagicMock()
             mock_table.table_name = "test-table"
@@ -53,7 +48,7 @@ class TestDynamoDBClient:
 
             assert client.table_name == "test-table"
             mock_resource.assert_called_once_with(
-                "dynamodb", region_name="us-east-1"
+                "dynamodb", region_name="ap-northeast-1"
             )
             mock_dynamodb.Table.assert_called_once_with("test-table")
 
@@ -73,9 +68,7 @@ class TestDynamoDBClient:
             client = DynamoDBClient()
 
             assert client.table_name == "env-table"
-            mock_resource.assert_called_once_with(
-                "dynamodb", region_name="us-west-2"
-            )
+            mock_resource.assert_called_once_with("dynamodb", region_name="us-west-2")
 
     def test_put_item_success(self, client, mock_table):
         """アイテム保存の成功テスト"""
@@ -155,9 +148,7 @@ class TestDynamoDBClient:
 
     def test_query_with_gsi(self, client, mock_table):
         """GSIを使用したクエリのテスト"""
-        expected_items = [
-            {"GSI1PK": "ARTICLE", "GSI1SK": "2024-01-01T00:00:00Z"}
-        ]
+        expected_items = [{"GSI1PK": "ARTICLE", "GSI1SK": "2024-01-01T00:00:00Z"}]
         mock_table.query.return_value = {"Items": expected_items}
 
         from boto3.dynamodb.conditions import Key
@@ -182,9 +173,7 @@ class TestDynamoDBClient:
     def test_delete_item_error(self, client, mock_table):
         """アイテム削除のエラーテスト"""
         error = ClientError(
-            error_response={
-                "Error": {"Code": "ConditionalCheckFailedException"}
-            },
+            error_response={"Error": {"Code": "ConditionalCheckFailedException"}},
             operation_name="DeleteItem",
         )
         mock_table.delete_item.side_effect = error
@@ -202,9 +191,7 @@ class TestDynamoDBClient:
 
         # batch_writerのモックを設定
         mock_batch = MagicMock()
-        mock_table.batch_writer.return_value.__enter__.return_value = (
-            mock_batch
-        )
+        mock_table.batch_writer.return_value.__enter__.return_value = mock_batch
 
         client.batch_write_item(items, delete_keys)
 
@@ -218,9 +205,7 @@ class TestDynamoDBClient:
 
     def test_query_articles_by_published_date(self, client, mock_table):
         """公開日時による記事クエリのテスト"""
-        expected_items = [
-            {"PK": "ARTICLE#123", "published_at": "2024-01-01T00:00:00Z"}
-        ]
+        expected_items = [{"PK": "ARTICLE#123", "published_at": "2024-01-01T00:00:00Z"}]
         mock_table.query.return_value = {"Items": expected_items}
 
         start_date = datetime(2024, 1, 1)
@@ -279,25 +264,19 @@ class TestDynamoDBClient:
         # クエリパラメータを確認
         call_args = mock_table.query.call_args[1]
         assert call_args["IndexName"] == "GSI2"
-        assert (
-            call_args["ScanIndexForward"] is True
-        )  # 昇順（逆順ソートキーのため）
+        assert call_args["ScanIndexForward"] is True  # 昇順（逆順ソートキーのため）
         assert call_args["Limit"] == 10
 
     def test_query_articles_for_deletion_by_age(self, client, mock_table):
         """古い記事の削除クエリのテスト"""
-        expected_items = [
-            {"PK": "ARTICLE#123", "created_at": "2024-01-01T00:00:00Z"}
-        ]
+        expected_items = [{"PK": "ARTICLE#123", "created_at": "2024-01-01T00:00:00Z"}]
         mock_table.query.return_value = {
             "Items": expected_items,
             "LastEvaluatedKey": None,
         }
 
         cutoff_date = datetime(2024, 1, 8)  # 7日前
-        items = client.query_articles_for_deletion_by_age(
-            cutoff_date, limit=50
-        )
+        items = client.query_articles_for_deletion_by_age(cutoff_date, limit=50)
 
         assert items == expected_items
 
@@ -315,9 +294,7 @@ class TestDynamoDBClient:
         }
 
         cutoff_datetime = datetime.now() - timedelta(days=1)
-        items = client.query_read_articles_for_deletion(
-            cutoff_datetime, limit=50
-        )
+        items = client.query_read_articles_for_deletion(cutoff_datetime, limit=50)
 
         assert items == expected_items
 
@@ -375,9 +352,7 @@ class TestDynamoDBClient:
 
         # batch_writerのモックを設定
         mock_batch = MagicMock()
-        mock_table.batch_writer.return_value.__enter__.return_value = (
-            mock_batch
-        )
+        mock_table.batch_writer.return_value.__enter__.return_value = mock_batch
 
         deleted_count = client.delete_importance_reasons_for_article("123")
 
@@ -392,9 +367,7 @@ class TestDynamoDBClient:
             Key={"PK": "ARTICLE#123", "SK": "REASON#keyword2"}
         )
 
-    def test_delete_importance_reasons_for_article_no_reasons(
-        self, client, mock_table
-    ):
+    def test_delete_importance_reasons_for_article_no_reasons(self, client, mock_table):
         """重要度理由が存在しない場合の削除テスト"""
         mock_table.query.return_value = {"Items": [], "LastEvaluatedKey": None}
 
@@ -402,9 +375,7 @@ class TestDynamoDBClient:
 
         assert deleted_count == 0
 
-    def test_query_articles_with_filters_by_published_date(
-        self, client, mock_table
-    ):
+    def test_query_articles_with_filters_by_published_date(self, client, mock_table):
         """フィルタ付き記事クエリのテスト（公開日時順）"""
         expected_items = [{"PK": "ARTICLE#123", "is_read": False}]
         mock_table.query.return_value = {
@@ -425,9 +396,7 @@ class TestDynamoDBClient:
         assert call_args["Limit"] == 10
         assert "FilterExpression" in call_args
 
-    def test_query_articles_with_filters_by_importance_score(
-        self, client, mock_table
-    ):
+    def test_query_articles_with_filters_by_importance_score(self, client, mock_table):
         """フィルタ付き記事クエリのテスト（重要度順）"""
         expected_items = [{"PK": "ARTICLE#123", "is_saved": True}]
         mock_table.query.return_value = {
@@ -444,9 +413,7 @@ class TestDynamoDBClient:
         # クエリパラメータを確認
         call_args = mock_table.query.call_args[1]
         assert call_args["IndexName"] == "GSI2"
-        assert (
-            call_args["ScanIndexForward"] is True
-        )  # 昇順（逆順ソートキーのため）
+        assert call_args["ScanIndexForward"] is True  # 昇順（逆順ソートキーのため）
         assert call_args["Limit"] == 10
         assert "FilterExpression" in call_args
 
@@ -503,9 +470,7 @@ class TestDynamoDBClientErrorHandling:
     @pytest.fixture
     def client_with_error_table(self):
         """エラーを発生させるテーブルを持つクライアント"""
-        with patch(
-            "app.utils.dynamodb_client.boto3.resource"
-        ) as mock_resource:
+        with patch("app.utils.dynamodb_client.boto3.resource") as mock_resource:
             mock_dynamodb = MagicMock()
             mock_table = MagicMock()
             mock_dynamodb.Table.return_value = mock_table
@@ -552,9 +517,7 @@ class TestDynamoDBClientErrorHandling:
         with pytest.raises(ClientError) as exc_info:
             client.query(key_condition)
 
-        assert (
-            exc_info.value.response["Error"]["Code"] == "ValidationException"
-        )
+        assert exc_info.value.response["Error"]["Code"] == "ValidationException"
 
     def test_batch_write_partial_failure(self, client_with_error_table):
         """バッチ書き込みの部分的失敗テスト"""
@@ -568,9 +531,7 @@ class TestDynamoDBClientErrorHandling:
 
         mock_batch = MagicMock()
         mock_batch.put_item.side_effect = error
-        mock_table.batch_writer.return_value.__enter__.return_value = (
-            mock_batch
-        )
+        mock_table.batch_writer.return_value.__enter__.return_value = mock_batch
 
         items = [{"PK": "TEST#1", "SK": "METADATA"}]
 

@@ -106,6 +106,7 @@ jobs:
       # CI環境ではダミー値を使用（実際のデプロイ時のみ本物のシークレットを使用）
       RSS_READER_API_KEY: 'dummy-api-key-for-ci-testing'
       ENVIRONMENT: 'development'
+      AWS_REGION: 'ap-northeast-1'
 
     steps:
     - name: Checkout code

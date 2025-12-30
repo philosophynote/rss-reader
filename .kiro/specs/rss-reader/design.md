@@ -239,7 +239,7 @@ class ArticleService:
         limit: int = 100,
         last_evaluated_key: Optional[Dict] = None
     ) -> Tuple[List[Dict], Optional[Dict]]
-    
+
     def get_article(article_id: str) -> Dict
     def mark_as_read(article_id: str, is_read: bool) -> Dict
     def mark_as_saved(article_id: str, is_saved: bool) -> Dict
@@ -316,7 +316,7 @@ Query GSI5:
 for article in articles:
     # 記事本体を削除
     DeleteItem: PK = article['PK'], SK = article['SK']
-    
+
     # 重要度理由も削除（カスケード）
     Query: PK = article['PK'], SK begins_with "REASON#"
     BatchWriteItem: 各理由を削除
@@ -448,30 +448,30 @@ class FeedService:
     def __init__(self, table_name: str):
         self.dynamodb = boto3.resource('dynamodb')
         self.table = self.dynamodb.Table(table_name)
-    
+
     def delete_feed_cascade(self, feed_id: str) -> Dict[str, int]:
         """
         フィードとその関連記事を効率的にカスケード削除
-        
+
         Args:
             feed_id: 削除対象のフィードID
-        
+
         Returns:
             削除結果の統計
         """
         deleted_articles = 0
         deleted_reasons = 0
-        
+
         try:
             # 1. GSI5を使用して関連記事を効率的に検索
             articles = self._get_articles_by_feed(feed_id)
-            
+
             # 2. 各記事とその重要度理由を削除
             for article in articles:
                 # 重要度理由を削除
                 reasons_deleted = self._delete_article_reasons(article['article_id'])
                 deleted_reasons += reasons_deleted
-                
+
                 # 記事本体を削除
                 self.table.delete_item(
                     Key={
@@ -480,7 +480,7 @@ class FeedService:
                     }
                 )
                 deleted_articles += 1
-            
+
             # 3. フィード本体を削除
             self.table.delete_item(
                 Key={
@@ -488,32 +488,32 @@ class FeedService:
                     'SK': "METADATA"
                 }
             )
-            
+
             logger.info(f"Deleted feed {feed_id} with {deleted_articles} articles and {deleted_reasons} reasons")
-            
+
             return {
                 'deleted_feed': 1,
                 'deleted_articles': deleted_articles,
                 'deleted_reasons': deleted_reasons
             }
-            
+
         except Exception as e:
             logger.error(f"Error deleting feed {feed_id}: {e}")
             raise
-    
+
     def _get_articles_by_feed(self, feed_id: str) -> List[Dict]:
         """
         GSI5を使用してフィードの全記事を取得
-        
+
         Args:
             feed_id: フィードID
-        
+
         Returns:
             記事のリスト
         """
         articles = []
         last_evaluated_key = None
-        
+
         while True:
             query_params = {
                 'IndexName': 'GSI5',
@@ -523,31 +523,31 @@ class FeedService:
                 },
                 'Limit': 100  # バッチサイズ
             }
-            
+
             if last_evaluated_key:
                 query_params['ExclusiveStartKey'] = last_evaluated_key
-            
+
             response = self.table.query(**query_params)
             articles.extend(response.get('Items', []))
-            
+
             last_evaluated_key = response.get('LastEvaluatedKey')
             if not last_evaluated_key:
                 break
-        
+
         return articles
-    
+
     def _delete_article_reasons(self, article_id: str) -> int:
         """
         記事の重要度理由を削除
-        
+
         Args:
             article_id: 記事ID
-        
+
         Returns:
             削除した理由の数
         """
         deleted_count = 0
-        
+
         try:
             # 重要度理由を検索
             response = self.table.query(
@@ -557,7 +557,7 @@ class FeedService:
                     ':reason_prefix': 'REASON#'
                 }
             )
-            
+
             # バッチ削除
             if response['Items']:
                 with self.table.batch_writer() as batch:
@@ -569,9 +569,9 @@ class FeedService:
                             }
                         )
                         deleted_count += 1
-            
+
             return deleted_count
-            
+
         except Exception as e:
             logger.error(f"Error deleting reasons for article {article_id}: {e}")
             return 0
@@ -625,20 +625,20 @@ class CleanupService:
     def __init__(self, table_name: str):
         self.dynamodb = boto3.resource('dynamodb')
         self.table = self.dynamodb.Table(table_name)
-    
+
     def cleanup_old_articles(self, days: int = 7) -> Dict[str, int]:
         """
         古い記事を効率的に削除（GSI3を使用したクエリ）
-        
+
         Args:
             days: 削除対象の日数（デフォルト: 7日）
-        
+
         Returns:
             削除結果の統計
         """
         cutoff_date = (datetime.now() - timedelta(days=days)).isoformat() + "Z"
         deleted_count = 0
-        
+
         try:
             # GSI3を使用して効率的にクエリ
             response = self.table.query(
@@ -650,7 +650,7 @@ class CleanupService:
                 },
                 Limit=100  # バッチサイズ
             )
-            
+
             # バッチ削除
             if response['Items']:
                 with self.table.batch_writer() as batch:
@@ -662,31 +662,31 @@ class CleanupService:
                             }
                         )
                         deleted_count += 1
-                
+
                 logger.info(f"Deleted {deleted_count} old articles")
-            
+
             return {
                 'deleted_articles': deleted_count,
                 'cutoff_date': cutoff_date
             }
-            
+
         except Exception as e:
             logger.error(f"Error deleting old articles: {e}")
             raise
-    
+
     def cleanup_read_articles(self, hours: int = 24) -> Dict[str, int]:
         """
         既読記事を効率的に削除（GSI4を使用したクエリ）
-        
+
         Args:
             hours: 既読後の削除対象時間（デフォルト: 24時間）
-        
+
         Returns:
             削除結果の統計
         """
         cutoff_datetime = (datetime.now() - timedelta(hours=hours)).isoformat() + "Z"
         deleted_count = 0
-        
+
         try:
             # GSI4を使用して既読記事を効率的にクエリ
             response = self.table.query(
@@ -698,7 +698,7 @@ class CleanupService:
                 },
                 Limit=100  # バッチサイズ
             )
-            
+
             # バッチ削除
             if response['Items']:
                 with self.table.batch_writer() as batch:
@@ -710,26 +710,26 @@ class CleanupService:
                             }
                         )
                         deleted_count += 1
-                
+
                 logger.info(f"Deleted {deleted_count} read articles")
-            
+
             return {
                 'deleted_read_articles': deleted_count,
                 'cutoff_datetime': cutoff_datetime
             }
-            
+
         except Exception as e:
             logger.error(f"Error deleting read articles: {e}")
             raise
-    
+
     def set_article_ttl(self, article_data: Dict, days: int = 7) -> Dict:
         """
         記事にTTLを設定（作成時に呼び出し）
-        
+
         Args:
             article_data: 記事データ
             days: TTL日数（デフォルト: 7日）
-        
+
         Returns:
             TTLが設定された記事データ
         """
@@ -1197,7 +1197,7 @@ export class RssReaderStack extends cdk.Stack {
       }),
       environment: {
         DYNAMODB_TABLE_NAME: table.tableName,
-        BEDROCK_REGION: 'us-east-1',
+        BEDROCK_REGION: 'ap-northeast-1',
         BEDROCK_MODEL_ID: 'amazon.nova-2-multimodal-embeddings-v1:0',
         EMBEDDING_DIMENSION: '1024',
       },
@@ -1340,7 +1340,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 class ImportanceScoreService:
-    def __init__(self, region_name: str = "us-east-1"):
+    def __init__(self, region_name: str = "ap-northeast-1"):
         self.bedrock_runtime = boto3.client(
             service_name="bedrock-runtime",
             region_name=region_name
@@ -1349,10 +1349,10 @@ class ImportanceScoreService:
         self.embedding_dimension = 1024
         # キーワード埋め込みのキャッシュ
         self.keyword_embeddings_cache = {}
-    
+
     def invoke_bedrock_embeddings(self, text: str, dimension: int = 1024) -> List[float]:
         """AWS Bedrockを使用してテキストの埋め込みを生成
-        
+
         公式ドキュメント準拠のAPIフォーマット:
         https://docs.aws.amazon.com/nova/latest/userguide/embeddings-schema.html
         """
@@ -1367,7 +1367,7 @@ class ImportanceScoreService:
                 }
             }
         }
-        
+
         try:
             response = self.bedrock_runtime.invoke_model(
                 body=json.dumps(request_body),
@@ -1375,61 +1375,61 @@ class ImportanceScoreService:
                 accept="application/json",
                 contentType="application/json"
             )
-            
+
             response_body = json.loads(response.get("body").read())
             # レスポンス形式: {"embeddings": [{"embeddingType": "TEXT", "embedding": [...]}]}
             embedding = response_body["embeddings"][0]["embedding"]
             return embedding
-            
+
         except Exception as e:
             logger.error(f"Bedrock embedding error: {e}")
             # エラー時はゼロベクトルを返す
             return [0.0] * dimension
-    
+
     def get_embedding(self, text: str) -> np.ndarray:
         """テキストの埋め込みを取得（キャッシュ対応）"""
         embedding = self.invoke_bedrock_embeddings(text, self.embedding_dimension)
         return np.array(embedding)
-    
+
     def get_keyword_embedding(self, keyword_text: str) -> np.ndarray:
         """キーワードの埋め込みを取得（キャッシュ使用）"""
         if keyword_text not in self.keyword_embeddings_cache:
             self.keyword_embeddings_cache[keyword_text] = self.get_embedding(keyword_text)
         return self.keyword_embeddings_cache[keyword_text]
-    
+
     def calculate_similarity(self, embedding1: np.ndarray, embedding2: np.ndarray) -> float:
         """コサイン類似度を計算"""
         similarity = cosine_similarity([embedding1], [embedding2])[0][0]
         return float(similarity)
-    
+
     def calculate_score(
-        self, 
-        article: Dict, 
+        self,
+        article: Dict,
         keywords: List[Dict]
     ) -> Tuple[float, List[Dict]]:
         """記事の重要度スコアを計算"""
         # 記事のテキストを結合
         article_text = f"{article['title']} {article.get('content', '')}"
         article_embedding = self.get_embedding(article_text)
-        
+
         total_score = 0.0
         reasons = []
-        
+
         for keyword in keywords:
             if not keyword.get('is_active', True):
                 continue
-            
+
             # キーワードの埋め込みを取得（キャッシュから）
             keyword_embedding = self.get_keyword_embedding(keyword['text'])
-            
+
             # 類似度を計算
             similarity = self.calculate_similarity(article_embedding, keyword_embedding)
-            
+
             # 重みを適用
             weight = keyword.get('weight', 1.0)
             contribution = similarity * weight
             total_score += contribution
-            
+
             # 理由を記録
             reasons.append({
                 'PK': f"ARTICLE#{article['article_id']}",
@@ -1441,27 +1441,27 @@ class ImportanceScoreService:
                 'similarity_score': similarity,
                 'contribution': contribution
             })
-        
+
         return total_score, reasons
-    
+
     def recalculate_score(self, article_id: str) -> None:
         """記事の重要度スコアを再計算"""
         # 記事とキーワードを取得
         article = self.article_service.get_article(article_id)
         keywords = self.keyword_service.get_keywords()
-        
+
         # スコアを再計算
         score, reasons = self.calculate_score(article, keywords)
-        
+
         # 記事を更新
         self.article_service.update_article(
             article_id,
             importance_score=score
         )
-        
+
         # 既存の理由を削除
         self.dynamodb_client.delete_reasons_for_article(article_id)
-        
+
         # 新しい理由を保存
         for reason in reasons:
             self.dynamodb_client.put_item(reason)
@@ -1471,13 +1471,13 @@ def test_bedrock_embeddings():
     """Bedrock Embeddings APIのテスト用サンプル"""
     import boto3
     import json
-    
+
     # Bedrockクライアントを作成
     bedrock_runtime = boto3.client(
         service_name="bedrock-runtime",
-        region_name="us-east-1"
+        region_name="ap-northeast-1"
     )
-    
+
     # リクエストボディ（公式ドキュメント準拠）
     request_body = {
         "taskType": "SINGLE_EMBEDDING",
@@ -1490,7 +1490,7 @@ def test_bedrock_embeddings():
             }
         }
     }
-    
+
     try:
         # Nova Embeddings モデルを呼び出し
         response = bedrock_runtime.invoke_model(
@@ -1499,15 +1499,15 @@ def test_bedrock_embeddings():
             accept="application/json",
             contentType="application/json"
         )
-        
+
         # レスポンスを解析
         response_body = json.loads(response.get("body").read())
         print("Request ID:", response.get("ResponseMetadata").get("RequestId"))
         print("Embedding dimension:", len(response_body["embeddings"][0]["embedding"]))
         print("Embedding type:", response_body["embeddings"][0]["embeddingType"])
-        
+
         return response_body["embeddings"][0]["embedding"]
-        
+
     except Exception as e:
         print(f"Error: {e}")
         return None
@@ -1520,17 +1520,17 @@ def test_bedrock_embeddings():
 4. **代替モデル**: コスト重視の場合はTitan Text Embeddings V2を使用
 
 **実装前の検証手順**:
-1. **APIフォーマット確認**: 
+1. **APIフォーマット確認**:
    - AWS Bedrockの公式ドキュメントで最新のAPIフォーマットを確認
    - 上記のtest_bedrock_embeddings()関数を使用してAPIの動作を検証
-2. **boto3バージョン確認**: 
+2. **boto3バージョン確認**:
    - boto3の最新バージョン（1.35.0以降推奨）を使用
    - Nova Multimodal Embeddingsがサポートされていることを確認
-3. **リージョン確認**: 
-   - Nova Multimodal Embeddingsが利用可能なリージョン（us-east-1等）を使用
-4. **権限確認**: 
+3. **リージョン確認**:
+   - Nova Multimodal Embeddingsが利用可能なリージョン（ap-northeast-1等）を使用
+4. **権限確認**:
    - IAMロールにbedrock:InvokeModel権限が付与されていることを確認
-5. **レスポンス構造確認**: 
+5. **レスポンス構造確認**:
    - 実際のレスポンス形式が期待通りであることを確認
    - エラーハンドリングの動作を検証
 
@@ -1580,13 +1580,13 @@ app.add_middleware(
 def verify_api_key(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
     """
     API Key認証を検証
-    
+
     Args:
         credentials: HTTPベアラートークン
-    
+
     Returns:
         認証されたAPI Key
-    
+
     Raises:
         HTTPException: 認証失敗時
     """
@@ -1629,7 +1629,7 @@ def lambda_handler(event, context):
     """AWS Lambda用のハンドラー"""
     import awslambdaric
     from mangum import Mangum
-    
+
     handler = Mangum(app, lifespan="off")
     return handler(event, context)
 ```
@@ -1645,10 +1645,10 @@ import json
 async def verify_aws_signature(request: Request):
     """
     AWS IAM Signature V4を検証
-    
+
     Args:
         request: FastAPIリクエストオブジェクト
-    
+
     Raises:
         HTTPException: 署名検証失敗時
     """
@@ -1657,12 +1657,12 @@ async def verify_aws_signature(request: Request):
         authorization = request.headers.get('Authorization')
         if not authorization or not authorization.startswith('AWS4-HMAC-SHA256'):
             raise HTTPException(status_code=401, detail="Missing or invalid AWS signature")
-        
+
         # AWS署名の検証ロジック（簡略化）
         # 実際の実装では、boto3のSigV4Authを使用して検証
-        
+
         return True
-        
+
     except Exception as e:
         logger.error(f"AWS signature verification failed: {e}")
         raise HTTPException(status_code=401, detail="Invalid AWS signature")
@@ -1702,7 +1702,7 @@ CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "808
 - `PORT=8080`
 - `DYNAMODB_TABLE_NAME=rss-reader`
 - `AWS_REGION=ap-northeast-1`
-- `BEDROCK_REGION=us-east-1`  # Bedrockが利用可能なリージョン
+- `BEDROCK_REGION=ap-northeast-1`  # Bedrockが利用可能なリージョン
 - `BEDROCK_MODEL_ID=amazon.nova-2-multimodal-embeddings-v1:0`
 - `EMBEDDING_DIMENSION=1024`
 - `API_KEY=your-secure-api-key-here`  # 本番環境では強力なランダム文字列を使用
@@ -1763,21 +1763,21 @@ class DynamoDBClient:
     def __init__(self, table_name: str):
         self.dynamodb = boto3.resource('dynamodb')
         self.table = self.dynamodb.Table(table_name)
-    
+
     def put_item(self, item: Dict) -> None:
         self.table.put_item(Item=item)
-    
+
     def get_item(self, pk: str, sk: str) -> Optional[Dict]:
         response = self.table.get_item(Key={'PK': pk, 'SK': sk})
         return response.get('Item')
-    
+
     def query(self, key_condition_expression, **kwargs) -> List[Dict]:
         response = self.table.query(
             KeyConditionExpression=key_condition_expression,
             **kwargs
         )
         return response.get('Items', [])
-    
+
     def delete_item(self, pk: str, sk: str) -> None:
         self.table.delete_item(Key={'PK': pk, 'SK': sk})
 ```
@@ -1843,7 +1843,7 @@ class ApiClient {
 
   constructor() {
     this.apiKey = import.meta.env.VITE_API_KEY || '';
-    
+
     this.client = axios.create({
       baseURL: import.meta.env.VITE_API_URL,
       timeout: 30000,
@@ -1975,7 +1975,7 @@ class AwsApiClient {
   constructor() {
     this.region = 'ap-northeast-1';
     this.service = 'lambda';
-    
+
     this.signer = new SignatureV4({
       credentials: defaultProvider(),
       region: this.region,
@@ -2002,7 +2002,7 @@ class AwsApiClient {
     });
 
     const signedRequest = await this.signer.sign(request);
-    
+
     return fetch(url, {
       method: signedRequest.method,
       headers: signedRequest.headers,
@@ -2107,7 +2107,7 @@ export function useArticles(sortBy: string, filterBy?: string) {
 
 export function useMarkAsRead() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: (articleId: number) => markAsRead(articleId),
     onSuccess: () => {
@@ -2142,7 +2142,7 @@ export function ArticleTable({ articles }: { articles: Article[] }) {
     columns,
     getCoreRowModel: getCoreRowModel(),
   });
-  
+
   // テーブルのレンダリング
 }
 ```
@@ -2150,14 +2150,14 @@ export function ArticleTable({ articles }: { articles: Article[] }) {
 ### Chakra UI の使用
 
 ```typescript
-import { 
-  Box, 
-  Button, 
-  Table, 
-  Thead, 
-  Tbody, 
-  Tr, 
-  Th, 
+import {
+  Box,
+  Button,
+  Table,
+  Thead,
+  Tbody,
+  Tr,
+  Th,
   Td,
   Badge,
   VStack,
@@ -2179,7 +2179,7 @@ import { AddIcon, DeleteIcon, EditIcon } from '@chakra-ui/icons';
 
 export function ArticleList() {
   const toast = useToast();
-  
+
   return (
     <Box p={6}>
       <VStack spacing={4} align="stretch">
@@ -2197,7 +2197,7 @@ export function ArticleList() {
             </Select>
           </HStack>
         </HStack>
-        
+
         <Card>
           <CardBody>
             <Table variant="simple">
@@ -2280,41 +2280,41 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install uv
         uses: astral-sh/setup-uv@v4
         with:
           version: "latest"
-      
+
       - name: Set up Python
         run: uv python install 3.14
-      
+
       - name: Install dependencies
         run: |
           cd backend
           uv sync
-      
+
       - name: Run linting
         run: |
           cd backend
           uv run ruff check .
           uv run ruff format --check .
-      
+
       - name: Run type checking
         run: |
           cd backend
           uv run mypy app/
-      
+
       - name: Run unit tests
         run: |
           cd backend
           uv run pytest tests/unit/ -v --cov=app --cov-report=xml
-      
+
       - name: Run property-based tests
         run: |
           cd backend
           uv run pytest tests/property/ -v --tb=short
-      
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
@@ -2324,34 +2324,34 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
-      
+
       - name: Install dependencies
         run: |
           cd frontend
           npm ci
-      
+
       - name: Run linting
         run: |
           cd frontend
           npm run lint
-      
+
       - name: Run type checking
         run: |
           cd frontend
           npm run type-check
-      
+
       - name: Run unit tests
         run: |
           cd frontend
           npm run test:coverage
-      
+
       - name: Build application
         run: |
           cd frontend
@@ -2361,24 +2361,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: infrastructure/package-lock.json
-      
+
       - name: Install dependencies
         run: |
           cd infrastructure
           npm ci
-      
+
       - name: Run CDK synth
         run: |
           cd infrastructure
           npm run synth
-      
+
       - name: Run CDK diff
         run: |
           cd infrastructure
@@ -2404,21 +2404,21 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: production
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-northeast-1
-      
+
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
-      
+
       - name: Build and push Docker image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -2430,7 +2430,7 @@ jobs:
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-      
+
       - name: Update Lambda function
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -2440,10 +2440,10 @@ jobs:
           aws lambda update-function-code \
             --function-name rss-reader-api \
             --image-uri $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          
+
           aws lambda wait function-updated \
             --function-name rss-reader-api
-      
+
       - name: Run integration tests
         run: |
           cd backend
@@ -2467,41 +2467,41 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: production
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
-      
+
       - name: Install dependencies
         run: |
           cd frontend
           npm ci
-      
+
       - name: Build application
         run: |
           cd frontend
           npm run build
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
-      
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-northeast-1
-      
+
       - name: Deploy to S3
         run: |
           cd frontend
           aws s3 sync dist/ s3://${{ secrets.S3_BUCKET_NAME }}/ --delete
-      
+
       - name: Invalidate CloudFront
         run: |
           aws cloudfront create-invalidation \
@@ -2524,34 +2524,34 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: production
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: infrastructure/package-lock.json
-      
+
       - name: Install dependencies
         run: |
           cd infrastructure
           npm ci
-      
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-northeast-1
-      
+
       - name: CDK Bootstrap (if needed)
         run: |
           cd infrastructure
           npx cdk bootstrap
-      
+
       - name: CDK Deploy
         run: |
           cd infrastructure
@@ -2621,17 +2621,17 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: production
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-northeast-1
-      
+
       - name: Update Lambda environment variables
         run: |
           aws lambda update-function-configuration \
@@ -2639,13 +2639,13 @@ jobs:
             --environment Variables='{
               "DYNAMODB_TABLE_NAME": "rss-reader",
               "AWS_REGION": "ap-northeast-1",
-              "BEDROCK_REGION": "us-east-1",
+              "BEDROCK_REGION": "ap-northeast-1",
               "BEDROCK_MODEL_ID": "amazon.nova-2-multimodal-embeddings-v1:0",
               "EMBEDDING_DIMENSION": "1024",
               "API_KEY": "${{ secrets.RSS_READER_API_KEY }}",
               "CORS_ORIGINS": "https://your-frontend-domain.com"
             }'
-      
+
       - name: Build and deploy Docker image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -2655,11 +2655,11 @@ jobs:
           cd backend
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          
+
           aws lambda update-function-code \
             --function-name rss-reader-api \
             --image-uri $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-      
+
       - name: Verify deployment with authentication
         run: |
           # API Key認証のテスト
@@ -2757,7 +2757,7 @@ jobs:
           aws cloudwatch put-dashboard \
             --dashboard-name "RSS-Reader-Production" \
             --dashboard-body file://monitoring/dashboard.json
-      
+
       - name: Create CloudWatch Alarms
         run: |
           aws cloudwatch put-metric-alarm \
@@ -2888,14 +2888,14 @@ def get_api_key() -> str:
     """Parameter Storeから暗号化されたAPI Keyを取得"""
     ssm = boto3.client('ssm')
     parameter_name = os.getenv('API_KEY_PARAMETER')
-    
+
     if parameter_name:
         response = ssm.get_parameter(
             Name=parameter_name,
             WithDecryption=True
         )
         return response['Parameter']['Value']
-    
+
     # フォールバック: 環境変数から取得
     return os.getenv('API_KEY', 'default-key')
 ```
@@ -2909,7 +2909,7 @@ import re
 
 class SensitiveDataFilter(logging.Filter):
     """ログから機密情報を除去するフィルター"""
-    
+
     def __init__(self):
         super().__init__()
         # 機密情報のパターン
@@ -2918,7 +2918,7 @@ class SensitiveDataFilter(logging.Filter):
             (re.compile(r'api[_-]?key["\s]*[:=]["\s]*[A-Za-z0-9+/=]{20,}', re.IGNORECASE), 'api_key: [REDACTED]'),
             (re.compile(r'password["\s]*[:=]["\s]*[^\s"]+', re.IGNORECASE), 'password: [REDACTED]'),
         ]
-    
+
     def filter(self, record):
         if hasattr(record, 'msg'):
             message = str(record.msg)
@@ -2982,7 +2982,7 @@ import re
 class CreateFeedRequest(BaseModel):
     url: HttpUrl  # 自動的にURL形式を検証
     folder: Optional[str] = None
-    
+
     @validator('folder')
     def validate_folder(cls, v):
         if v is not None:
@@ -2996,7 +2996,7 @@ class CreateFeedRequest(BaseModel):
 class CreateKeywordRequest(BaseModel):
     text: str
     weight: float = 1.0
-    
+
     @validator('text')
     def validate_text(cls, v):
         if len(v.strip()) == 0:
@@ -3006,7 +3006,7 @@ class CreateKeywordRequest(BaseModel):
         # HTMLタグの除去
         import html
         return html.escape(v.strip())
-    
+
     @validator('weight')
     def validate_weight(cls, v):
         if v < 0 or v > 10:
@@ -3028,22 +3028,22 @@ class RateLimiter:
         self.max_requests = max_requests
         self.window = timedelta(minutes=window_minutes)
         self.requests = defaultdict(list)
-    
+
     async def check_rate_limit(self, client_id: str) -> bool:
         """レート制限をチェック"""
         now = datetime.now()
-        
+
         # 古いリクエストを削除
         cutoff = now - self.window
         self.requests[client_id] = [
             req_time for req_time in self.requests[client_id]
             if req_time > cutoff
         ]
-        
+
         # 制限チェック
         if len(self.requests[client_id]) >= self.max_requests:
             return False
-        
+
         # リクエストを記録
         self.requests[client_id].append(now)
         return True
@@ -3054,13 +3054,13 @@ rate_limiter = RateLimiter(max_requests=100, window_minutes=1)
 async def rate_limit_middleware(request: Request, call_next):
     # クライアントIPまたはAPI Keyでレート制限
     client_id = request.client.host
-    
+
     if not await rate_limiter.check_rate_limit(client_id):
         raise HTTPException(
             status_code=429,
             detail="レート制限に達しました。しばらく待ってから再試行してください。"
         )
-    
+
     response = await call_next(request)
     return response
 ```
@@ -3072,7 +3072,7 @@ async def rate_limit_middleware(request: Request, call_next):
 @app.middleware("http")
 async def security_headers_middleware(request: Request, call_next):
     response = await call_next(request)
-    
+
     # セキュリティヘッダーを追加
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
@@ -3080,7 +3080,7 @@ async def security_headers_middleware(request: Request, call_next):
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     response.headers["Content-Security-Policy"] = "default-src 'self'"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    
+
     return response
 ```
 
