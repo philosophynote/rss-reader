@@ -5,7 +5,6 @@ CleanupServiceテスト用の支援クラスとヘルパー。
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
 from uuid import uuid4
 
 from app.models.article import Article
@@ -20,22 +19,22 @@ class FakeDynamoDBClient:
     """
 
     def __init__(self) -> None:
-        self.items: Dict[Tuple[str, str], Dict] = {}
+        self.items: dict[tuple[str, str], dict] = {}
 
-    def put_item(self, item: Dict) -> None:
+    def put_item(self, item: dict) -> None:
         """アイテムを保存する。"""
         self.items[(item["PK"], item["SK"])] = item
 
     def query(
         self,
         key_condition_expression,
-        index_name: Optional[str] = None,
+        index_name: str | None = None,
         filter_expression=None,
         scan_index_forward: bool = True,
-        limit: Optional[int] = None,
-        exclusive_start_key: Optional[Dict] = None,
+        limit: int | None = None,
+        exclusive_start_key: dict | None = None,
         **kwargs,
-    ) -> Tuple[List[Dict], Optional[Dict]]:
+    ) -> tuple[list[dict], dict | None]:
         """
         GSIクエリを擬似的に実行する。
 
@@ -52,9 +51,7 @@ class FakeDynamoDBClient:
             Tuple[List[Dict], Optional[Dict]]: 取得結果と次ページのキー
         """
         pk_name, sk_name = self._resolve_index_keys(index_name)
-        pk_value = self._extract_value(
-            key_condition_expression, "=", pk_name
-        )
+        pk_value = self._extract_value(key_condition_expression, "=", pk_name)
         cutoff_value = self._extract_value(
             key_condition_expression, "<", sk_name
         )
@@ -74,10 +71,9 @@ class FakeDynamoDBClient:
         start_index = 0
         if exclusive_start_key:
             for idx, item in enumerate(items):
-                if (
-                    item["PK"] == exclusive_start_key.get("PK")
-                    and item["SK"] == exclusive_start_key.get("SK")
-                ):
+                if item["PK"] == exclusive_start_key.get("PK") and item[
+                    "SK"
+                ] == exclusive_start_key.get("SK"):
                     start_index = idx + 1
                     break
 
@@ -93,7 +89,7 @@ class FakeDynamoDBClient:
         return sliced, last_evaluated_key
 
     def batch_write_item(
-        self, items: List[Dict], delete_keys: Optional[List[Dict]] = None
+        self, items: list[dict], delete_keys: list[dict] | None = None
     ) -> None:
         """バッチ削除を実行する。"""
         delete_keys = delete_keys or []
@@ -112,7 +108,7 @@ class FakeDynamoDBClient:
         return len(delete_keys)
 
     @staticmethod
-    def _resolve_index_keys(index_name: Optional[str]) -> Tuple[str, str]:
+    def _resolve_index_keys(index_name: str | None) -> tuple[str, str]:
         """GSIのキー名を返す。"""
         if index_name == "GSI4":
             return "GSI4PK", "GSI4SK"
@@ -142,7 +138,7 @@ class FakeDynamoDBClient:
 def create_article(
     created_at: datetime,
     is_read: bool = False,
-    read_at: Optional[datetime] = None,
+    read_at: datetime | None = None,
 ) -> Article:
     """指定条件のArticleを作成する。"""
     return Article(
@@ -168,7 +164,7 @@ def create_reason(article: Article) -> ImportanceReason:
     )
 
 
-def seed_items(client: FakeDynamoDBClient, items: List[Dict]) -> None:
+def seed_items(client: FakeDynamoDBClient, items: list[dict]) -> None:
     """FakeDynamoDBClientにアイテムを保存する。"""
     for item in items:
         client.put_item(item)

@@ -8,12 +8,12 @@ Feature: rss-reader, Property 24-26
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from typing import List
 
 from hypothesis import given, settings
 from hypothesis.strategies import integers, lists
 
 from app.services.cleanup_service import CleanupService
+
 from ..support.cleanup_fakes import (
     FakeDynamoDBClient,
     create_article,
@@ -31,7 +31,7 @@ class TestCleanupServiceProperty:
     )
     @settings(max_examples=30)
     def test_old_articles_are_deleted(
-        self, old_days: List[int], new_days: List[int]
+        self, old_days: list[int], new_days: list[int]
     ) -> None:
         """
         古い記事が削除されることを検証する。
@@ -84,7 +84,7 @@ class TestCleanupServiceProperty:
     )
     @settings(max_examples=30)
     def test_read_articles_are_deleted(
-        self, old_hours: List[int], new_hours: List[int]
+        self, old_hours: list[int], new_hours: list[int]
     ) -> None:
         """
         既読記事が削除されることを検証する。
@@ -147,7 +147,7 @@ class TestCleanupServiceProperty:
     @given(old_days=lists(integers(min_value=8, max_value=20), min_size=1))
     @settings(max_examples=20)
     def test_cascade_delete_importance_reasons(
-        self, old_days: List[int]
+        self, old_days: list[int]
     ) -> None:
         """
         記事削除時に重要度理由が削除されることを検証する。

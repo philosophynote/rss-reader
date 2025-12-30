@@ -7,9 +7,8 @@ TTLによる自動削除と、GSIを利用した即時削除を組み合わせ�
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
 import logging
-from typing import Dict, Optional, Tuple
+from datetime import datetime, timedelta
 
 from boto3.dynamodb.conditions import Key
 
@@ -29,7 +28,7 @@ class CleanupService:
 
     def __init__(
         self,
-        dynamodb_client: Optional[DynamoDBClient] = None,
+        dynamodb_client: DynamoDBClient | None = None,
     ) -> None:
         """
         CleanupServiceの初期化。
@@ -39,7 +38,7 @@ class CleanupService:
         """
         self.dynamodb_client = dynamodb_client or DynamoDBClient()
 
-    def cleanup_old_articles(self, days: int = 7) -> Dict[str, int]:
+    def cleanup_old_articles(self, days: int = 7) -> dict[str, int]:
         """
         古い記事と既読記事を削除する。
 
@@ -67,7 +66,7 @@ class CleanupService:
             "deleted_reasons_read": reasons_read,
         }
 
-    def delete_articles_by_age(self, days: int = 7) -> Tuple[int, int]:
+    def delete_articles_by_age(self, days: int = 7) -> tuple[int, int]:
         """
         作成日時が古い記事を削除する。
 
@@ -92,7 +91,7 @@ class CleanupService:
             index_name="GSI3",
         )
 
-    def delete_read_articles(self, hours: int = 24) -> Tuple[int, int]:
+    def delete_read_articles(self, hours: int = 24) -> tuple[int, int]:
         """
         既読になってから一定時間経過した記事を削除する。
 
@@ -122,7 +121,7 @@ class CleanupService:
         self,
         key_condition,
         index_name: str,
-    ) -> Tuple[int, int]:
+    ) -> tuple[int, int]:
         """
         指定クエリで記事と重要度理由を削除する。
 
@@ -152,11 +151,8 @@ class CleanupService:
             for item in items:
                 article_id = item.get("article_id")
                 if article_id:
-                    deleted_reasons += (
-                        self.dynamodb_client
-                        .delete_importance_reasons_for_article(
-                            article_id
-                        )
+                    deleted_reasons += self.dynamodb_client.delete_importance_reasons_for_article(
+                        article_id
                     )
 
                 delete_keys.append({"PK": item["PK"], "SK": item["SK"]})
