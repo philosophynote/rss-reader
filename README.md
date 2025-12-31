@@ -61,12 +61,19 @@ rss-reader/
 # 1. 開発環境のセットアップ（全プロジェクト）
 make setup-dev
 
-# 2. 各サービスの起動
-# バックエンド
-cd backend && uv run uvicorn app.main:app --reload
+# 2. 環境変数の設定
+# .env.example をコピーして .env.local を作成
+cp .env.example .env.local
+# 必要に応じて .env.local を編集
 
+# 3. 開発サーバーの起動
 # フロントエンド
-cd frontend && npm run dev
+make dev
+# または: cd frontend && npm run dev
+
+# バックエンド（実装後）
+make backend-dev
+# または: cd backend && uv run uvicorn app.main:app --reload
 
 # インフラストラクチャ（デプロイ）
 cd infrastructure && npm run deploy
@@ -86,6 +93,51 @@ make test-coverage # カバレッジ付きテスト
 
 # クリーンアップ
 make clean         # ビルド成果物とキャッシュを削除
+```
+
+### 環境変数の設定
+
+すべての環境変数はプロジェクトルートで一元管理します。
+
+#### 基本設定
+
+```bash
+# .env.example をコピーして .env.local を作成
+cp .env.example .env.local
+
+# .env.local を編集して必要な値を設定
+# フロントエンド開発時は最低限以下の2つが必要:
+VITE_API_BASE_URL=http://localhost:8000
+VITE_API_KEY=dev-api-key-placeholder
+```
+
+**注意:**
+- バックエンドが未実装の場合でも、フロントエンド用の環境変数が必要です。ダミーの値を設定してください。
+- `frontend/.env.local` はルートの `.env.local` へのシンボリックリンクです。
+
+#### バックエンド開発時（実装後）
+
+ルートの `.env.local` に以下を追加:
+
+```bash
+# バックエンド用環境変数
+DYNAMODB_TABLE_NAME=rss-reader
+BEDROCK_REGION=ap-northeast-1
+BEDROCK_MODEL_ID=amazon.nova-2-multimodal-embeddings-v1:0
+API_KEY=your-api-key-here
+CORS_ORIGINS=http://localhost:3000
+```
+
+#### インフラストラクチャデプロイ時
+
+ルートの `.env.local` に以下を追加:
+
+```bash
+# AWS認証情報
+AWS_ACCESS_KEY_ID=your-access-key
+AWS_SECRET_ACCESS_KEY=your-secret-key
+CDK_DEFAULT_REGION=ap-northeast-1
+ENVIRONMENT=dev
 ```
 
 ### CI/CD
