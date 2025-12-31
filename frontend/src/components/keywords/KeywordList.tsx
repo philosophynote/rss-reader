@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   Box,
   VStack,
@@ -48,12 +48,12 @@ export function KeywordList() {
 
   const [selectedKeyword, setSelectedKeyword] = useState<Keyword | null>(null);
   const {
-    isOpen: isAddOpen,
+    open: isAddOpen,
     onOpen: onAddOpen,
     onClose: onAddClose,
   } = useDisclosure();
   const {
-    isOpen: isEditOpen,
+    open: isEditOpen,
     onOpen: onEditOpen,
     onClose: onEditClose,
   } = useDisclosure();
@@ -190,7 +190,7 @@ export function KeywordList() {
 
   if (isLoading) {
     return (
-      <VStack spacing={4} align="stretch">
+      <VStack gap={4} align="stretch">
         {[...Array(3)].map((_, i) => (
           <Skeleton key={i} height="100px" borderRadius="md" data-testid="skeleton" />
         ))}
@@ -215,7 +215,7 @@ export function KeywordList() {
 
   if (!keywords || keywords.length === 0) {
     return (
-      <VStack spacing={6} py={8}>
+      <VStack gap={6} py={8}>
         <Text color="gray.500" textAlign="center">
           登録されているキーワードがありません
         </Text>
@@ -242,10 +242,10 @@ export function KeywordList() {
   const inactiveKeywords = keywords.filter((k) => !k.is_active);
 
   return (
-    <VStack spacing={6} align="stretch">
+    <VStack gap={6} align="stretch">
       <Flex>
         <Spacer />
-        <HStack spacing={2}>
+        <HStack gap={2}>
           <Button
             variant="outline"
             size="sm"
@@ -270,13 +270,13 @@ export function KeywordList() {
             有効なキーワード ({activeKeywords.length})
           </Text>
 
-          <VStack spacing={3} align="stretch">
+          <VStack gap={3} align="stretch">
             {activeKeywords.map((keyword) => (
               <Card.Root key={keyword.keyword_id} variant="outline">
                 <Card.Body>
-                  <VStack spacing={3} align="stretch">
+                  <VStack gap={3} align="stretch">
                     <HStack>
-                      <VStack align="start" spacing={1} flex={1}>
+                      <VStack align="start" gap={1} flex={1}>
                         <HStack>
                           <Text fontWeight="bold" fontSize="md">
                             {keyword.text}
@@ -291,7 +291,7 @@ export function KeywordList() {
                         </Text>
                       </VStack>
 
-                      <HStack spacing={2}>
+                      <HStack gap={2}>
                         <Switch.Root
                           checked={keyword.is_active}
                           onCheckedChange={() => handleToggleActive(keyword)}
@@ -339,13 +339,13 @@ export function KeywordList() {
             無効なキーワード ({inactiveKeywords.length})
           </Text>
 
-          <VStack spacing={3} align="stretch">
+          <VStack gap={3} align="stretch">
             {inactiveKeywords.map((keyword) => (
               <Card.Root key={keyword.keyword_id} variant="outline" opacity={0.6}>
                 <Card.Body>
-                  <VStack spacing={3} align="stretch">
+                  <VStack gap={3} align="stretch">
                     <HStack>
-                      <VStack align="start" spacing={1} flex={1}>
+                      <VStack align="start" gap={1} flex={1}>
                         <HStack>
                           <Text
                             fontWeight="bold"
@@ -364,7 +364,7 @@ export function KeywordList() {
                         </Text>
                       </VStack>
 
-                      <HStack spacing={2}>
+                      <HStack gap={2}>
                         <Switch.Root
                           checked={keyword.is_active}
                           onCheckedChange={() => handleToggleActive(keyword)}
