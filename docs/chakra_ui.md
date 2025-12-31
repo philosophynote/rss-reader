@@ -291,39 +291,70 @@ toaster.create({
   </ModalContent>
 </Modal>
 
-// v3
-<Dialog.Root open={isOpen} onOpenChange={({ open }) => !open && onClose()}>
-  <Dialog.Backdrop />
-  <Dialog.Content>
-    <Dialog.Header>タイトル</Dialog.Header>
-    <Dialog.CloseTrigger />
-    <Dialog.Body>
-      コンテンツ
-    </Dialog.Body>
-  </Dialog.Content>
-</Dialog.Root>
+// v3（完全な構造）
+import {
+  DialogRoot,
+  DialogBackdrop,
+  DialogPositioner,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogBody,
+  DialogCloseTrigger,
+  Portal,
+} from "@chakra-ui/react";
+
+<DialogRoot open={isOpen} onOpenChange={(e) => setIsOpen(e.open)}>
+  <Portal>
+    <DialogBackdrop />
+    <DialogPositioner>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>タイトル</DialogTitle>
+        </DialogHeader>
+        <DialogCloseTrigger />
+        <DialogBody>
+          コンテンツ
+        </DialogBody>
+      </DialogContent>
+    </DialogPositioner>
+  </Portal>
+</DialogRoot>
 ```
 
-**重要**: `onOpenChange`は`onClose`の代わりに使用します。`{ open }`オブジェクトを受け取るため、`!open && onClose()`のパターンで閉じるときのみハンドラを実行します。
+**重要な変更点**:
+1. `Modal` → `DialogRoot`
+2. `ModalOverlay` → `DialogBackdrop`
+3. `ModalContent`は`DialogPositioner`と`DialogContent`の2つに分割
+4. `ModalHeader`の中に`DialogTitle`が必要
+5. `ModalCloseButton` → `DialogCloseTrigger`
+6. `Portal`コンポーネントで明示的にラップする必要がある
+
+#### useDisclosureからuseStateへの移行
+
+v3では、多くの場合`useDisclosure`よりも`useState`を直接使う方がシンプルです。
 
 ```typescript
-// useDisclosure との使用例
+// v2 + useDisclosure
 const { isOpen, onOpen, onClose } = useDisclosure();
 
-<Dialog.Root
-  open={isOpen}
-  onOpenChange={({ open }) => {
-    if (!open) {
-      onClose();
-      // クリーンアップ処理があればここに記述
-    }
-  }}
->
+<Button onClick={onOpen}>開く</Button>
+<Dialog.Root open={isOpen} onOpenChange={({ open }) => !open && onClose()}>
   {/* ... */}
 </Dialog.Root>
+
+// v3 + useState（推奨）
+const [isOpen, setIsOpen] = useState(false);
+
+<Button onClick={() => setIsOpen(true)}>開く</Button>
+<DialogRoot open={isOpen} onOpenChange={(e) => setIsOpen(e.open)}>
+  {/* ... */}
+</DialogRoot>
 ```
 
-### 8. Tooltip の変更
+`onOpenChange`は`{ open: boolean }`オブジェクトを受け取るため、`e.open`で状態を直接更新できます。
+
+### 8. Tooltip の変更とカスタムコンポーネント作成
 
 ```typescript
 // v2
@@ -331,16 +362,130 @@ const { isOpen, onOpen, onClose } = useDisclosure();
   <Button>ボタン</Button>
 </Tooltip>
 
-// v3
+// v3（生のAPI）
 <Tooltip.Root>
   <Tooltip.Trigger asChild>
     <Button>ボタン</Button>
   </Tooltip.Trigger>
-  <Tooltip.Positioner>
-    <Tooltip.Content>ツールチップ</Tooltip.Content>
-  </Tooltip.Positioner>
+  <Portal>
+    <Tooltip.Positioner>
+      <Tooltip.Content>ツールチップ</Tooltip.Content>
+    </Tooltip.Positioner>
+  </Portal>
 </Tooltip.Root>
 ```
+
+#### Tooltipカスタムコンポーネントの作成
+
+v3のTooltip APIは冗長なため、v2のような簡潔なAPIを提供するカスタムコンポーネントを作成することを推奨します。
+
+```typescript
+// src/compositions/ui/tooltip.tsx
+import { Tooltip as ChakraTooltip, Portal } from "@chakra-ui/react";
+import * as React from "react";
+
+export interface TooltipProps extends ChakraTooltip.RootProps {
+  showArrow?: boolean;
+  portalled?: boolean;
+  portalRef?: React.RefObject<HTMLElement | null>;
+  content: React.ReactNode;
+  contentProps?: ChakraTooltip.ContentProps;
+  disabled?: boolean;
+}
+
+export const Tooltip = React.forwardRef<HTMLDivElement, TooltipProps>(
+  function Tooltip(props, ref) {
+    const {
+      showArrow,
+      children,
+      disabled,
+      portalled = true,
+      content,
+      contentProps,
+      portalRef,
+      ...rest
+    } = props;
+
+    if (disabled) return children;
+
+    return (
+      <ChakraTooltip.Root {...rest}>
+        <ChakraTooltip.Trigger asChild>{children}</ChakraTooltip.Trigger>
+        <Portal disabled={!portalled} container={portalRef}>
+          <ChakraTooltip.Positioner>
+            <ChakraTooltip.Content ref={ref} {...contentProps}>
+              {showArrow && (
+                <ChakraTooltip.Arrow>
+                  <ChakraTooltip.ArrowTip />
+                </ChakraTooltip.Arrow>
+              )}
+              {content}
+            </ChakraTooltip.Content>
+          </ChakraTooltip.Positioner>
+        </Portal>
+      </ChakraTooltip.Root>
+    );
+  }
+);
+```
+
+使用例:
+```typescript
+import { Tooltip } from "../../compositions/ui/tooltip";
+
+<Tooltip content="編集">
+  <IconButton aria-label="編集">
+    <FiEdit2 />
+  </IconButton>
+</Tooltip>
+```
+
+### 9. FormControl から Field への変更
+
+```typescript
+// v2
+import {
+  FormControl,
+  FormLabel,
+  FormErrorMessage,
+  Input,
+} from "@chakra-ui/react";
+
+<FormControl isInvalid={!!errors.title} isRequired>
+  <FormLabel>タイトル</FormLabel>
+  <Input
+    value={formData.title}
+    onChange={handleChange}
+    placeholder="タイトルを入力"
+  />
+  <FormErrorMessage>{errors.title}</FormErrorMessage>
+</FormControl>
+
+// v3
+import {
+  FieldRoot,
+  FieldLabel,
+  FieldErrorText,
+  Input,
+} from "@chakra-ui/react";
+
+<FieldRoot invalid={!!errors.title} required>
+  <FieldLabel>タイトル</FieldLabel>
+  <Input
+    value={formData.title}
+    onChange={handleChange}
+    placeholder="タイトルを入力"
+  />
+  <FieldErrorText>{errors.title}</FieldErrorText>
+</FieldRoot>
+```
+
+**変更点**:
+- `FormControl` → `FieldRoot`
+- `FormLabel` → `FieldLabel`
+- `FormErrorMessage` → `FieldErrorText`
+- `isInvalid` → `invalid`
+- `isRequired` → `required`
 
 ## テスト対応
 
@@ -384,6 +529,39 @@ expect(screen.getByText("ユニークなテキスト")).toBeInTheDocument();
 // 複数要素が存在する場合
 const elements = screen.getAllByText(/共通のパターン/);
 expect(elements.length).toBeGreaterThan(0);
+```
+
+#### カスタムテキストマッチャーの活用
+
+テキストが複数の要素に分割されている場合や、特定の条件でマッチングしたい場合は、カスタムマッチャー関数を使用します。
+
+```typescript
+// テキストの開始部分でマッチング
+const createdDates = screen.getAllByText((content, element) =>
+  content.startsWith("作成日:") && element?.tagName.toLowerCase() === "p"
+);
+expect(createdDates.length).toBeGreaterThan(0);
+
+// 正規表現でマッチング（複数要素対応）
+const lastFetchDates = screen.getAllByText((content, element) =>
+  content.startsWith("最終取得:") && element?.tagName.toLowerCase() === "p"
+);
+expect(lastFetchDates.length).toBeGreaterThan(0);
+```
+
+#### 役割（role）ベースのクエリ
+
+UI構造の変更に強いテストを書くには、role属性を活用します。
+
+```typescript
+// ボタンを探す（テキストの完全一致ではなく正規表現を使用）
+const addButton = screen.getByRole("button", {
+  name: /フィードを追加/,
+});
+await user.click(addButton);
+
+// モーダル/ダイアログが開いたことを確認
+expect(screen.getByRole("dialog")).toBeInTheDocument();
 ```
 
 ### 4. Skeleton コンポーネント
@@ -445,10 +623,24 @@ npm test 2>&1 | grep -E "Test Files.*failed.*passed|Tests.*failed.*passed"
 - **修正完了コンポーネント**:
   - ArticleDetail.tsx
   - ArticleList.tsx
-  - FeedList.tsx
+  - FeedList.tsx（18テスト全通過）
+  - FeedEditForm.tsx（完全移行完了）
   - KeywordList.tsx（完了）
   - ArticleStatusBadge.tsx
   - ArticleActionButtons.tsx
+
+#### 最新の移行作業（FeedList.tsx + FeedEditForm.tsx）
+
+**修正内容**:
+1. **Modal → Dialog**: 完全な構造変更（Portal、Positioner含む）
+2. **Tooltip**: カスタムコンポーネント作成（`src/compositions/ui/tooltip.tsx`）
+3. **FormControl → Field**: フォーム要素の完全移行
+4. **Switch**: 構造化APIへの対応（HiddenInput、Control必須）
+5. **Button/IconButton**: アイコンを子要素として配置、`colorPalette`へ変更
+6. **useDisclosure → useState**: シンプルな状態管理への移行
+7. **テスト修正**: カスタムマッチャーと複数要素対応
+
+**成果**: FeedList関連の18個のテストすべてが通過
 
 ### 主要な修正パターン
 
@@ -516,3 +708,19 @@ npm test 2>&1 | grep -E "Test Files.*failed.*passed|Tests.*failed.*passed"
    - `mcp__chakra-ui__get_component_example`で最新のAPIを確認
    - `mcp__chakra-ui__v2_to_v3_code_review`で移行パターンを確認
    - 公式ドキュメントだけでなく、実際のコード例を参照する
+
+10. **Dialog（Modal）の構造**
+    - `Portal` → `DialogBackdrop` → `DialogPositioner` → `DialogContent`の階層が必須
+    - `DialogHeader`の中に`DialogTitle`を配置する
+    - `DialogPositioner`を忘れるとレイアウトが崩れる
+
+11. **Tooltipのカスタムコンポーネント化**
+    - v3のTooltip APIは冗長なため、カスタムコンポーネントの作成を推奨
+    - `src/compositions/ui/`ディレクトリに再利用可能なコンポーネントを配置
+    - v2のような`content`プロパティを提供するラッパーを作成
+
+12. **テスト修正のベストプラクティス**
+    - 重複するテキストには`getAllByText`を使用
+    - カスタムマッチャー関数で柔軟なマッチングを実現
+    - `getByRole`を活用してUI構造の変更に強いテストを書く
+    - 正規表現を使ってテキストの部分一致を許容する
