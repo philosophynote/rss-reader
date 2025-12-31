@@ -131,7 +131,6 @@ export function ArticleActionButtons({
             colorPalette={article.is_read ? "gray" : "blue"}
             onClick={handleToggleRead}
             loading={toggleRead.isPending}
-            className={`chakra-button--size-${size} chakra-button--variant-${variant}`}
           >
             {article.is_read ? <FiEyeOff /> : <FiEye />}
           </IconButton>
@@ -155,7 +154,6 @@ export function ArticleActionButtons({
             colorPalette={article.is_saved ? "orange" : "gray"}
             onClick={handleToggleSave}
             loading={toggleSave.isPending}
-            className={`chakra-button--size-${size} chakra-button--variant-${variant}`}
           >
             {article.is_saved ? <FiBookOpen /> : <FiBookmark />}
           </IconButton>
@@ -177,7 +175,6 @@ export function ArticleActionButtons({
             size={size}
             variant={variant}
             onClick={handleOpenExternal}
-            className={`chakra-button--size-${size} chakra-button--variant-${variant}`}
           >
             <FiExternalLink />
           </IconButton>

@@ -23,20 +23,20 @@ export function ArticleSortControls({
 
       <ButtonGroup size="sm" isAttached variant="outline">
         <Button
-          leftIcon={<Icon as={FiClock} />}
           colorScheme={sortBy === "published_at" ? "blue" : "gray"}
           variant={sortBy === "published_at" ? "solid" : "outline"}
           onClick={() => onSortChange("published_at")}
         >
+          <Icon as={FiClock} />
           時系列順
         </Button>
 
         <Button
-          leftIcon={<Icon as={FiTrendingUp} />}
           colorScheme={sortBy === "importance_score" ? "blue" : "gray"}
           variant={sortBy === "importance_score" ? "solid" : "outline"}
           onClick={() => onSortChange("importance_score")}
         >
+          <Icon as={FiTrendingUp} />
           重要度順
         </Button>
       </ButtonGroup>

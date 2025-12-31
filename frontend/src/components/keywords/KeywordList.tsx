@@ -8,10 +8,8 @@ import {
   Button,
   IconButton,
   Card,
-  CardBody,
   Skeleton,
   Alert,
-  AlertIcon,
   useDisclosure,
   Modal,
   ModalOverlay,
@@ -201,7 +199,7 @@ export function KeywordList() {
     return (
       <VStack spacing={4} align="stretch">
         {[...Array(3)].map((_, i) => (
-          <Skeleton key={i} height="100px" borderRadius="md" />
+          <Skeleton key={i} height="100px" borderRadius="md" data-testid="skeleton" />
         ))}
       </VStack>
     );
@@ -209,14 +207,16 @@ export function KeywordList() {
 
   if (error) {
     return (
-      <Alert status="error">
-        <AlertIcon />
-        {error instanceof ApiAuthError
-          ? "認証エラー: API Keyを確認してください"
-          : error instanceof ApiError
-          ? error.message
-          : "キーワード一覧の取得に失敗しました"}
-      </Alert>
+      <Alert.Root status="error">
+        <Alert.Indicator />
+        <Alert.Content>
+          {error instanceof ApiAuthError
+            ? "認証エラー: API Keyを確認してください"
+            : error instanceof ApiError
+            ? error.message
+            : "キーワード一覧の取得に失敗しました"}
+        </Alert.Content>
+      </Alert.Root>
     );
   }
 
@@ -277,8 +277,8 @@ export function KeywordList() {
 
           <VStack spacing={3} align="stretch">
             {activeKeywords.map((keyword) => (
-              <Card key={keyword.keyword_id} variant="outline">
-                <CardBody>
+              <Card.Root key={keyword.keyword_id} variant="outline">
+                <Card.Body>
                   <VStack spacing={3} align="stretch">
                     <HStack>
                       <VStack align="start" spacing={1} flex={1}>
@@ -329,8 +329,8 @@ export function KeywordList() {
                       </HStack>
                     </HStack>
                   </VStack>
-                </CardBody>
-              </Card>
+                </Card.Body>
+              </Card.Root>
             ))}
           </VStack>
         </Box>
@@ -345,8 +345,8 @@ export function KeywordList() {
 
           <VStack spacing={3} align="stretch">
             {inactiveKeywords.map((keyword) => (
-              <Card key={keyword.keyword_id} variant="outline" opacity={0.6}>
-                <CardBody>
+              <Card.Root key={keyword.keyword_id} variant="outline" opacity={0.6}>
+                <Card.Body>
                   <VStack spacing={3} align="stretch">
                     <HStack>
                       <VStack align="start" spacing={1} flex={1}>
@@ -401,8 +401,8 @@ export function KeywordList() {
                       </HStack>
                     </HStack>
                   </VStack>
-                </CardBody>
-              </Card>
+                </Card.Body>
+              </Card.Root>
             ))}
           </VStack>
         </Box>

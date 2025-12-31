@@ -13,7 +13,6 @@ import {
   VStack,
   Skeleton,
   Alert,
-  AlertIcon,
   Link,
   Flex,
   Spacer,
@@ -177,7 +176,7 @@ export function ArticleList({ onArticleClick }: ArticleListProps) {
     return (
       <VStack spacing={4} align="stretch">
         {[...Array(5)].map((_, i) => (
-          <Skeleton key={i} height="60px" borderRadius="md" />
+          <Skeleton key={i} height="60px" borderRadius="md" data-testid="skeleton" />
         ))}
       </VStack>
     );
@@ -185,14 +184,16 @@ export function ArticleList({ onArticleClick }: ArticleListProps) {
 
   if (error) {
     return (
-      <Alert status="error">
-        <AlertIcon />
-        {error instanceof ApiAuthError
-          ? "認証エラー: API Keyを確認してください"
-          : error instanceof ApiError
-          ? error.message
-          : "記事一覧の取得に失敗しました"}
-      </Alert>
+      <Alert.Root status="error">
+        <Alert.Indicator />
+        <Alert.Content>
+          {error instanceof ApiAuthError
+            ? "認証エラー: API Keyを確認してください"
+            : error instanceof ApiError
+            ? error.message
+            : "記事一覧の取得に失敗しました"}
+        </Alert.Content>
+      </Alert.Root>
     );
   }
 

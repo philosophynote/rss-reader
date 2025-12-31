@@ -66,12 +66,12 @@ export function ArticleFilterControls({
         {filterOptions.map((option) => (
           <Button
             key={option.value || "all"}
-            leftIcon={<Icon as={option.icon} />}
             colorScheme={filterBy === option.value ? "blue" : "gray"}
             variant={filterBy === option.value ? "solid" : "outline"}
             onClick={() => onFilterChange(option.value)}
           >
             <HStack spacing={2}>
+              <Icon as={option.icon} />
               <Text>{option.label}</Text>
               {option.count !== undefined && (
                 <Badge

@@ -8,10 +8,8 @@ import {
   Button,
   IconButton,
   Card,
-  CardBody,
   Skeleton,
   Alert,
-  AlertIcon,
   useDisclosure,
   Modal,
   ModalOverlay,
@@ -136,7 +134,7 @@ export function FeedList() {
     return (
       <VStack spacing={4} align="stretch">
         {[...Array(3)].map((_, i) => (
-          <Skeleton key={i} height="120px" borderRadius="md" />
+          <Skeleton key={i} height="120px" borderRadius="md" data-testid="skeleton" />
         ))}
       </VStack>
     );
@@ -144,14 +142,16 @@ export function FeedList() {
 
   if (error) {
     return (
-      <Alert status="error">
-        <AlertIcon />
-        {error instanceof ApiAuthError
-          ? "認証エラー: API Keyを確認してください"
-          : error instanceof ApiError
-          ? error.message
-          : "フィード一覧の取得に失敗しました"}
-      </Alert>
+      <Alert.Root status="error">
+        <Alert.Indicator />
+        <Alert.Content>
+          {error instanceof ApiAuthError
+            ? "認証エラー: API Keyを確認してください"
+            : error instanceof ApiError
+            ? error.message
+            : "フィード一覧の取得に失敗しました"}
+        </Alert.Content>
+      </Alert.Root>
     );
   }
 
@@ -198,8 +198,8 @@ export function FeedList() {
 
           <VStack spacing={3} align="stretch">
             {folderFeeds.map((feed) => (
-              <Card key={feed.feed_id} variant="outline">
-                <CardBody>
+              <Card.Root key={feed.feed_id} variant="outline">
+                <Card.Body>
                   <VStack spacing={3} align="stretch">
                     <HStack>
                       <VStack align="start" spacing={1} flex={1}>
@@ -270,8 +270,8 @@ export function FeedList() {
                       )}
                     </HStack>
                   </VStack>
-                </CardBody>
-              </Card>
+                </Card.Body>
+              </Card.Root>
             ))}
           </VStack>
         </Box>
