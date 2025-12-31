@@ -1,5 +1,11 @@
 import React from "react";
-import { HStack, IconButton, Tooltip, useToast } from "@chakra-ui/react";
+import {
+  HStack,
+  IconButton,
+  Portal,
+  createToaster,
+} from "@chakra-ui/react";
+import { Tooltip } from "@chakra-ui/react";
 import {
   FiEye,
   FiEyeOff,
@@ -10,6 +16,12 @@ import {
 import { useToggleArticleRead, useToggleArticleSave } from "../../hooks";
 import { ApiAuthError, ApiError } from "../../api";
 import type { Article } from "../../api";
+
+// toasterを作成
+const toaster = createToaster({
+  placement: "top",
+  duration: 3000,
+});
 
 interface ArticleActionButtonsProps {
   article: Article;
@@ -31,7 +43,6 @@ export function ArticleActionButtons({
 }: ArticleActionButtonsProps) {
   const toggleRead = useToggleArticleRead();
   const toggleSave = useToggleArticleSave();
-  const toast = useToast();
 
   const handleToggleRead = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -44,11 +55,10 @@ export function ArticleActionButtons({
 
       onReadToggle?.(article);
 
-      toast({
+      toaster.create({
         title: article.is_read ? "未読にしました" : "既読にしました",
-        status: "success",
+        type: "success",
         duration: 2000,
-        isClosable: true,
       });
     } catch (error) {
       console.error("既読状態更新エラー:", error);
@@ -60,12 +70,11 @@ export function ArticleActionButtons({
         errorMessage = error.message;
       }
 
-      toast({
+      toaster.create({
         title: "エラー",
         description: errorMessage,
-        status: "error",
+        type: "error",
         duration: 5000,
-        isClosable: true,
       });
     }
   };
@@ -81,11 +90,10 @@ export function ArticleActionButtons({
 
       onSaveToggle?.(article);
 
-      toast({
+      toaster.create({
         title: article.is_saved ? "保存を解除しました" : "保存しました",
-        status: "success",
+        type: "success",
         duration: 2000,
-        isClosable: true,
       });
     } catch (error) {
       console.error("保存状態更新エラー:", error);
@@ -97,12 +105,11 @@ export function ArticleActionButtons({
         errorMessage = error.message;
       }
 
-      toast({
+      toaster.create({
         title: "エラー",
         description: errorMessage,
-        status: "error",
+        type: "error",
         duration: 5000,
-        isClosable: true,
       });
     }
   };
@@ -113,43 +120,71 @@ export function ArticleActionButtons({
   };
 
   return (
-    <HStack spacing={1}>
+    <HStack gap={1}>
       {/* 既読/未読切り替え */}
-      <Tooltip label={article.is_read ? "未読にする" : "既読にする"}>
-        <IconButton
-          aria-label={article.is_read ? "未読にする" : "既読にする"}
-          icon={article.is_read ? <FiEyeOff /> : <FiEye />}
-          size={size}
-          variant={variant}
-          colorScheme={article.is_read ? "gray" : "blue"}
-          onClick={handleToggleRead}
-          isLoading={toggleRead.isPending}
-        />
-      </Tooltip>
+      <Tooltip.Root positioning={{ placement: "top" }}>
+        <Tooltip.Trigger asChild>
+          <IconButton
+            aria-label={article.is_read ? "未読にする" : "既読にする"}
+            size={size}
+            variant={variant}
+            colorPalette={article.is_read ? "gray" : "blue"}
+            onClick={handleToggleRead}
+            loading={toggleRead.isPending}
+          >
+            {article.is_read ? <FiEyeOff /> : <FiEye />}
+          </IconButton>
+        </Tooltip.Trigger>
+        <Portal>
+          <Tooltip.Positioner>
+            <Tooltip.Content>
+              {article.is_read ? "未読にする" : "既読にする"}
+            </Tooltip.Content>
+          </Tooltip.Positioner>
+        </Portal>
+      </Tooltip.Root>
 
       {/* 保存/解除切り替え */}
-      <Tooltip label={article.is_saved ? "保存を解除" : "保存する"}>
-        <IconButton
-          aria-label={article.is_saved ? "保存を解除" : "保存する"}
-          icon={article.is_saved ? <FiBookOpen /> : <FiBookmark />}
-          size={size}
-          variant={variant}
-          colorScheme={article.is_saved ? "orange" : "gray"}
-          onClick={handleToggleSave}
-          isLoading={toggleSave.isPending}
-        />
-      </Tooltip>
+      <Tooltip.Root positioning={{ placement: "top" }}>
+        <Tooltip.Trigger asChild>
+          <IconButton
+            aria-label={article.is_saved ? "保存を解除" : "保存する"}
+            size={size}
+            variant={variant}
+            colorPalette={article.is_saved ? "orange" : "gray"}
+            onClick={handleToggleSave}
+            loading={toggleSave.isPending}
+          >
+            {article.is_saved ? <FiBookOpen /> : <FiBookmark />}
+          </IconButton>
+        </Tooltip.Trigger>
+        <Portal>
+          <Tooltip.Positioner>
+            <Tooltip.Content>
+              {article.is_saved ? "保存を解除" : "保存する"}
+            </Tooltip.Content>
+          </Tooltip.Positioner>
+        </Portal>
+      </Tooltip.Root>
 
       {/* 外部リンクで開く */}
-      <Tooltip label="元記事を開く">
-        <IconButton
-          aria-label="元記事を開く"
-          icon={<FiExternalLink />}
-          size={size}
-          variant={variant}
-          onClick={handleOpenExternal}
-        />
-      </Tooltip>
+      <Tooltip.Root positioning={{ placement: "top" }}>
+        <Tooltip.Trigger asChild>
+          <IconButton
+            aria-label="元記事を開く"
+            size={size}
+            variant={variant}
+            onClick={handleOpenExternal}
+          >
+            <FiExternalLink />
+          </IconButton>
+        </Tooltip.Trigger>
+        <Portal>
+          <Tooltip.Positioner>
+            <Tooltip.Content>元記事を開く</Tooltip.Content>
+          </Tooltip.Positioner>
+        </Portal>
+      </Tooltip.Root>
     </HStack>
   );
 }
