@@ -7,9 +7,12 @@ import {
   Badge,
   Button,
   IconButton,
-  Card,
+  CardRoot,
+  CardBody,
   Skeleton,
-  Alert,
+  AlertRoot,
+  AlertIndicator,
+  AlertContent,
   useDisclosure,
   Modal,
   ModalOverlay,
@@ -142,16 +145,16 @@ export function FeedList() {
 
   if (error) {
     return (
-      <Alert.Root status="error">
-        <Alert.Indicator />
-        <Alert.Content>
+      <AlertRoot status="error">
+        <AlertIndicator />
+        <AlertContent>
           {error instanceof ApiAuthError
             ? "認証エラー: API Keyを確認してください"
             : error instanceof ApiError
             ? error.message
             : "フィード一覧の取得に失敗しました"}
-        </Alert.Content>
-      </Alert.Root>
+        </AlertContent>
+      </AlertRoot>
     );
   }
 
@@ -198,8 +201,8 @@ export function FeedList() {
 
           <VStack spacing={3} align="stretch">
             {folderFeeds.map((feed) => (
-              <Card.Root key={feed.feed_id} variant="outline">
-                <Card.Body>
+              <CardRoot key={feed.feed_id} variant="outline">
+                <CardBody>
                   <VStack spacing={3} align="stretch">
                     <HStack>
                       <VStack align="start" spacing={1} flex={1}>
@@ -270,8 +273,8 @@ export function FeedList() {
                       )}
                     </HStack>
                   </VStack>
-                </Card.Body>
-              </Card.Root>
+                </CardBody>
+              </CardRoot>
             ))}
           </VStack>
         </Box>

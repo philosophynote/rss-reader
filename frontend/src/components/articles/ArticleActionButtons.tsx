@@ -2,7 +2,6 @@ import React from "react";
 import {
   HStack,
   IconButton,
-  Portal,
   createToaster,
 } from "@chakra-ui/react";
 import { Tooltip } from "@chakra-ui/react";
@@ -135,13 +134,11 @@ export function ArticleActionButtons({
             {article.is_read ? <FiEyeOff /> : <FiEye />}
           </IconButton>
         </Tooltip.Trigger>
-        <Portal>
-          <Tooltip.Positioner>
-            <Tooltip.Content>
-              {article.is_read ? "未読にする" : "既読にする"}
-            </Tooltip.Content>
-          </Tooltip.Positioner>
-        </Portal>
+        <Tooltip.Positioner>
+          <Tooltip.Content>
+            {article.is_read ? "未読にする" : "既読にする"}
+          </Tooltip.Content>
+        </Tooltip.Positioner>
       </Tooltip.Root>
 
       {/* 保存/解除切り替え */}
@@ -158,13 +155,11 @@ export function ArticleActionButtons({
             {article.is_saved ? <FiBookOpen /> : <FiBookmark />}
           </IconButton>
         </Tooltip.Trigger>
-        <Portal>
-          <Tooltip.Positioner>
-            <Tooltip.Content>
-              {article.is_saved ? "保存を解除" : "保存する"}
-            </Tooltip.Content>
-          </Tooltip.Positioner>
-        </Portal>
+        <Tooltip.Positioner>
+          <Tooltip.Content>
+            {article.is_saved ? "保存を解除" : "保存する"}
+          </Tooltip.Content>
+        </Tooltip.Positioner>
       </Tooltip.Root>
 
       {/* 外部リンクで開く */}
@@ -179,11 +174,9 @@ export function ArticleActionButtons({
             <FiExternalLink />
           </IconButton>
         </Tooltip.Trigger>
-        <Portal>
-          <Tooltip.Positioner>
-            <Tooltip.Content>元記事を開く</Tooltip.Content>
-          </Tooltip.Positioner>
-        </Portal>
+        <Tooltip.Positioner>
+          <Tooltip.Content>元記事を開く</Tooltip.Content>
+        </Tooltip.Positioner>
       </Tooltip.Root>
     </HStack>
   );

@@ -26,6 +26,7 @@ export function ArticleSortControls({
           colorScheme={sortBy === "published_at" ? "blue" : "gray"}
           variant={sortBy === "published_at" ? "solid" : "outline"}
           onClick={() => onSortChange("published_at")}
+          className={`chakra-button--size-sm chakra-button--variant-${sortBy === "published_at" ? "solid" : "outline"}`}
         >
           <Icon as={FiClock} />
           時系列順
@@ -35,6 +36,7 @@ export function ArticleSortControls({
           colorScheme={sortBy === "importance_score" ? "blue" : "gray"}
           variant={sortBy === "importance_score" ? "solid" : "outline"}
           onClick={() => onSortChange("importance_score")}
+          className={`chakra-button--size-sm chakra-button--variant-${sortBy === "importance_score" ? "solid" : "outline"}`}
         >
           <Icon as={FiTrendingUp} />
           重要度順

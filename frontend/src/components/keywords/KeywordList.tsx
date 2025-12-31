@@ -7,9 +7,12 @@ import {
   Badge,
   Button,
   IconButton,
-  Card,
+  CardRoot,
+  CardBody,
   Skeleton,
-  Alert,
+  AlertRoot,
+  AlertIndicator,
+  AlertContent,
   useDisclosure,
   Modal,
   ModalOverlay,
@@ -207,16 +210,16 @@ export function KeywordList() {
 
   if (error) {
     return (
-      <Alert.Root status="error">
-        <Alert.Indicator />
-        <Alert.Content>
+      <AlertRoot status="error">
+        <AlertIndicator />
+        <AlertContent>
           {error instanceof ApiAuthError
             ? "認証エラー: API Keyを確認してください"
             : error instanceof ApiError
             ? error.message
             : "キーワード一覧の取得に失敗しました"}
-        </Alert.Content>
-      </Alert.Root>
+        </AlertContent>
+      </AlertRoot>
     );
   }
 
@@ -277,8 +280,8 @@ export function KeywordList() {
 
           <VStack spacing={3} align="stretch">
             {activeKeywords.map((keyword) => (
-              <Card.Root key={keyword.keyword_id} variant="outline">
-                <Card.Body>
+              <CardRoot key={keyword.keyword_id} variant="outline">
+                <CardBody>
                   <VStack spacing={3} align="stretch">
                     <HStack>
                       <VStack align="start" spacing={1} flex={1}>
@@ -329,8 +332,8 @@ export function KeywordList() {
                       </HStack>
                     </HStack>
                   </VStack>
-                </Card.Body>
-              </Card.Root>
+                </CardBody>
+              </CardRoot>
             ))}
           </VStack>
         </Box>
@@ -345,8 +348,8 @@ export function KeywordList() {
 
           <VStack spacing={3} align="stretch">
             {inactiveKeywords.map((keyword) => (
-              <Card.Root key={keyword.keyword_id} variant="outline" opacity={0.6}>
-                <Card.Body>
+              <CardRoot key={keyword.keyword_id} variant="outline" opacity={0.6}>
+                <CardBody>
                   <VStack spacing={3} align="stretch">
                     <HStack>
                       <VStack align="start" spacing={1} flex={1}>
@@ -401,8 +404,8 @@ export function KeywordList() {
                       </HStack>
                     </HStack>
                   </VStack>
-                </Card.Body>
-              </Card.Root>
+                </CardBody>
+              </CardRoot>
             ))}
           </VStack>
         </Box>

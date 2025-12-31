@@ -69,6 +69,7 @@ export function ArticleFilterControls({
             colorScheme={filterBy === option.value ? "blue" : "gray"}
             variant={filterBy === option.value ? "solid" : "outline"}
             onClick={() => onFilterChange(option.value)}
+            className={`chakra-button--size-sm chakra-button--variant-${filterBy === option.value ? "solid" : "outline"}`}
           >
             <HStack spacing={2}>
               <Icon as={option.icon} />

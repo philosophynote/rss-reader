@@ -1,18 +1,20 @@
 import React, { useMemo, useState } from "react";
 import {
   Box,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
+  TableRoot,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableColumnHeader,
+  TableCell,
   Text,
   Button,
   HStack,
   VStack,
   Skeleton,
-  Alert,
+  AlertRoot,
+  AlertIndicator,
+  AlertContent,
   Link,
   Flex,
   Spacer,
@@ -184,16 +186,16 @@ export function ArticleList({ onArticleClick }: ArticleListProps) {
 
   if (error) {
     return (
-      <Alert.Root status="error">
-        <Alert.Indicator />
-        <Alert.Content>
+      <AlertRoot status="error">
+        <AlertIndicator />
+        <AlertContent>
           {error instanceof ApiAuthError
             ? "認証エラー: API Keyを確認してください"
             : error instanceof ApiError
             ? error.message
             : "記事一覧の取得に失敗しました"}
-        </Alert.Content>
-      </Alert.Root>
+        </AlertContent>
+      </AlertRoot>
     );
   }
 
@@ -225,12 +227,12 @@ export function ArticleList({ onArticleClick }: ArticleListProps) {
       ) : (
         <Box>
           <Box overflowX="auto">
-            <Table variant="simple" bg="white">
-              <Thead>
+            <TableRoot variant="simple" bg="white">
+              <TableHeader>
                 {table.getHeaderGroups().map((headerGroup) => (
-                  <Tr key={headerGroup.id}>
+                  <TableRow key={headerGroup.id}>
                     {headerGroup.headers.map((header) => (
-                      <Th
+                      <TableColumnHeader
                         key={header.id}
                         cursor={
                           header.column.getCanSort() ? "pointer" : "default"
@@ -256,26 +258,26 @@ export function ArticleList({ onArticleClick }: ArticleListProps) {
                             </Text>
                           )}
                         </HStack>
-                      </Th>
+                      </TableColumnHeader>
                     ))}
-                  </Tr>
+                  </TableRow>
                 ))}
-              </Thead>
-              <Tbody>
+              </TableHeader>
+              <TableBody>
                 {table.getRowModel().rows.map((row) => (
-                  <Tr key={row.id} _hover={{ bg: "gray.50" }} cursor="pointer">
+                  <TableRow key={row.id} _hover={{ bg: "gray.50" }} cursor="pointer">
                     {row.getVisibleCells().map((cell) => (
-                      <Td key={cell.id} py={3}>
+                      <TableCell key={cell.id} py={3}>
                         {flexRender(
                           cell.column.columnDef.cell,
                           cell.getContext()
                         )}
-                      </Td>
+                      </TableCell>
                     ))}
-                  </Tr>
+                  </TableRow>
                 ))}
-              </Tbody>
-            </Table>
+              </TableBody>
+            </TableRoot>
           </Box>
 
           {articleData.last_evaluated_key && (

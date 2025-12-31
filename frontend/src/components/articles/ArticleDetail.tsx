@@ -6,10 +6,13 @@ import {
   Text,
   Heading,
   Link,
-  Divider,
-  Card,
+  Separator,
+  CardRoot,
+  CardBody,
   Skeleton,
-  Alert,
+  AlertRoot,
+  AlertIndicator,
+  AlertContent,
   Badge,
   Flex,
   Spacer,
@@ -70,16 +73,16 @@ export function ArticleDetail({ articleId, onClose }: ArticleDetailProps) {
 
   if (articleError || !article) {
     return (
-      <Alert.Root status="error" m={6}>
-        <Alert.Indicator />
-        <Alert.Content>
+      <AlertRoot status="error" m={6}>
+        <AlertIndicator />
+        <AlertContent>
           {articleError instanceof ApiAuthError
             ? "認証エラー: API Keyを確認してください"
             : articleError instanceof ApiError
             ? articleError.message
             : "記事の取得に失敗しました"}
-        </Alert.Content>
-      </Alert.Root>
+        </AlertContent>
+      </AlertRoot>
     );
   }
 
@@ -127,11 +130,11 @@ export function ArticleDetail({ articleId, onClose }: ArticleDetailProps) {
           </Link>
         </Box>
 
-        <Divider />
+        <Separator />
 
         {/* 記事内容 */}
-        <Card.Root variant="outline">
-          <Card.Body>
+        <CardRoot variant="outline">
+          <CardBody>
             <Box
               bg="white"
               p={4}
@@ -182,13 +185,13 @@ export function ArticleDetail({ articleId, onClose }: ArticleDetailProps) {
             >
               {article.content || "記事の内容がありません。"}
             </Box>
-          </Card.Body>
-        </Card.Root>
+          </CardBody>
+        </CardRoot>
 
         {/* 重要度理由 */}
         {reasons && reasons.length > 0 && (
-          <Card.Root variant="outline">
-            <Card.Body>
+          <CardRoot variant="outline">
+            <CardBody>
               <Heading size="md" mb={4}>
                 重要度の理由
               </Heading>
@@ -200,10 +203,10 @@ export function ArticleDetail({ articleId, onClose }: ArticleDetailProps) {
                   ))}
                 </VStack>
               ) : reasonsError ? (
-                <Alert.Root status="warning" size="sm">
-                  <Alert.Indicator />
-                  <Alert.Content>重要度理由の取得に失敗しました</Alert.Content>
-                </Alert.Root>
+                <AlertRoot status="warning" size="sm">
+                  <AlertIndicator />
+                  <AlertContent>重要度理由の取得に失敗しました</AlertContent>
+                </AlertRoot>
               ) : (
                 <VStack spacing={3} align="stretch">
                   {reasons.map((reason, index) => (
@@ -237,13 +240,13 @@ export function ArticleDetail({ articleId, onClose }: ArticleDetailProps) {
                   </Box>
                 </VStack>
               )}
-            </Card.Body>
-          </Card.Root>
+            </CardBody>
+          </CardRoot>
         )}
 
         {/* メタデータ */}
-        <Card.Root variant="outline">
-          <Card.Body>
+        <CardRoot variant="outline">
+          <CardBody>
             <Heading size="sm" mb={3}>
               記事情報
             </Heading>
@@ -267,8 +270,8 @@ export function ArticleDetail({ articleId, onClose }: ArticleDetailProps) {
                 </HStack>
               )}
             </VStack>
-          </Card.Body>
-        </Card.Root>
+          </CardBody>
+        </CardRoot>
       </VStack>
     </Box>
   );
