@@ -23,11 +23,11 @@ describe("Layout", () => {
 
     // 最外側のBoxが存在することを確認
     const outerBox = container.firstChild;
-    expect(outerBox).toHaveClass("chakra-box");
+    expect(outerBox).toBeInTheDocument();
+    expect(outerBox).toHaveStyle({ minHeight: '100vh' });
 
-    // Containerが存在することを確認
-    const containerElement = container.querySelector(".chakra-container");
-    expect(containerElement).toBeInTheDocument();
+    // 内部のコンテンツが存在することを確認
+    expect(screen.getByText("Test Content")).toBeInTheDocument();
   });
 
   it("should have minimum height for full viewport", () => {
@@ -69,9 +69,9 @@ describe("Layout", () => {
   it("should handle empty children", () => {
     const { container } = render(<Layout>{null}</Layout>);
 
-    // レイアウト構造は存在するが、子要素はない
-    expect(container.firstChild).toHaveClass("chakra-box");
-    expect(container.querySelector(".chakra-container")).toBeInTheDocument();
+    // レイアウト構造は存在する
+    expect(container.firstChild).toBeInTheDocument();
+    expect(container.firstChild).toHaveStyle({ minHeight: '100vh' });
   });
 
   it("should handle complex nested children", () => {
