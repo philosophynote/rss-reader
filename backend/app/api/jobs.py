@@ -77,7 +77,18 @@ async def run_cleanup_job() -> JobCleanupResponse:
             detail="CleanupService is not implemented",
         )
 
-    cleanup_service = cleanup_service_class()
-    cleanup_service.cleanup_old_articles()
-    cleanup_service.delete_read_articles()
+    try:
+        cleanup_service = cleanup_service_class()
+        await asyncio.to_thread(cleanup_service.cleanup_old_articles)
+        await asyncio.to_thread(cleanup_service.delete_read_articles)
+    except TypeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to instantiate CleanupService: {exc}",
+        ) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Cleanup operation failed: {exc}",
+        ) from exc
     return JobCleanupResponse(message="Cleanup completed")

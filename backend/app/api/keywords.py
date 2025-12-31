@@ -4,6 +4,8 @@
 キーワードの登録、取得、更新、削除、再計算を提供します。
 """
 
+from functools import lru_cache
+
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.schemas.keyword import (
@@ -24,9 +26,20 @@ router = APIRouter(
 )
 
 
+@lru_cache
+def get_importance_service() -> ImportanceScoreService:
+    """
+    ImportanceScoreServiceの依存性を提供
+
+    Returns:
+        ImportanceScoreService: シングルトンのサービス
+    """
+    return ImportanceScoreService()
+
+
 def get_keyword_service() -> KeywordService:
     """KeywordServiceの依存性を提供"""
-    importance_service = ImportanceScoreService()
+    importance_service = get_importance_service()
     return KeywordService(importance_score_service=importance_service)
 
 
