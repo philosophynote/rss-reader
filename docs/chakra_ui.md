@@ -79,6 +79,10 @@ isDisabled → disabled
 isOpen → open
 onClose → onOpenChange
 
+// useDisclosure
+isOpen → open
+// onOpen, onClose, onToggle は変更なし
+
 // Button
 leftIcon → 子要素として配置
 colorScheme → colorPalette
@@ -92,6 +96,9 @@ isLoading → loading
 
 // Badge
 colorScheme → colorPalette
+
+// Stack系（VStack, HStack, Stack）
+spacing → gap
 ```
 
 #### 実装例
@@ -118,6 +125,18 @@ colorScheme → colorPalette
 ```
 
 **重要**: `Switch.HiddenInput`はフォームの送信とアクセシビリティのために必須です。これがないと、スクリーンリーダーでの操作やフォーム送信が正しく動作しません。
+
+```typescript
+// useDisclosure: v2
+const { isOpen, onOpen, onClose } = useDisclosure();
+<Dialog.Root open={isOpen} onOpenChange={onClose}>
+
+// useDisclosure: v3
+const { open: isOpen, onOpen, onClose } = useDisclosure();
+<Dialog.Root open={isOpen} onOpenChange={({ open }) => !open && onClose()}>
+```
+
+**重要**: `useDisclosure` の戻り値が `isOpen` → `open` に変更されました。変数名を維持したい場合は `open: isOpen` のように明示的にリネームします。
 
 ```typescript
 // v2
@@ -151,7 +170,47 @@ colorScheme → colorPalette
 </IconButton>
 ```
 
-### 4. インポート方法の変更
+```typescript
+// Stack系の spacing: v2
+<VStack spacing={4} align="stretch">
+  <Box>Item 1</Box>
+  <Box>Item 2</Box>
+</VStack>
+
+<HStack spacing={2}>
+  <Button>Button 1</Button>
+  <Button>Button 2</Button>
+</HStack>
+
+// Stack系の gap: v3
+<VStack gap={4} align="stretch">
+  <Box>Item 1</Box>
+  <Box>Item 2</Box>
+</VStack>
+
+<HStack gap={2}>
+  <Button>Button 1</Button>
+  <Button>Button 2</Button>
+</HStack>
+```
+
+**重要**: `VStack`、`HStack`、`Stack` すべてで `spacing` → `gap` に変更されました。これはCSS標準の `gap` プロパティに合わせた変更です。
+
+### 4. React インポートの削除（React 17+）
+
+React 17以降、JSXの変換が自動化されたため、コンポーネントファイルで`React`をインポートする必要がなくなりました。
+
+```typescript
+// v2（またはReact 16以前）
+import React, { useState } from "react";
+
+// v3（React 17+推奨）
+import { useState } from "react";
+```
+
+**注意**: TypeScriptの型チェックで未使用インポートとして警告されるため、削除することを推奨します。
+
+### 5. インポート方法の変更
 
 v3 では名前空間化されたコンポーネントをインポートします。
 
@@ -186,7 +245,7 @@ import {
 </Switch.Root>
 ```
 
-### 5. Toast の変更
+### 6. Toast の変更
 
 ```typescript
 // v2
@@ -217,7 +276,7 @@ toaster.create({
 });
 ```
 
-### 6. Modal から Dialog への変更
+### 7. Modal から Dialog への変更
 
 ```typescript
 // v2
@@ -264,7 +323,7 @@ const { isOpen, onOpen, onClose } = useDisclosure();
 </Dialog.Root>
 ```
 
-### 7. Tooltip の変更
+### 8. Tooltip の変更
 
 ```typescript
 // v2
@@ -400,6 +459,9 @@ npm test 2>&1 | grep -E "Test Files.*failed.*passed|Tests.*failed.*passed"
 5. **Divider コンポーネント**: `Divider` → `Separator`
 6. **Switch コンポーネント**: `Switch` → `Switch.Root + Switch.HiddenInput + Switch.Control + Switch.Thumb`
 7. **Button/IconButton**: `leftIcon`/`icon` プロパティ → 子要素として配置、`colorScheme` → `colorPalette`
+8. **Stack系コンポーネント**: `spacing` → `gap` プロパティ
+9. **useDisclosure**: `isOpen` → `open` プロパティ
+10. **React インポート**: `import React` → 削除（React 17+では不要）
 
 ## 参考資料
 
@@ -435,7 +497,22 @@ npm test 2>&1 | grep -E "Test Files.*failed.*passed|Tests.*failed.*passed"
    - Switch のroleが`"switch"`から`"checkbox"`に変更
    - テストコードでの期待値を更新する必要がある
 
-6. **MCPツールの活用**
+6. **Stack系の spacing → gap**
+   - `VStack`、`HStack`、`Stack`すべてで変更が必要
+   - CSS標準の`gap`プロパティに統一された
+   - 一括置換で修正可能（`spacing={` → `gap={`）
+
+7. **useDisclosure の open プロパティ**
+   - `isOpen` → `open` に変更
+   - 変数名を維持したい場合は `const { open: isOpen } = useDisclosure()` のようにリネーム
+   - Dialog/Drawer/Modal など、すべての開閉状態管理で影響を受ける
+
+8. **React インポートの削除**
+   - React 17以降では`import React`が不要
+   - TypeScript型チェックで未使用警告が出るため削除推奨
+   - `useState`、`useEffect`などのフック使用時は個別にインポート
+
+9. **MCPツールの活用**
    - `mcp__chakra-ui__get_component_example`で最新のAPIを確認
    - `mcp__chakra-ui__v2_to_v3_code_review`で移行パターンを確認
    - 公式ドキュメントだけでなく、実際のコード例を参照する
