@@ -38,12 +38,10 @@ describe("FeedForm", () => {
   });
 
   it("should show validation error for empty URL", async () => {
-    const user = userEvent.setup();
+    const { container } = render(<FeedForm />);
 
-    render(<FeedForm />);
-
-    const submitButton = screen.getByRole("button", { name: "フィードを追加" });
-    await user.click(submitButton);
+    const form = container.querySelector("form")!;
+    fireEvent.submit(form);
 
     await waitFor(() => {
       expect(screen.getByText("フィードURLは必須です")).toBeInTheDocument();
@@ -54,13 +52,13 @@ describe("FeedForm", () => {
   it("should show validation error for invalid URL", async () => {
     const user = userEvent.setup();
 
-    render(<FeedForm />);
+    const { container } = render(<FeedForm />);
 
     const urlInput = screen.getByLabelText("フィードURL");
     await user.type(urlInput, "invalid-url");
 
-    const submitButton = screen.getByRole("button", { name: "フィードを追加" });
-    await user.click(submitButton);
+    const form = container.querySelector("form")!;
+    fireEvent.submit(form);
 
     await waitFor(() => {
       expect(
@@ -154,11 +152,11 @@ describe("FeedForm", () => {
   it("should clear validation errors when user types", async () => {
     const user = userEvent.setup();
 
-    render(<FeedForm />);
+    const { container } = render(<FeedForm />);
 
     // まずエラーを表示させる
-    const submitButton = screen.getByRole("button", { name: "フィードを追加" });
-    await user.click(submitButton);
+    const form = container.querySelector("form")!;
+    fireEvent.submit(form);
 
     await waitFor(() => {
       expect(screen.getByText("フィードURLは必須です")).toBeInTheDocument();

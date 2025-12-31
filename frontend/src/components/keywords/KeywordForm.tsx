@@ -144,11 +144,16 @@ export function KeywordForm({ onSuccess, onCancel }: KeywordFormProps) {
         {createKeyword.error && (
           <Alert.Root status="error">
             <Alert.Indicator />
-            {createKeyword.error instanceof ApiAuthError
-              ? "認証エラー: API Keyを確認してください"
-              : createKeyword.error instanceof ApiError
-              ? createKeyword.error.message
-              : "キーワードの追加に失敗しました"}
+            <Alert.Content>
+              <Alert.Title>エラー</Alert.Title>
+              <Alert.Description>
+                {createKeyword.error instanceof ApiAuthError
+                  ? "認証エラー: API Keyを確認してください"
+                  : createKeyword.error instanceof ApiError
+                  ? createKeyword.error.message
+                  : "キーワードの追加に失敗しました"}
+              </Alert.Description>
+            </Alert.Content>
           </Alert.Root>
         )}
 

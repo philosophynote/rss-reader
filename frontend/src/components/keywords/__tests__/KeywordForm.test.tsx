@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { screen, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { render } from "../../../test/test-utils";
 import { KeywordForm } from "../KeywordForm";
@@ -38,14 +38,10 @@ describe("KeywordForm", () => {
   });
 
   it("should show validation error for empty keyword", async () => {
-    const user = userEvent.setup();
+    const { container } = render(<KeywordForm />);
 
-    render(<KeywordForm />);
-
-    const submitButton = screen.getByRole("button", {
-      name: "キーワードを追加",
-    });
-    await user.click(submitButton);
+    const form = container.querySelector("form")!;
+    fireEvent.submit(form);
 
     // Field.ErrorTextが表示されるかを確認
     await waitFor(() => {
@@ -112,8 +108,10 @@ describe("KeywordForm", () => {
 
     await user.clear(keywordInput);
     await user.type(keywordInput, "Python");
-    await user.clear(weightInput);
-    await user.type(weightInput, "1.5");
+
+    // NumberInputの場合は全選択してから入力
+    await user.tripleClick(weightInput);
+    await user.keyboard("1.5");
 
     const submitButton = screen.getByRole("button", {
       name: "キーワードを追加",
@@ -166,8 +164,10 @@ describe("KeywordForm", () => {
     const weightInput = screen.getByRole("spinbutton");
 
     await user.type(keywordInput, "Python");
-    await user.clear(weightInput);
-    await user.type(weightInput, "0.05");
+
+    // NumberInputの場合は全選択してから入力
+    await user.tripleClick(weightInput);
+    await user.keyboard("0.05");
 
     const submitButton = screen.getByRole("button", {
       name: "キーワードを追加",
@@ -191,8 +191,10 @@ describe("KeywordForm", () => {
     const weightInput = screen.getByRole("spinbutton");
 
     await user.type(keywordInput, "Python");
-    await user.clear(weightInput);
-    await user.type(weightInput, "15.0");
+
+    // NumberInputの場合は全選択してから入力
+    await user.tripleClick(weightInput);
+    await user.keyboard("15.0");
 
     const submitButton = screen.getByRole("button", {
       name: "キーワードを追加",
@@ -237,14 +239,11 @@ describe("KeywordForm", () => {
 
   it("should clear validation errors when user types", async () => {
     const user = userEvent.setup();
-
-    render(<KeywordForm />);
+    const { container } = render(<KeywordForm />);
 
     // まずエラーを表示させる
-    const submitButton = screen.getByRole("button", {
-      name: "キーワードを追加",
-    });
-    await user.click(submitButton);
+    const form = container.querySelector("form")!;
+    fireEvent.submit(form);
 
     await waitFor(() => {
       expect(screen.getByText("キーワードは必須です")).toBeInTheDocument();

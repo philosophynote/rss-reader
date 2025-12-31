@@ -110,8 +110,8 @@ describe("useFeeds", () => {
     );
 
     expect(result.current.error).toEqual(apiError);
-    // API エラーの場合は最大3回リトライするが、テスト環境では無効化されている
-    expect(mockedFeedsApi.getFeeds).toHaveBeenCalledTimes(1);
+    // API エラーの場合は最大3回リトライする（初回 + 3回リトライ = 4回）
+    expect(mockedFeedsApi.getFeeds).toHaveBeenCalledTimes(4);
   });
 });
 

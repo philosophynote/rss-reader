@@ -119,11 +119,16 @@ export function FeedForm({ onSuccess, onCancel }: FeedFormProps) {
         {createFeed.error && (
           <Alert.Root status="error">
             <Alert.Indicator />
-            {createFeed.error instanceof ApiAuthError
-              ? "認証エラー: API Keyを確認してください"
-              : createFeed.error instanceof ApiError
-              ? createFeed.error.message
-              : "フィードの追加に失敗しました"}
+            <Alert.Content>
+              <Alert.Title>エラー</Alert.Title>
+              <Alert.Description>
+                {createFeed.error instanceof ApiAuthError
+                  ? "認証エラー: API Keyを確認してください"
+                  : createFeed.error instanceof ApiError
+                  ? createFeed.error.message
+                  : "フィードの追加に失敗しました"}
+              </Alert.Description>
+            </Alert.Content>
           </Alert.Root>
         )}
 
@@ -136,7 +141,7 @@ export function FeedForm({ onSuccess, onCancel }: FeedFormProps) {
             placeholder="https://example.com/feed.xml"
             disabled={createFeed.isPending}
           />
-          <Field.ErrorText>{errors.url}</Field.ErrorText>
+          {errors.url && <Field.ErrorText>{errors.url}</Field.ErrorText>}
         </Field.Root>
 
         <Field.Root invalid={!!errors.folder}>
@@ -147,7 +152,7 @@ export function FeedForm({ onSuccess, onCancel }: FeedFormProps) {
             placeholder="例: テクノロジー"
             disabled={createFeed.isPending}
           />
-          <Field.ErrorText>{errors.folder}</Field.ErrorText>
+          {errors.folder && <Field.ErrorText>{errors.folder}</Field.ErrorText>}
         </Field.Root>
 
         <VStack gap={2}>
@@ -156,8 +161,9 @@ export function FeedForm({ onSuccess, onCancel }: FeedFormProps) {
             colorPalette="blue"
             width="full"
             loading={createFeed.isPending}
+            loadingText="追加中..."
           >
-            {createFeed.isPending ? "追加中..." : "フィードを追加"}
+            フィードを追加
           </Button>
 
           {onCancel && (
