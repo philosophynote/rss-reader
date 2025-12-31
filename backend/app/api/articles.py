@@ -83,6 +83,18 @@ async def list_articles(
     """
     記事一覧を取得
     """
+    valid_sort_by = {"published_at", "importance_score"}
+    valid_filter_by = {None, "unread", "read", "saved"}
+    if sort_by not in valid_sort_by:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid sort_by value",
+        )
+    if filter_by not in valid_filter_by:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid filter_by value",
+        )
     try:
         parsed_key = _parse_last_key(last_key)
         articles, next_key = service.get_articles(
