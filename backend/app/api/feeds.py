@@ -48,6 +48,26 @@ def build_feed_response(feed) -> FeedResponse:
     return FeedResponse.model_validate(feed.model_dump())
 
 
+def build_feed_fetch_response(result) -> FeedFetchResponse:
+    """
+    FeedFetch結果からレスポンスを生成
+
+    Args:
+        result: FeedFetch結果
+
+    Returns:
+        FeedFetchResponse: APIレスポンス
+    """
+    return FeedFetchResponse(
+        feed_id=result.feed_id,
+        total_entries=result.total_entries,
+        created_articles=result.created_articles,
+        skipped_duplicates=result.skipped_duplicates,
+        skipped_invalid=result.skipped_invalid,
+        error_message=result.error_message,
+    )
+
+
 @router.post(
     "",
     response_model=FeedResponse,
@@ -84,17 +104,7 @@ async def fetch_all_feeds(
     """全フィードを取得"""
     results = service.fetch_all_feeds()
     return FeedFetchListResponse(
-        items=[
-            FeedFetchResponse(
-                feed_id=result.feed_id,
-                total_entries=result.total_entries,
-                created_articles=result.created_articles,
-                skipped_duplicates=result.skipped_duplicates,
-                skipped_invalid=result.skipped_invalid,
-                error_message=result.error_message,
-            )
-            for result in results
-        ]
+        items=[build_feed_fetch_response(result) for result in results]
     )
 
 
@@ -125,13 +135,8 @@ async def fetch_feed(
             skipped_invalid=0,
             error_message=str(exc),
         )
-    return FeedFetchResponse(
-        feed_id=result.feed_id,
-        total_entries=result.total_entries,
-        created_articles=result.created_articles,
-        skipped_duplicates=result.skipped_duplicates,
-        skipped_invalid=result.skipped_invalid,
-        error_message=result.error_message,
+    return build_feed_fetch_response(
+        result,
     )
 
 

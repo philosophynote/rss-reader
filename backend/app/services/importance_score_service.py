@@ -15,6 +15,9 @@ from botocore.exceptions import BotoCoreError, ClientError
 from sklearn.metrics.pairwise import cosine_similarity
 
 from app.config import settings
+from app.models.article import Article
+from app.utils.datetime_utils import parse_datetime_string
+from app.utils.dynamodb_client import DynamoDBClient
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +45,7 @@ class ImportanceScoreService:
         )
         self.model_id = settings.BEDROCK_MODEL_ID
         self.embedding_dimension = settings.EMBEDDING_DIMENSION
+        self.dynamodb_client = DynamoDBClient()
         self._keyword_embedding_cache_max = (
             settings.KEYWORD_EMBEDDING_CACHE_SIZE
         )
@@ -277,3 +281,97 @@ class ImportanceScoreService:
         with self._keyword_embedding_cache_lock:
             self._keyword_embedding_cache.clear()
         logger.info("Cleared keyword embeddings cache")
+
+    def recalculate_score(self, article_id: str) -> None:
+        """
+        記事の重要度スコアを再計算
+
+        Args:
+            article_id: 記事ID
+        """
+        article_item = self.dynamodb_client.get_item(
+            pk=f"{self.ARTICLE_PK_PREFIX}{article_id}",
+            sk="METADATA",
+        )
+        if not article_item:
+            logger.warning(
+                "Article not found for recalculation: %s", article_id
+            )
+            return
+
+        keywords, _ = self.dynamodb_client.query_keywords()
+        article = self._convert_item_to_article(article_item)
+        article_payload = {
+            "article_id": article.article_id,
+            "title": article.title,
+            "content": article.content,
+        }
+        keyword_payloads = []
+        for item in keywords:
+            keyword_data = self._extract_keyword_data(item)
+            if keyword_data is not None:
+                keyword_payloads.append(keyword_data)
+
+        score, reasons = self.calculate_score(
+            article_payload,
+            keyword_payloads,
+        )
+        normalized_score = max(0.0, min(score, 1.0))
+        article.update_importance_score(normalized_score)
+        self.dynamodb_client.put_item(article.to_dynamodb_item())
+
+        self.dynamodb_client.delete_importance_reasons_for_article(article_id)
+        if reasons:
+            self.dynamodb_client.batch_write_item(reasons)
+
+    def _convert_item_to_article(self, item: dict[str, Any]) -> Article:
+        """
+        DynamoDBアイテムをArticleモデルに変換
+
+        Args:
+            item: DynamoDBアイテム
+
+        Returns:
+            Article: 変換済みArticle
+        """
+        article_fields = Article.model_fields.keys()
+        article_data = {
+            key: item[key] for key in article_fields if key in item
+        }
+        datetime_fields = [
+            "published_at",
+            "read_at",
+            "created_at",
+            "updated_at",
+        ]
+        for field in datetime_fields:
+            if field in article_data and isinstance(article_data[field], str):
+                article_data[field] = parse_datetime_string(
+                    article_data[field]
+                )
+
+        return Article(**article_data)
+
+    def _extract_keyword_data(
+        self, item: dict[str, Any]
+    ) -> dict[str, Any] | None:
+        """
+        DynamoDBアイテムからキーワード情報を抽出
+
+        Args:
+            item: DynamoDBアイテム
+
+        Returns:
+            dict[str, Any]: キーワード情報
+        """
+        keyword_id = item.get("keyword_id")
+        text = item.get("text", "")
+        if not keyword_id or not text:
+            return None
+
+        return {
+            "keyword_id": keyword_id,
+            "text": text,
+            "weight": item.get("weight", 1.0),
+            "is_active": item.get("is_active", True),
+        }

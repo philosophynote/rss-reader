@@ -4,12 +4,13 @@
 フィード取得や記事クリーンアップのジョブを手動実行します。
 """
 
+import asyncio
 import importlib
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.schemas.feed import FeedFetchResponse
+from app.api.feeds import build_feed_fetch_response
 from app.schemas.job import JobCleanupResponse, JobFetchFeedsResponse
 from app.security import verify_api_key
 from app.services import FeedFetcherService
@@ -52,19 +53,15 @@ async def run_fetch_feeds_job(
     """
     フィード取得ジョブを実行
     """
-    results = service.fetch_all_feeds()
+    try:
+        results = await asyncio.to_thread(service.fetch_all_feeds)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(exc),
+        ) from exc
     return JobFetchFeedsResponse(
-        items=[
-            FeedFetchResponse(
-                feed_id=result.feed_id,
-                total_entries=result.total_entries,
-                created_articles=result.created_articles,
-                skipped_duplicates=result.skipped_duplicates,
-                skipped_invalid=result.skipped_invalid,
-                error_message=result.error_message,
-            )
-            for result in results
-        ]
+        items=[build_feed_fetch_response(result) for result in results]
     )
 
 
