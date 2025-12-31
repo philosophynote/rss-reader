@@ -1,5 +1,4 @@
-import React from "react";
-import { HStack, Badge, Tooltip } from "@chakra-ui/react";
+import { HStack, Badge, Tooltip, Portal } from "@chakra-ui/react";
 import type { Article } from "../../api";
 
 interface ArticleStatusBadgeProps {
@@ -44,18 +43,24 @@ export function ArticleStatusBadge({
 
       {/* 重要度スコア */}
       {showImportanceScore && (
-        <Tooltip
-          content={`重要度スコア: ${formatScore(article.importance_score)}`}
-          positioning={{ placement: "top" }}
-        >
-          <Badge
-            colorPalette={getScoreColorPalette(article.importance_score)}
-            size="sm"
-            variant="subtle"
-          >
-            {formatScore(article.importance_score)}
-          </Badge>
-        </Tooltip>
+        <Tooltip.Root positioning={{ placement: "top" }}>
+          <Tooltip.Trigger asChild>
+            <Badge
+              colorPalette={getScoreColorPalette(article.importance_score)}
+              size="sm"
+              variant="subtle"
+            >
+              {formatScore(article.importance_score)}
+            </Badge>
+          </Tooltip.Trigger>
+          <Portal>
+            <Tooltip.Positioner>
+              <Tooltip.Content>
+                重要度スコア: {formatScore(article.importance_score)}
+              </Tooltip.Content>
+            </Tooltip.Positioner>
+          </Portal>
+        </Tooltip.Root>
       )}
     </HStack>
   );
