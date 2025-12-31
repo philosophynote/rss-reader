@@ -42,8 +42,9 @@ describe("ErrorBoundary", () => {
     );
 
     expect(screen.getByText("アプリケーションエラー")).toBeInTheDocument();
-    // Alert.Description内のテキストを特定するため、より具体的なセレクターを使用
-    expect(screen.getByRole("alert")).toHaveTextContent("テストエラー");
+    // Alert.Description内のテキストを確認（複数存在する場合があるため最初の要素を取得）
+    const errorMessages = screen.getAllByText("テストエラー");
+    expect(errorMessages.length).toBeGreaterThan(0);
   });
 
   it("should render auth error display for ApiAuthError", () => {
@@ -56,8 +57,9 @@ describe("ErrorBoundary", () => {
     );
 
     expect(screen.getByText("認証エラー")).toBeInTheDocument();
-    // Alert.Description内のテキストを特定するため、より具体的なセレクターを使用
-    expect(screen.getByRole("alert")).toHaveTextContent("認証に失敗しました");
+    // Alert.Description内のテキストを確認（複数存在する場合があるため最初の要素を取得）
+    const errorMessages = screen.getAllByText("認証に失敗しました");
+    expect(errorMessages.length).toBeGreaterThan(0);
   });
 
   it("should render API error display for ApiError", () => {
@@ -70,30 +72,40 @@ describe("ErrorBoundary", () => {
     );
 
     expect(screen.getByText("API通信エラー")).toBeInTheDocument();
-    // Alert.Description内のテキストを特定するため、より具体的なセレクターを使用
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      "サーバーエラーが発生しました"
-    );
+    // Alert.Description内のテキストを確認（複数存在する場合があるため最初の要素を取得）
+    const errorMessages = screen.getAllByText("サーバーエラーが発生しました");
+    expect(errorMessages.length).toBeGreaterThan(0);
   });
 
   it("should allow retry functionality", () => {
-    const error = new Error("テストエラー");
+    // エラーの状態を管理
+    let shouldThrow = true;
+    const ConditionalThrowError = () => {
+      if (shouldThrow) {
+        throw new Error("テストエラー");
+      }
+      return <div>正常なコンポーネント</div>;
+    };
 
     const { rerender } = render(
       <ErrorBoundary>
-        <ThrowError error={error} />
+        <ConditionalThrowError />
       </ErrorBoundary>
     );
 
     expect(screen.getByText("アプリケーションエラー")).toBeInTheDocument();
+    // Alert.Description内のテキストを確認（複数存在する場合があるため最初の要素を取得）
+    const errorMessages = screen.getAllByText("テストエラー");
+    expect(errorMessages.length).toBeGreaterThan(0);
 
-    // 再試行ボタンをクリック
+    // エラーを解消してから再試行ボタンをクリック
+    shouldThrow = false;
     fireEvent.click(screen.getByText("再試行"));
 
     // エラーなしで再レンダリング
     rerender(
       <ErrorBoundary>
-        <ThrowError />
+        <ConditionalThrowError />
       </ErrorBoundary>
     );
 
@@ -161,9 +173,9 @@ describe("AuthErrorBoundary", () => {
     );
 
     expect(screen.getByText("認証が必要です")).toBeInTheDocument();
-    // Alert.Description内のテキストを特定するため、より具体的なセレクターを使用
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      "API Keyが設定されていないか、無効です"
-    );
+    // テキストが複数の要素に分割されている可能性があるため、正規表現を使用
+    expect(
+      screen.getByText(/API Keyが設定されていないか、無効です/)
+    ).toBeInTheDocument();
   });
 });

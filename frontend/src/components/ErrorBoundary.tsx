@@ -131,10 +131,10 @@ function ErrorDisplay({ error, errorInfo, onRetry }: ErrorDisplayProps) {
       <VStack gap={4} align="stretch">
         <Alert.Root status={status} borderRadius="md">
           <Alert.Indicator />
-          <Box>
+          <Alert.Content>
             <Alert.Title>{title}</Alert.Title>
             <Alert.Description>{description}</Alert.Description>
-          </Box>
+          </Alert.Content>
         </Alert.Root>
 
         <VStack gap={3}>
@@ -212,13 +212,13 @@ export function AuthErrorBoundary({ children }: { children: ReactNode }) {
         <Box p={6} maxW="400px" mx="auto" mt={8}>
           <Alert.Root status="warning" borderRadius="md">
             <Alert.Indicator />
-            <Box>
+            <Alert.Content>
               <Alert.Title>認証が必要です</Alert.Title>
               <Alert.Description>
                 API Keyが設定されていないか、無効です。
                 環境変数VITE_API_KEYを確認してください。
               </Alert.Description>
-            </Box>
+            </Alert.Content>
           </Alert.Root>
         </Box>
       }
