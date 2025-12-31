@@ -6,6 +6,7 @@
 
 import asyncio
 import importlib
+import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -20,6 +21,8 @@ router = APIRouter(
     tags=["jobs"],
     dependencies=[Depends(verify_api_key)],
 )
+
+logger = logging.getLogger(__name__)
 
 
 def get_feed_fetcher_service() -> FeedFetcherService:
@@ -56,9 +59,10 @@ async def run_fetch_feeds_job(
     try:
         results = await asyncio.to_thread(service.fetch_all_feeds)
     except Exception as exc:
+        logger.exception("fetch_all_feeds failed")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(exc),
+            detail="Internal server error",
         ) from exc
     return JobFetchFeedsResponse(
         items=[build_feed_fetch_response(result) for result in results]
@@ -82,13 +86,15 @@ async def run_cleanup_job() -> JobCleanupResponse:
         await asyncio.to_thread(cleanup_service.cleanup_old_articles)
         await asyncio.to_thread(cleanup_service.delete_read_articles)
     except TypeError as exc:
+        logger.exception("CleanupService instantiation failed")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to instantiate CleanupService: {exc}",
+            detail="Internal server error during cleanup",
         ) from exc
     except Exception as exc:
+        logger.exception("Cleanup operation failed")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Cleanup operation failed: {exc}",
+            detail="Internal server error during cleanup",
         ) from exc
     return JobCleanupResponse(message="Cleanup completed")
