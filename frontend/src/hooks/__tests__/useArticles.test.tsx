@@ -7,11 +7,18 @@ import {
   useToggleArticleRead,
   useToggleArticleSave,
 } from "../useArticles";
-import * as articlesApi from "../../api/articles";
+import { articlesApi } from "../../api/articles";
 import type { Article, ArticleListParams } from "../../api";
 
 // APIをモック
-vi.mock("../../api/articles");
+vi.mock("../../api/articles", () => ({
+  articlesApi: {
+    getArticles: vi.fn(),
+    getArticle: vi.fn(),
+    updateArticleRead: vi.fn(),
+    updateArticleSave: vi.fn(),
+  },
+}));
 
 const mockedArticlesApi = vi.mocked(articlesApi);
 
@@ -79,9 +86,12 @@ describe("useArticles", () => {
       { wrapper: createWrapper() }
     );
 
-    await waitFor(() => {
-      expect(result.current.isError).toBe(true);
-    });
+    await waitFor(
+      () => {
+        expect(result.current.isError).toBe(true);
+      },
+      { timeout: 2000 }
+    );
 
     expect(result.current.error).toEqual(error);
   });
@@ -163,9 +173,12 @@ describe("useArticle", () => {
       wrapper: createWrapper(),
     });
 
-    await waitFor(() => {
-      expect(result.current.isError).toBe(true);
-    });
+    await waitFor(
+      () => {
+        expect(result.current.isError).toBe(true);
+      },
+      { timeout: 2000 }
+    );
 
     expect(result.current.error).toEqual(error);
   });

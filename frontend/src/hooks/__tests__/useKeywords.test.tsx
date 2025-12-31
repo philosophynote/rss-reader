@@ -9,7 +9,7 @@ import {
   useToggleKeywordActive,
   useRecalculateScores,
 } from "../useKeywords";
-import * as keywordsApi from "../../api/keywords";
+import { keywordsApi } from "../../api/keywords";
 import type {
   Keyword,
   CreateKeywordRequest,
@@ -17,7 +17,15 @@ import type {
 } from "../../api";
 
 // APIをモック
-vi.mock("../../api/keywords");
+vi.mock("../../api/keywords", () => ({
+  keywordsApi: {
+    getKeywords: vi.fn(),
+    createKeyword: vi.fn(),
+    updateKeyword: vi.fn(),
+    deleteKeyword: vi.fn(),
+    recalculateScores: vi.fn(),
+  },
+}));
 
 const mockedKeywordsApi = vi.mocked(keywordsApi);
 

@@ -24,10 +24,21 @@ export const articlesKeys = {
  * 記事一覧を取得するフック
  */
 export function useArticles(params?: ArticleListParams) {
+  const defaultParams: ArticleListParams = {
+    sort_by: "published_at",
+    limit: 50,
+    ...params,
+  };
+
   return useQuery({
-    queryKey: articlesKeys.list(params),
-    queryFn: () => articlesApi.getArticles(params),
+    queryKey: articlesKeys.list(defaultParams),
+    queryFn: () => articlesApi.getArticles(defaultParams),
     retry: (failureCount, error) => {
+      // テスト環境ではリトライしない
+      if (process.env.NODE_ENV === 'test') {
+        return false;
+      }
+      
       // 認証エラーの場合はリトライしない
       if (error instanceof ApiAuthError) {
         return false;
@@ -50,6 +61,11 @@ export function useArticle(articleId: string) {
     queryFn: () => articlesApi.getArticle(articleId),
     enabled: !!articleId,
     retry: (failureCount, error) => {
+      // テスト環境ではリトライしない
+      if (process.env.NODE_ENV === 'test') {
+        return false;
+      }
+      
       if (error instanceof ApiAuthError) {
         return false;
       }

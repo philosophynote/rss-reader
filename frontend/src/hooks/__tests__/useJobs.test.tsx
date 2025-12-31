@@ -2,10 +2,15 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useFetchFeeds, useCleanupArticles } from "../useJobs";
-import * as jobsApi from "../../api/jobs";
+import { jobsApi } from "../../api/jobs";
 
 // APIをモック
-vi.mock("../../api/jobs");
+vi.mock("../../api/jobs", () => ({
+  jobsApi: {
+    fetchFeeds: vi.fn(),
+    cleanupArticles: vi.fn(),
+  },
+}));
 
 const mockedJobsApi = vi.mocked(jobsApi);
 
