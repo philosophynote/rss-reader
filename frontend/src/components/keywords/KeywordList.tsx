@@ -14,14 +14,13 @@ import {
   AlertIndicator,
   AlertContent,
   useDisclosure,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalCloseButton,
+  DialogRoot,
+  DialogBackdrop,
+  DialogContent,
+  DialogHeader,
+  DialogBody,
+  DialogCloseTrigger,
   createToaster,
-  Portal,
   Tooltip,
   Flex,
   Spacer,
@@ -233,16 +232,16 @@ export function KeywordList() {
           最初のキーワードを追加
         </Button>
 
-        <Modal isOpen={isAddOpen} onClose={onAddClose}>
-          <ModalOverlay />
-          <ModalContent>
-            <ModalHeader>キーワードを追加</ModalHeader>
-            <ModalCloseButton />
-            <ModalBody pb={6}>
+        <DialogRoot open={isAddOpen} onOpenChange={({ open }) => !open && onAddClose()}>
+          <DialogBackdrop />
+          <DialogContent>
+            <DialogHeader>キーワードを追加</DialogHeader>
+            <DialogCloseTrigger />
+            <DialogBody pb={6}>
               <KeywordForm onSuccess={handleAddSuccess} onCancel={onAddClose} />
-            </ModalBody>
-          </ModalContent>
-        </Modal>
+            </DialogBody>
+          </DialogContent>
+        </DialogRoot>
       </VStack>
     );
   }
@@ -256,16 +255,17 @@ export function KeywordList() {
         <Spacer />
         <HStack spacing={2}>
           <Button
-            leftIcon={<FiRefreshCw />}
             variant="outline"
             size="sm"
             onClick={handleRecalculate}
             isLoading={recalculateScores.isPending}
             loadingText="再計算中..."
           >
+            <FiRefreshCw />
             重要度を再計算
           </Button>
-          <Button leftIcon={<FiPlus />} colorScheme="blue" onClick={onAddOpen}>
+          <Button colorScheme="blue" onClick={onAddOpen}>
+            <FiPlus />
             キーワードを追加
           </Button>
         </HStack>
