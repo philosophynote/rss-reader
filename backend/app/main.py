@@ -10,13 +10,25 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import feeds_router
+from app.api import (
+    articles_router,
+    feeds_router,
+    jobs_router,
+    keywords_router,
+)
+from app.middleware import (
+    rate_limit_middleware,
+    security_headers_middleware,
+    setup_logging_filters,
+)
 
 app = FastAPI(
     title="RSS Reader API",
     description="Feedly風RSSリーダーのバックエンドAPI",
     version="1.0.0",
 )
+
+setup_logging_filters()
 
 
 def get_cors_origins() -> list[str]:
@@ -47,7 +59,13 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization"],
 )
 
+app.middleware("http")(rate_limit_middleware)
+app.middleware("http")(security_headers_middleware)
+
 app.include_router(feeds_router)
+app.include_router(articles_router)
+app.include_router(keywords_router)
+app.include_router(jobs_router)
 
 
 @app.get("/")

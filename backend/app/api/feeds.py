@@ -14,10 +14,15 @@ from app.schemas.feed import (
     FeedResponse,
     FeedUpdateRequest,
 )
+from app.security import verify_api_key
 from app.services import FeedFetcherService, FeedService
 from app.services.feed_fetcher_service import FeedFetchError
 
-router = APIRouter(prefix="/api/feeds", tags=["feeds"])
+router = APIRouter(
+    prefix="/api/feeds",
+    tags=["feeds"],
+    dependencies=[Depends(verify_api_key)],
+)
 
 
 def get_feed_service() -> FeedService:
