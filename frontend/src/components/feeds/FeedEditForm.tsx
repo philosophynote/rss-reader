@@ -2,15 +2,19 @@ import React, { useState, useEffect } from "react";
 import {
   Box,
   Button,
-  FormControl,
-  FormLabel,
-  FormErrorMessage,
+  FieldRoot,
+  FieldLabel,
+  FieldErrorText,
   Input,
-  Switch,
+  SwitchRoot,
+  SwitchHiddenInput,
+  SwitchControl,
+  SwitchLabel,
   VStack,
   createToaster,
-  Alert,
-  AlertIcon,
+  AlertRoot,
+  AlertIndicator,
+  AlertContent,
 } from "@chakra-ui/react";
 
 // toasterを作成
@@ -122,69 +126,69 @@ export function FeedEditForm({ feed, onSuccess, onCancel }: FeedEditFormProps) {
       }
     };
 
-  const handleSwitchChange =
-    (field: keyof UpdateFeedRequest) =>
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      setFormData((prev) => ({
-        ...prev,
-        [field]: e.target.checked,
-      }));
-    };
-
   return (
     <Box as="form" onSubmit={handleSubmit}>
       <VStack spacing={4} align="stretch">
         {updateFeed.error && (
-          <Alert status="error">
-            <AlertIcon />
-            {updateFeed.error instanceof ApiAuthError
-              ? "認証エラー: API Keyを確認してください"
-              : updateFeed.error instanceof ApiError
-              ? updateFeed.error.message
-              : "フィードの更新に失敗しました"}
-          </Alert>
+          <AlertRoot status="error">
+            <AlertIndicator />
+            <AlertContent>
+              {updateFeed.error instanceof ApiAuthError
+                ? "認証エラー: API Keyを確認してください"
+                : updateFeed.error instanceof ApiError
+                ? updateFeed.error.message
+                : "フィードの更新に失敗しました"}
+            </AlertContent>
+          </AlertRoot>
         )}
 
-        <FormControl isInvalid={!!errors.title} isRequired>
-          <FormLabel>タイトル</FormLabel>
+        <FieldRoot invalid={!!errors.title} required>
+          <FieldLabel>タイトル</FieldLabel>
           <Input
             value={formData.title || ""}
             onChange={handleInputChange("title")}
             placeholder="フィードのタイトル"
             disabled={updateFeed.isPending}
           />
-          <FormErrorMessage>{errors.title}</FormErrorMessage>
-        </FormControl>
+          <FieldErrorText>{errors.title}</FieldErrorText>
+        </FieldRoot>
 
-        <FormControl isInvalid={!!errors.folder}>
-          <FormLabel>フォルダ（任意）</FormLabel>
+        <FieldRoot invalid={!!errors.folder}>
+          <FieldLabel>フォルダ（任意）</FieldLabel>
           <Input
             value={formData.folder || ""}
             onChange={handleInputChange("folder")}
             placeholder="例: テクノロジー"
             disabled={updateFeed.isPending}
           />
-          <FormErrorMessage>{errors.folder}</FormErrorMessage>
-        </FormControl>
+          <FieldErrorText>{errors.folder}</FieldErrorText>
+        </FieldRoot>
 
-        <FormControl display="flex" alignItems="center">
-          <FormLabel htmlFor="is-active" mb="0">
+        <FieldRoot display="flex" alignItems="center">
+          <FieldLabel htmlFor="is-active" mb="0">
             アクティブ
-          </FormLabel>
-          <Switch
-            id="is-active"
-            isChecked={formData.is_active}
-            onChange={handleSwitchChange("is_active")}
+          </FieldLabel>
+          <SwitchRoot
+            checked={formData.is_active}
+            onCheckedChange={(e) => {
+              setFormData((prev) => ({
+                ...prev,
+                is_active: e.checked,
+              }));
+            }}
             disabled={updateFeed.isPending}
-          />
-        </FormControl>
+          >
+            <SwitchHiddenInput id="is-active" />
+            <SwitchControl />
+          </SwitchRoot>
+        </FieldRoot>
 
         <VStack spacing={2}>
           <Button
             type="submit"
-            colorScheme="blue"
+            colorPalette="blue"
             width="full"
-            isLoading={updateFeed.isPending}
+            loading={updateFeed.isPending}
             loadingText="更新中..."
           >
             フィードを更新

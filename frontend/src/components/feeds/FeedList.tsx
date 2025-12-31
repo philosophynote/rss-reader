@@ -13,19 +13,20 @@ import {
   AlertRoot,
   AlertIndicator,
   AlertContent,
-  useDisclosure,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalCloseButton,
   createToaster,
   Portal,
-  Tooltip,
   Flex,
   Spacer,
+  DialogRoot,
+  DialogBackdrop,
+  DialogPositioner,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogBody,
+  DialogCloseTrigger,
 } from "@chakra-ui/react";
+import { Tooltip } from "../../compositions/ui/tooltip";
 
 // toasterを作成
 const toaster = createToaster({
@@ -49,20 +50,12 @@ export function FeedList() {
   const deleteFeed = useDeleteFeed();
 
   const [selectedFeed, setSelectedFeed] = useState<Feed | null>(null);
-  const {
-    isOpen: isAddOpen,
-    onOpen: onAddOpen,
-    onClose: onAddClose,
-  } = useDisclosure();
-  const {
-    isOpen: isEditOpen,
-    onOpen: onEditOpen,
-    onClose: onEditClose,
-  } = useDisclosure();
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
 
   const handleEdit = (feed: Feed) => {
     setSelectedFeed(feed);
-    onEditOpen();
+    setIsEditOpen(true);
   };
 
   const handleDelete = async (feed: Feed) => {
@@ -102,12 +95,12 @@ export function FeedList() {
   };
 
   const handleAddSuccess = () => {
-    onAddClose();
+    setIsAddOpen(false);
     refetch();
   };
 
   const handleEditSuccess = () => {
-    onEditClose();
+    setIsEditOpen(false);
     setSelectedFeed(null);
     refetch();
   };
@@ -164,20 +157,33 @@ export function FeedList() {
         <Text color="gray.500" textAlign="center">
           登録されているフィードがありません
         </Text>
-        <Button leftIcon={<FiPlus />} colorScheme="blue" onClick={onAddOpen}>
+        <Button colorPalette="blue" onClick={() => setIsAddOpen(true)}>
+          <FiPlus />
           最初のフィードを追加
         </Button>
 
-        <Modal isOpen={isAddOpen} onClose={onAddClose}>
-          <ModalOverlay />
-          <ModalContent>
-            <ModalHeader>フィードを追加</ModalHeader>
-            <ModalCloseButton />
-            <ModalBody pb={6}>
-              <FeedForm onSuccess={handleAddSuccess} onCancel={onAddClose} />
-            </ModalBody>
-          </ModalContent>
-        </Modal>
+        <DialogRoot
+          open={isAddOpen}
+          onOpenChange={(e) => setIsAddOpen(e.open)}
+        >
+          <Portal>
+            <DialogBackdrop />
+            <DialogPositioner>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>フィードを追加</DialogTitle>
+                </DialogHeader>
+                <DialogCloseTrigger />
+                <DialogBody pb={6}>
+                  <FeedForm
+                    onSuccess={handleAddSuccess}
+                    onCancel={() => setIsAddOpen(false)}
+                  />
+                </DialogBody>
+              </DialogContent>
+            </DialogPositioner>
+          </Portal>
+        </DialogRoot>
       </VStack>
     );
   }
@@ -188,7 +194,8 @@ export function FeedList() {
     <VStack spacing={6} align="stretch">
       <Flex>
         <Spacer />
-        <Button leftIcon={<FiPlus />} colorScheme="blue" onClick={onAddOpen}>
+        <Button colorPalette="blue" onClick={() => setIsAddOpen(true)}>
+          <FiPlus />
           フィードを追加
         </Button>
       </Flex>
@@ -202,7 +209,7 @@ export function FeedList() {
           <VStack spacing={3} align="stretch">
             {folderFeeds.map((feed) => (
               <CardRoot key={feed.feed_id} variant="outline">
-                <CardBody>
+                <CardBody role="article">
                   <VStack spacing={3} align="stretch">
                     <HStack>
                       <VStack align="start" spacing={1} flex={1}>
@@ -211,7 +218,7 @@ export function FeedList() {
                             {feed.title}
                           </Text>
                           <Badge
-                            colorScheme={feed.is_active ? "green" : "gray"}
+                            colorPalette={feed.is_active ? "green" : "gray"}
                           >
                             {feed.is_active ? "アクティブ" : "無効"}
                           </Badge>
@@ -229,37 +236,40 @@ export function FeedList() {
                           </Text>
                           <IconButton
                             aria-label="外部リンクで開く"
-                            icon={<FiExternalLink />}
                             size="xs"
                             variant="ghost"
-                            as="a"
-                            href={feed.url}
-                            target="_blank"
-                          />
+                            asChild
+                          >
+                            <a href={feed.url} target="_blank" rel="noreferrer">
+                              <FiExternalLink />
+                            </a>
+                          </IconButton>
                         </HStack>
                       </VStack>
 
                       <HStack spacing={2}>
-                        <Tooltip label="編集">
+                        <Tooltip content="編集">
                           <IconButton
                             aria-label="フィードを編集"
-                            icon={<FiEdit2 />}
                             size="sm"
                             variant="ghost"
                             onClick={() => handleEdit(feed)}
-                          />
+                          >
+                            <FiEdit2 />
+                          </IconButton>
                         </Tooltip>
 
-                        <Tooltip label="削除">
+                        <Tooltip content="削除">
                           <IconButton
                             aria-label="フィードを削除"
-                            icon={<FiTrash2 />}
                             size="sm"
                             variant="ghost"
-                            colorScheme="red"
+                            colorPalette="red"
                             onClick={() => handleDelete(feed)}
-                            isLoading={deleteFeed.isPending}
-                          />
+                            loading={deleteFeed.isPending}
+                          >
+                            <FiTrash2 />
+                          </IconButton>
                         </Tooltip>
                       </HStack>
                     </HStack>
@@ -281,34 +291,55 @@ export function FeedList() {
       ))}
 
       {/* フィード追加モーダル */}
-      <Modal isOpen={isAddOpen} onClose={onAddClose}>
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>フィードを追加</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody pb={6}>
-            <FeedForm onSuccess={handleAddSuccess} onCancel={onAddClose} />
-          </ModalBody>
-        </ModalContent>
-      </Modal>
+      <DialogRoot
+        open={isAddOpen}
+        onOpenChange={(e) => setIsAddOpen(e.open)}
+      >
+        <Portal>
+          <DialogBackdrop />
+          <DialogPositioner>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>フィードを追加</DialogTitle>
+              </DialogHeader>
+              <DialogCloseTrigger />
+              <DialogBody pb={6}>
+                <FeedForm
+                  onSuccess={handleAddSuccess}
+                  onCancel={() => setIsAddOpen(false)}
+                />
+              </DialogBody>
+            </DialogContent>
+          </DialogPositioner>
+        </Portal>
+      </DialogRoot>
 
       {/* フィード編集モーダル */}
-      <Modal isOpen={isEditOpen} onClose={onEditClose}>
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>フィードを編集</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody pb={6}>
-            {selectedFeed && (
-              <FeedEditForm
-                feed={selectedFeed}
-                onSuccess={handleEditSuccess}
-                onCancel={onEditClose}
-              />
-            )}
-          </ModalBody>
-        </ModalContent>
-      </Modal>
+      <DialogRoot
+        open={isEditOpen}
+        onOpenChange={(e) => setIsEditOpen(e.open)}
+      >
+        <Portal>
+          <DialogBackdrop />
+          <DialogPositioner>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>フィードを編集</DialogTitle>
+              </DialogHeader>
+              <DialogCloseTrigger />
+              <DialogBody pb={6}>
+                {selectedFeed && (
+                  <FeedEditForm
+                    feed={selectedFeed}
+                    onSuccess={handleEditSuccess}
+                    onCancel={() => setIsEditOpen(false)}
+                  />
+                )}
+              </DialogBody>
+            </DialogContent>
+          </DialogPositioner>
+        </Portal>
+      </DialogRoot>
     </VStack>
   );
 }
