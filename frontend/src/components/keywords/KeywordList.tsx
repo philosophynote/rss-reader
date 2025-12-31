@@ -7,21 +7,12 @@ import {
   Badge,
   Button,
   IconButton,
-  CardRoot,
-  CardBody,
+  Card,
   Skeleton,
-  AlertRoot,
-  AlertIndicator,
-  AlertContent,
+  Alert,
   useDisclosure,
-  DialogRoot,
-  DialogBackdrop,
-  DialogContent,
-  DialogHeader,
-  DialogBody,
-  DialogCloseTrigger,
+  Dialog,
   createToaster,
-  Tooltip,
   Flex,
   Spacer,
   Switch,
@@ -209,16 +200,16 @@ export function KeywordList() {
 
   if (error) {
     return (
-      <AlertRoot status="error">
-        <AlertIndicator />
-        <AlertContent>
+      <Alert.Root status="error">
+        <Alert.Indicator />
+        <Alert.Content>
           {error instanceof ApiAuthError
             ? "認証エラー: API Keyを確認してください"
             : error instanceof ApiError
             ? error.message
             : "キーワード一覧の取得に失敗しました"}
-        </AlertContent>
-      </AlertRoot>
+        </Alert.Content>
+      </Alert.Root>
     );
   }
 
@@ -228,20 +219,21 @@ export function KeywordList() {
         <Text color="gray.500" textAlign="center">
           登録されているキーワードがありません
         </Text>
-        <Button leftIcon={<FiPlus />} colorScheme="blue" onClick={onAddOpen}>
+        <Button colorPalette="blue" onClick={onAddOpen}>
+          <FiPlus />
           最初のキーワードを追加
         </Button>
 
-        <DialogRoot open={isAddOpen} onOpenChange={({ open }) => !open && onAddClose()}>
-          <DialogBackdrop />
-          <DialogContent>
-            <DialogHeader>キーワードを追加</DialogHeader>
-            <DialogCloseTrigger />
-            <DialogBody pb={6}>
+        <Dialog.Root open={isAddOpen} onOpenChange={({ open }) => !open && onAddClose()}>
+          <Dialog.Backdrop />
+          <Dialog.Content>
+            <Dialog.Header>キーワードを追加</Dialog.Header>
+            <Dialog.CloseTrigger />
+            <Dialog.Body pb={6}>
               <KeywordForm onSuccess={handleAddSuccess} onCancel={onAddClose} />
-            </DialogBody>
-          </DialogContent>
-        </DialogRoot>
+            </Dialog.Body>
+          </Dialog.Content>
+        </Dialog.Root>
       </VStack>
     );
   }
@@ -258,13 +250,13 @@ export function KeywordList() {
             variant="outline"
             size="sm"
             onClick={handleRecalculate}
-            isLoading={recalculateScores.isPending}
+            loading={recalculateScores.isPending}
             loadingText="再計算中..."
           >
             <FiRefreshCw />
             重要度を再計算
           </Button>
-          <Button colorScheme="blue" onClick={onAddOpen}>
+          <Button colorPalette="blue" onClick={onAddOpen}>
             <FiPlus />
             キーワードを追加
           </Button>
@@ -280,8 +272,8 @@ export function KeywordList() {
 
           <VStack spacing={3} align="stretch">
             {activeKeywords.map((keyword) => (
-              <CardRoot key={keyword.keyword_id} variant="outline">
-                <CardBody>
+              <Card.Root key={keyword.keyword_id} variant="outline">
+                <Card.Body>
                   <VStack spacing={3} align="stretch">
                     <HStack>
                       <VStack align="start" spacing={1} flex={1}>
@@ -289,7 +281,7 @@ export function KeywordList() {
                           <Text fontWeight="bold" fontSize="md">
                             {keyword.text}
                           </Text>
-                          <Badge colorScheme="green" variant="solid">
+                          <Badge colorPalette="green" variant="solid">
                             重み: {formatWeight(keyword.weight)}
                           </Badge>
                         </HStack>
@@ -300,40 +292,41 @@ export function KeywordList() {
                       </VStack>
 
                       <HStack spacing={2}>
-                        <Tooltip label="有効/無効切り替え">
-                          <Switch
-                            isChecked={keyword.is_active}
-                            onChange={() => handleToggleActive(keyword)}
-                            isDisabled={toggleActive.isPending}
-                          />
-                        </Tooltip>
+                        <Switch.Root
+                          checked={keyword.is_active}
+                          onCheckedChange={() => handleToggleActive(keyword)}
+                          disabled={toggleActive.isPending}
+                        >
+                          <Switch.HiddenInput />
+                          <Switch.Control>
+                            <Switch.Thumb />
+                          </Switch.Control>
+                        </Switch.Root>
 
-                        <Tooltip label="編集">
-                          <IconButton
-                            aria-label="キーワードを編集"
-                            icon={<FiEdit2 />}
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleEdit(keyword)}
-                          />
-                        </Tooltip>
+                        <IconButton
+                          aria-label="キーワードを編集"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleEdit(keyword)}
+                        >
+                          <FiEdit2 />
+                        </IconButton>
 
-                        <Tooltip label="削除">
-                          <IconButton
-                            aria-label="キーワードを削除"
-                            icon={<FiTrash2 />}
-                            size="sm"
-                            variant="ghost"
-                            colorScheme="red"
-                            onClick={() => handleDelete(keyword)}
-                            isLoading={deleteKeyword.isPending}
-                          />
-                        </Tooltip>
+                        <IconButton
+                          aria-label="キーワードを削除"
+                          size="sm"
+                          variant="ghost"
+                          colorPalette="red"
+                          onClick={() => handleDelete(keyword)}
+                          loading={deleteKeyword.isPending}
+                        >
+                          <FiTrash2 />
+                        </IconButton>
                       </HStack>
                     </HStack>
                   </VStack>
-                </CardBody>
-              </CardRoot>
+                </Card.Body>
+              </Card.Root>
             ))}
           </VStack>
         </Box>
@@ -348,8 +341,8 @@ export function KeywordList() {
 
           <VStack spacing={3} align="stretch">
             {inactiveKeywords.map((keyword) => (
-              <CardRoot key={keyword.keyword_id} variant="outline" opacity={0.6}>
-                <CardBody>
+              <Card.Root key={keyword.keyword_id} variant="outline" opacity={0.6}>
+                <Card.Body>
                   <VStack spacing={3} align="stretch">
                     <HStack>
                       <VStack align="start" spacing={1} flex={1}>
@@ -361,7 +354,7 @@ export function KeywordList() {
                           >
                             {keyword.text}
                           </Text>
-                          <Badge colorScheme="gray" variant="outline">
+                          <Badge colorPalette="gray" variant="outline">
                             重み: {formatWeight(keyword.weight)}
                           </Badge>
                         </HStack>
@@ -372,64 +365,65 @@ export function KeywordList() {
                       </VStack>
 
                       <HStack spacing={2}>
-                        <Tooltip label="有効/無効切り替え">
-                          <Switch
-                            isChecked={keyword.is_active}
-                            onChange={() => handleToggleActive(keyword)}
-                            isDisabled={toggleActive.isPending}
-                          />
-                        </Tooltip>
+                        <Switch.Root
+                          checked={keyword.is_active}
+                          onCheckedChange={() => handleToggleActive(keyword)}
+                          disabled={toggleActive.isPending}
+                        >
+                          <Switch.HiddenInput />
+                          <Switch.Control>
+                            <Switch.Thumb />
+                          </Switch.Control>
+                        </Switch.Root>
 
-                        <Tooltip label="編集">
-                          <IconButton
-                            aria-label="キーワードを編集"
-                            icon={<FiEdit2 />}
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleEdit(keyword)}
-                          />
-                        </Tooltip>
+                        <IconButton
+                          aria-label="キーワードを編集"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleEdit(keyword)}
+                        >
+                          <FiEdit2 />
+                        </IconButton>
 
-                        <Tooltip label="削除">
-                          <IconButton
-                            aria-label="キーワードを削除"
-                            icon={<FiTrash2 />}
-                            size="sm"
-                            variant="ghost"
-                            colorScheme="red"
-                            onClick={() => handleDelete(keyword)}
-                            isLoading={deleteKeyword.isPending}
-                          />
-                        </Tooltip>
+                        <IconButton
+                          aria-label="キーワードを削除"
+                          size="sm"
+                          variant="ghost"
+                          colorPalette="red"
+                          onClick={() => handleDelete(keyword)}
+                          loading={deleteKeyword.isPending}
+                        >
+                          <FiTrash2 />
+                        </IconButton>
                       </HStack>
                     </HStack>
                   </VStack>
-                </CardBody>
-              </CardRoot>
+                </Card.Body>
+              </Card.Root>
             ))}
           </VStack>
         </Box>
       )}
 
       {/* キーワード追加モーダル */}
-      <Modal isOpen={isAddOpen} onClose={onAddClose}>
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>キーワードを追加</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody pb={6}>
+      <Dialog.Root open={isAddOpen} onOpenChange={({ open }) => !open && onAddClose()}>
+        <Dialog.Backdrop />
+        <Dialog.Content>
+          <Dialog.Header>キーワードを追加</Dialog.Header>
+          <Dialog.CloseTrigger />
+          <Dialog.Body pb={6}>
             <KeywordForm onSuccess={handleAddSuccess} onCancel={onAddClose} />
-          </ModalBody>
-        </ModalContent>
-      </Modal>
+          </Dialog.Body>
+        </Dialog.Content>
+      </Dialog.Root>
 
       {/* キーワード編集モーダル */}
-      <Modal isOpen={isEditOpen} onClose={onEditClose}>
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>キーワードを編集</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody pb={6}>
+      <Dialog.Root open={isEditOpen} onOpenChange={({ open }) => !open && onEditClose()}>
+        <Dialog.Backdrop />
+        <Dialog.Content>
+          <Dialog.Header>キーワードを編集</Dialog.Header>
+          <Dialog.CloseTrigger />
+          <Dialog.Body pb={6}>
             {selectedKeyword && (
               <KeywordEditForm
                 keyword={selectedKeyword}
@@ -437,9 +431,9 @@ export function KeywordList() {
                 onCancel={onEditClose}
               />
             )}
-          </ModalBody>
-        </ModalContent>
-      </Modal>
+          </Dialog.Body>
+        </Dialog.Content>
+      </Dialog.Root>
     </VStack>
   );
 }
