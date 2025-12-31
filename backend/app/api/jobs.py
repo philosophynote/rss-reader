@@ -4,6 +4,9 @@
 フィード取得や記事クリーンアップのジョブを手動実行します。
 """
 
+import importlib
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.schemas.feed import FeedFetchResponse
@@ -21,6 +24,25 @@ router = APIRouter(
 def get_feed_fetcher_service() -> FeedFetcherService:
     """FeedFetcherServiceの依存性を提供"""
     return FeedFetcherService()
+
+
+def _load_cleanup_service_class() -> type[Any] | None:
+    """
+    CleanupServiceのクラスを動的に取得します。
+
+    Returns:
+        type[Any] | None: CleanupServiceクラス（存在しない場合はNone）
+    """
+    try:
+        module = importlib.import_module("app.services.cleanup_service")
+    except ImportError:
+        return None
+
+    cleanup_service = getattr(module, "CleanupService", None)
+    if cleanup_service is None or not isinstance(cleanup_service, type):
+        return None
+
+    return cleanup_service
 
 
 @router.post("/fetch-feeds", response_model=JobFetchFeedsResponse)
@@ -51,15 +73,14 @@ async def run_cleanup_job() -> JobCleanupResponse:
     """
     記事クリーンアップジョブを実行
     """
-    try:
-        from app.services.cleanup_service import CleanupService
-    except ImportError as exc:
+    cleanup_service_class = _load_cleanup_service_class()
+    if cleanup_service_class is None:
         raise HTTPException(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,
             detail="CleanupService is not implemented",
-        ) from exc
+        )
 
-    cleanup_service = CleanupService()
+    cleanup_service = cleanup_service_class()
     cleanup_service.cleanup_old_articles()
     cleanup_service.delete_read_articles()
     return JobCleanupResponse(message="Cleanup completed")

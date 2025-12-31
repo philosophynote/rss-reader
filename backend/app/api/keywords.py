@@ -15,7 +15,6 @@ from app.schemas.keyword import (
 )
 from app.security import verify_api_key
 from app.services import KeywordService
-from app.services.importance_score_service import ImportanceScoreService
 
 router = APIRouter(
     prefix="/api/keywords",
@@ -26,8 +25,7 @@ router = APIRouter(
 
 def get_keyword_service() -> KeywordService:
     """KeywordServiceの依存性を提供"""
-    importance_service = ImportanceScoreService()
-    return KeywordService(importance_score_service=importance_service)
+    return KeywordService()
 
 
 def build_keyword_response(keyword) -> KeywordResponse:

@@ -40,7 +40,7 @@ class SensitiveDataFilter(logging.Filter):
             (
                 re.compile(
                     r"api[_-]?key[\"\s]*[:=][\"\s]*"
-                    r"[A-Za-z0-9+/=]{20,}",
+                    r"[^\s\"]+",
                     re.IGNORECASE,
                 ),
                 "api_key: [REDACTED]",

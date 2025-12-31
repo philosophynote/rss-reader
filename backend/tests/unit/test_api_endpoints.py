@@ -78,6 +78,15 @@ class DummyArticleService:
         limit: int = 100,
         last_evaluated_key: dict | None = None,
     ):
+        valid_sort_by = {"published_at", "importance_score"}
+        valid_filter_by = {None, "unread", "read", "saved"}
+
+        if sort_by not in valid_sort_by:
+            raise ValueError("Invalid sort_by value")
+
+        if filter_by not in valid_filter_by:
+            raise ValueError("Invalid filter_by value")
+
         return [self.article], None
 
     def get_article(self, article_id: str):
