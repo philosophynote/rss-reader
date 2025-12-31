@@ -15,7 +15,6 @@ import {
   Alert,
   AlertIcon,
   Link,
-  useColorModeValue,
   Flex,
   Spacer,
 } from "@chakra-ui/react";
@@ -59,10 +58,6 @@ export function ArticleList({ onArticleClick }: ArticleListProps) {
   const { data: articleData, isLoading, error } = useArticles(params);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-
-  // テーブルの背景色
-  const tableBg = useColorModeValue("white", "gray.800");
-  const hoverBg = useColorModeValue("gray.50", "gray.700");
 
   const formatDate = (dateString: string) => {
     try {
@@ -229,7 +224,7 @@ export function ArticleList({ onArticleClick }: ArticleListProps) {
       ) : (
         <Box>
           <Box overflowX="auto">
-            <Table variant="simple" bg={tableBg}>
+            <Table variant="simple" bg="white">
               <Thead>
                 {table.getHeaderGroups().map((headerGroup) => (
                   <Tr key={headerGroup.id}>
@@ -267,7 +262,7 @@ export function ArticleList({ onArticleClick }: ArticleListProps) {
               </Thead>
               <Tbody>
                 {table.getRowModel().rows.map((row) => (
-                  <Tr key={row.id} _hover={{ bg: hoverBg }} cursor="pointer">
+                  <Tr key={row.id} _hover={{ bg: "gray.50" }} cursor="pointer">
                     {row.getVisibleCells().map((cell) => (
                       <Td key={cell.id} py={3}>
                         {flexRender(

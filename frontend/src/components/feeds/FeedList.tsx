@@ -19,11 +19,18 @@ import {
   ModalHeader,
   ModalBody,
   ModalCloseButton,
-  useToast,
+  createToaster,
+  Portal,
   Tooltip,
   Flex,
   Spacer,
 } from "@chakra-ui/react";
+
+// toasterを作成
+const toaster = createToaster({
+  placement: "top",
+  duration: 3000,
+});
 import { FiEdit2, FiTrash2, FiExternalLink, FiPlus } from "react-icons/fi";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
@@ -39,7 +46,6 @@ import { FeedEditForm } from "./FeedEditForm";
 export function FeedList() {
   const { data: feeds, isLoading, error, refetch } = useFeeds();
   const deleteFeed = useDeleteFeed();
-  const toast = useToast();
 
   const [selectedFeed, setSelectedFeed] = useState<Feed | null>(null);
   const {
@@ -70,11 +76,10 @@ export function FeedList() {
     try {
       await deleteFeed.mutateAsync(feed.feed_id);
 
-      toast({
+      toaster.create({
         title: "フィードを削除しました",
-        status: "success",
+        type: "success",
         duration: 3000,
-        isClosable: true,
       });
     } catch (error) {
       console.error("フィード削除エラー:", error);
@@ -86,12 +91,11 @@ export function FeedList() {
         errorMessage = error.message;
       }
 
-      toast({
+      toaster.create({
         title: "エラー",
         description: errorMessage,
-        status: "error",
+        type: "error",
         duration: 5000,
-        isClosable: true,
       });
     }
   };

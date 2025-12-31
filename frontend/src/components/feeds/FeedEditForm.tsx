@@ -8,10 +8,16 @@ import {
   Input,
   Switch,
   VStack,
-  useToast,
+  createToaster,
   Alert,
   AlertIcon,
 } from "@chakra-ui/react";
+
+// toasterを作成
+const toaster = createToaster({
+  placement: "top",
+  duration: 3000,
+});
 import { useUpdateFeed } from "../../hooks";
 import { ApiAuthError, ApiError } from "../../api";
 import type { Feed, UpdateFeedRequest } from "../../api";
@@ -33,7 +39,6 @@ export function FeedEditForm({ feed, onSuccess, onCancel }: FeedEditFormProps) {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const toast = useToast();
   const updateFeed = useUpdateFeed();
 
   // フィードが変更された場合にフォームデータを更新
@@ -74,11 +79,10 @@ export function FeedEditForm({ feed, onSuccess, onCancel }: FeedEditFormProps) {
         },
       });
 
-      toast({
+      toaster.create({
         title: "フィードを更新しました",
-        status: "success",
+        type: "success",
         duration: 3000,
-        isClosable: true,
       });
 
       onSuccess?.();
@@ -92,12 +96,11 @@ export function FeedEditForm({ feed, onSuccess, onCancel }: FeedEditFormProps) {
         errorMessage = error.message;
       }
 
-      toast({
+      toaster.create({
         title: "エラー",
         description: errorMessage,
-        status: "error",
+        type: "error",
         duration: 5000,
-        isClosable: true,
       });
     }
   };

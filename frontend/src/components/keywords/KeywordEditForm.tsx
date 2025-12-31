@@ -14,10 +14,16 @@ import {
   NumberDecrementStepper,
   Switch,
   VStack,
-  useToast,
+  createToaster,
   Alert,
   AlertIcon,
 } from "@chakra-ui/react";
+
+// toasterを作成
+const toaster = createToaster({
+  placement: "top",
+  duration: 3000,
+});
 import { useUpdateKeyword } from "../../hooks";
 import { ApiAuthError, ApiError } from "../../api";
 import type { Keyword, UpdateKeywordRequest } from "../../api";
@@ -43,7 +49,6 @@ export function KeywordEditForm({
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const toast = useToast();
   const updateKeyword = useUpdateKeyword();
 
   // キーワードが変更された場合にフォームデータを更新
@@ -97,11 +102,10 @@ export function KeywordEditForm({
         },
       });
 
-      toast({
+      toaster.create({
         title: "キーワードを更新しました",
-        status: "success",
+        type: "success",
         duration: 3000,
-        isClosable: true,
       });
 
       onSuccess?.();
@@ -115,12 +119,11 @@ export function KeywordEditForm({
         errorMessage = error.message;
       }
 
-      toast({
+      toaster.create({
         title: "エラー",
         description: errorMessage,
-        status: "error",
+        type: "error",
         duration: 5000,
-        isClosable: true,
       });
     }
   };

@@ -19,12 +19,19 @@ import {
   ModalHeader,
   ModalBody,
   ModalCloseButton,
-  useToast,
+  createToaster,
+  Portal,
   Tooltip,
   Flex,
   Spacer,
   Switch,
 } from "@chakra-ui/react";
+
+// toasterを作成
+const toaster = createToaster({
+  placement: "top",
+  duration: 3000,
+});
 import { FiEdit2, FiTrash2, FiPlus, FiRefreshCw } from "react-icons/fi";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
@@ -47,7 +54,6 @@ export function KeywordList() {
   const deleteKeyword = useDeleteKeyword();
   const toggleActive = useToggleKeywordActive();
   const recalculateScores = useRecalculateScores();
-  const toast = useToast();
 
   const [selectedKeyword, setSelectedKeyword] = useState<Keyword | null>(null);
   const {
@@ -74,11 +80,10 @@ export function KeywordList() {
     try {
       await deleteKeyword.mutateAsync(keyword.keyword_id);
 
-      toast({
+      toaster.create({
         title: "キーワードを削除しました",
-        status: "success",
+        type: "success",
         duration: 3000,
-        isClosable: true,
       });
     } catch (error) {
       console.error("キーワード削除エラー:", error);
@@ -90,12 +95,11 @@ export function KeywordList() {
         errorMessage = error.message;
       }
 
-      toast({
+      toaster.create({
         title: "エラー",
         description: errorMessage,
-        status: "error",
+        type: "error",
         duration: 5000,
-        isClosable: true,
       });
     }
   };
@@ -107,13 +111,12 @@ export function KeywordList() {
         data: { is_active: !keyword.is_active },
       });
 
-      toast({
+      toaster.create({
         title: keyword.is_active
           ? "キーワードを無効にしました"
           : "キーワードを有効にしました",
-        status: "success",
+        type: "success",
         duration: 2000,
-        isClosable: true,
       });
     } catch (error) {
       console.error("キーワード状態更新エラー:", error);
@@ -125,12 +128,11 @@ export function KeywordList() {
         errorMessage = error.message;
       }
 
-      toast({
+      toaster.create({
         title: "エラー",
         description: errorMessage,
-        status: "error",
+        type: "error",
         duration: 5000,
-        isClosable: true,
       });
     }
   };
@@ -147,12 +149,11 @@ export function KeywordList() {
     try {
       await recalculateScores.mutateAsync();
 
-      toast({
+      toaster.create({
         title: "重要度スコアの再計算を開始しました",
         description: "処理が完了するまでしばらくお待ちください",
-        status: "info",
+        type: "info",
         duration: 5000,
-        isClosable: true,
       });
     } catch (error) {
       console.error("重要度スコア再計算エラー:", error);
@@ -164,12 +165,11 @@ export function KeywordList() {
         errorMessage = error.message;
       }
 
-      toast({
+      toaster.create({
         title: "エラー",
         description: errorMessage,
-        status: "error",
+        type: "error",
         duration: 5000,
-        isClosable: true,
       });
     }
   };
