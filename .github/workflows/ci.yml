@@ -104,7 +104,7 @@ jobs:
         working-directory: ./infrastructure
     env:
       # CI環境ではダミー値を使用（実際のデプロイ時のみ本物のシークレットを使用）
-      RSS_READER_API_KEY: 'dummy-api-key-for-ci-testing'
+      RSS_READER_API_KEY: 'dummy-api-key-for-ci-testing' # pragma: allowlist secret
       ENVIRONMENT: 'development'
       AWS_REGION: 'ap-northeast-1'
 

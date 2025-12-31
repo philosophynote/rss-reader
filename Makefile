@@ -1,7 +1,7 @@
 # RSS Reader Project Makefile
 # Python 3.14 + TypeScript 5系 + uv前提
 
-.PHONY: help install lint format type-check test test-coverage clean setup-dev
+.PHONY: help install lint format type-check test test-coverage clean setup-dev dev backend-dev
 
 # デフォルトターゲット
 help:
@@ -10,6 +10,10 @@ help:
 	@echo "セットアップ:"
 	@echo "  setup-dev     開発環境のセットアップ（依存関係インストール + pre-commit）"
 	@echo "  install       全プロジェクトの依存関係をインストール"
+	@echo ""
+	@echo "開発サーバー:"
+	@echo "  dev           フロントエンド開発サーバーを起動 (http://localhost:5173)"
+	@echo "  backend-dev   バックエンド開発サーバーを起動 (http://localhost:8000)"
 	@echo ""
 	@echo "コード品質:"
 	@echo "  lint          全プロジェクトのlint実行"
@@ -45,6 +49,23 @@ install:
 	@echo "Infrastructure (CDK):"
 	@cd infrastructure && npm ci
 	@echo "✅ 全ての依存関係をインストールしました"
+
+# =========================
+# 開発サーバー
+# =========================
+
+dev:
+	@echo "🚀 フロントエンド開発サーバーを起動中..."
+	@echo "📱 ブラウザで http://localhost:5173 にアクセスしてください"
+	@echo ""
+	@cd frontend && npm run dev
+
+backend-dev:
+	@echo "🚀 バックエンド開発サーバーを起動中..."
+	@echo "📡 API: http://localhost:8000"
+	@echo "📚 API Docs: http://localhost:8000/docs"
+	@echo ""
+	@cd backend && uv run uvicorn app.main:app --reload
 
 # =========================
 # コード品質
