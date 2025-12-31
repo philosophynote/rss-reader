@@ -24,7 +24,6 @@ export default defineConfig({
       "**/node_modules/**",
       "**/dist/**",
       // 未実装コンポーネント
-      "**/ArticleActionButtons.test.tsx",
       "**/ArticleDetail.test.tsx",
       "**/ArticleFilterControls.test.tsx",
       "**/ArticleList.test.tsx",
