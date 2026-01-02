@@ -17,12 +17,6 @@ import {
   Spacer,
   Switch,
 } from "@chakra-ui/react";
-
-// toasterを作成
-const toaster = createToaster({
-  placement: "top",
-  duration: 3000,
-});
 import { FiEdit2, FiTrash2, FiPlus, FiRefreshCw } from "react-icons/fi";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
@@ -36,6 +30,12 @@ import { ApiAuthError, ApiError } from "../../api";
 import type { Keyword } from "../../api";
 import { KeywordForm } from "./KeywordForm";
 import { KeywordEditForm } from "./KeywordEditForm";
+
+// toasterを作成
+const toaster = createToaster({
+  placement: "top",
+  duration: 3000,
+});
 
 /**
  * キーワード一覧コンポーネント
@@ -63,72 +63,76 @@ export function KeywordList() {
     onEditOpen();
   };
 
-  const handleDelete = async (keyword: Keyword) => {
+  const handleDelete = (keyword: Keyword) => {
     if (!confirm(`キーワード「${keyword.text}」を削除しますか？`)) {
       return;
     }
 
-    try {
-      await deleteKeyword.mutateAsync(keyword.keyword_id);
+    void deleteKeyword
+      .mutateAsync(keyword.keyword_id)
+      .then(() => {
+        toaster.create({
+          title: "キーワードを削除しました",
+          type: "success",
+          duration: 3000,
+        });
+      })
+      .catch((error) => {
+        // eslint-disable-next-line no-console
+        console.error("キーワード削除エラー:", error);
 
-      toaster.create({
-        title: "キーワードを削除しました",
-        type: "success",
-        duration: 3000,
+        let errorMessage = "キーワードの削除に失敗しました";
+        if (error instanceof ApiAuthError) {
+          errorMessage = "認証エラー: API Keyを確認してください";
+        } else if (error instanceof ApiError) {
+          errorMessage = error.message;
+        }
+
+        toaster.create({
+          title: "エラー",
+          description: errorMessage,
+          type: "error",
+          duration: 5000,
+        });
       });
-    } catch (error) {
-      console.error("キーワード削除エラー:", error);
-
-      let errorMessage = "キーワードの削除に失敗しました";
-      if (error instanceof ApiAuthError) {
-        errorMessage = "認証エラー: API Keyを確認してください";
-      } else if (error instanceof ApiError) {
-        errorMessage = error.message;
-      }
-
-      toaster.create({
-        title: "エラー",
-        description: errorMessage,
-        type: "error",
-        duration: 5000,
-      });
-    }
   };
 
-  const handleToggleActive = async (keyword: Keyword) => {
-    try {
-      await toggleActive.mutateAsync({
+  const handleToggleActive = (keyword: Keyword) => {
+    void toggleActive
+      .mutateAsync({
         keywordId: keyword.keyword_id,
         data: { is_active: !keyword.is_active },
-      });
+      })
+      .then(() => {
+        toaster.create({
+          title: keyword.is_active
+            ? "キーワードを無効にしました"
+            : "キーワードを有効にしました",
+          type: "success",
+          duration: 2000,
+        });
+      })
+      .catch((error) => {
+        // eslint-disable-next-line no-console
+        console.error("キーワード状態更新エラー:", error);
 
-      toaster.create({
-        title: keyword.is_active
-          ? "キーワードを無効にしました"
-          : "キーワードを有効にしました",
-        type: "success",
-        duration: 2000,
-      });
-    } catch (error) {
-      console.error("キーワード状態更新エラー:", error);
+        let errorMessage = "キーワードの状態更新に失敗しました";
+        if (error instanceof ApiAuthError) {
+          errorMessage = "認証エラー: API Keyを確認してください";
+        } else if (error instanceof ApiError) {
+          errorMessage = error.message;
+        }
 
-      let errorMessage = "キーワードの状態更新に失敗しました";
-      if (error instanceof ApiAuthError) {
-        errorMessage = "認証エラー: API Keyを確認してください";
-      } else if (error instanceof ApiError) {
-        errorMessage = error.message;
-      }
-
-      toaster.create({
-        title: "エラー",
-        description: errorMessage,
-        type: "error",
-        duration: 5000,
+        toaster.create({
+          title: "エラー",
+          description: errorMessage,
+          type: "error",
+          duration: 5000,
+        });
       });
-    }
   };
 
-  const handleRecalculate = async () => {
+  const handleRecalculate = () => {
     if (
       !confirm(
         "すべての記事の重要度スコアを再計算しますか？\nこの処理には時間がかかる場合があります。"
@@ -137,32 +141,34 @@ export function KeywordList() {
       return;
     }
 
-    try {
-      await recalculateScores.mutateAsync();
+    void recalculateScores
+      .mutateAsync()
+      .then(() => {
+        toaster.create({
+          title: "重要度スコアの再計算を開始しました",
+          description: "処理が完了するまでしばらくお待ちください",
+          type: "info",
+          duration: 5000,
+        });
+      })
+      .catch((error) => {
+        // eslint-disable-next-line no-console
+        console.error("重要度スコア再計算エラー:", error);
 
-      toaster.create({
-        title: "重要度スコアの再計算を開始しました",
-        description: "処理が完了するまでしばらくお待ちください",
-        type: "info",
-        duration: 5000,
+        let errorMessage = "重要度スコアの再計算に失敗しました";
+        if (error instanceof ApiAuthError) {
+          errorMessage = "認証エラー: API Keyを確認してください";
+        } else if (error instanceof ApiError) {
+          errorMessage = error.message;
+        }
+
+        toaster.create({
+          title: "エラー",
+          description: errorMessage,
+          type: "error",
+          duration: 5000,
+        });
       });
-    } catch (error) {
-      console.error("重要度スコア再計算エラー:", error);
-
-      let errorMessage = "重要度スコアの再計算に失敗しました";
-      if (error instanceof ApiAuthError) {
-        errorMessage = "認証エラー: API Keyを確認してください";
-      } else if (error instanceof ApiError) {
-        errorMessage = error.message;
-      }
-
-      toaster.create({
-        title: "エラー",
-        description: errorMessage,
-        type: "error",
-        duration: 5000,
-      });
-    }
   };
 
   const handleAddSuccess = () => {

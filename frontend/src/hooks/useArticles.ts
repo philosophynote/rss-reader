@@ -35,7 +35,7 @@ export function useArticles(params?: ArticleListParams) {
     queryFn: () => articlesApi.getArticles(defaultParams),
     retry: (failureCount, error) => {
       // テスト環境ではリトライしない
-      if (process.env.NODE_ENV === 'test') {
+      if (import.meta.env.MODE === "test") {
         return false;
       }
       
@@ -62,7 +62,7 @@ export function useArticle(articleId: string) {
     enabled: !!articleId,
     retry: (failureCount, error) => {
       // テスト環境ではリトライしない
-      if (process.env.NODE_ENV === 'test') {
+      if (import.meta.env.MODE === "test") {
         return false;
       }
       
@@ -119,9 +119,10 @@ export function useUpdateArticleRead() {
       );
 
       // 一覧キャッシュを無効化（フィルタリングに影響するため）
-      queryClient.invalidateQueries({ queryKey: articlesKeys.lists() });
+      void queryClient.invalidateQueries({ queryKey: articlesKeys.lists() });
     },
     onError: (error) => {
+      // eslint-disable-next-line no-console
       console.error("記事既読状態更新エラー:", error);
     },
   });
@@ -149,9 +150,10 @@ export function useUpdateArticleSave() {
       );
 
       // 一覧キャッシュを無効化（フィルタリングに影響するため）
-      queryClient.invalidateQueries({ queryKey: articlesKeys.lists() });
+      void queryClient.invalidateQueries({ queryKey: articlesKeys.lists() });
     },
     onError: (error) => {
+      // eslint-disable-next-line no-console
       console.error("記事保存状態更新エラー:", error);
     },
   });

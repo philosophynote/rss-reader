@@ -8,7 +8,7 @@ import type { Feed, CreateFeedRequest, UpdateFeedRequest } from "../api";
 export const feedsKeys = {
   all: ["feeds"] as const,
   lists: () => [...feedsKeys.all, "list"] as const,
-  list: (filters: Record<string, any> = {}) =>
+  list: (filters: Record<string, unknown> = {}) =>
     [...feedsKeys.lists(), filters] as const,
   details: () => [...feedsKeys.all, "detail"] as const,
   detail: (id: string) => [...feedsKeys.details(), id] as const,
@@ -20,7 +20,7 @@ export const feedsKeys = {
 export function useFeeds() {
   return useQuery({
     queryKey: feedsKeys.list(),
-    queryFn: feedsApi.getFeeds,
+    queryFn: () => feedsApi.getFeeds(),
     retry: (failureCount, error) => {
       // 認証エラーの場合はリトライしない
       if (error instanceof ApiAuthError) {
@@ -50,9 +50,10 @@ export function useCreateFeed() {
       });
 
       // フィード一覧を再取得
-      queryClient.invalidateQueries({ queryKey: feedsKeys.lists() });
+      void queryClient.invalidateQueries({ queryKey: feedsKeys.lists() });
     },
     onError: (error) => {
+      // eslint-disable-next-line no-console
       console.error("フィード作成エラー:", error);
     },
   });
@@ -87,6 +88,7 @@ export function useUpdateFeed() {
       );
     },
     onError: (error) => {
+      // eslint-disable-next-line no-console
       console.error("フィード更新エラー:", error);
     },
   });
@@ -110,9 +112,10 @@ export function useDeleteFeed() {
       queryClient.removeQueries({ queryKey: feedsKeys.detail(feedId) });
 
       // 関連する記事キャッシュも無効化
-      queryClient.invalidateQueries({ queryKey: ["articles"] });
+      void queryClient.invalidateQueries({ queryKey: ["articles"] });
     },
     onError: (error) => {
+      // eslint-disable-next-line no-console
       console.error("フィード削除エラー:", error);
     },
   });

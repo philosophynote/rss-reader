@@ -53,47 +53,49 @@ export function FeedForm({ onSuccess, onCancel }: FeedFormProps) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!validateForm()) {
       return;
     }
 
-    try {
-      await createFeed.mutateAsync({
+    void createFeed
+      .mutateAsync({
         url: formData.url.trim(),
         folder: formData.folder.trim() || undefined,
+      })
+      .then(() => {
+        toaster.create({
+          title: "フィードを追加しました",
+          type: "success",
+          duration: 3000,
+        });
+
+        // フォームをリセット
+        setFormData({ url: "", folder: "" });
+        setErrors({});
+
+        onSuccess?.();
+      })
+      .catch((error) => {
+        // eslint-disable-next-line no-console
+        console.error("フィード作成エラー:", error);
+
+        let errorMessage = "フィードの追加に失敗しました";
+        if (error instanceof ApiAuthError) {
+          errorMessage = "認証エラー: API Keyを確認してください";
+        } else if (error instanceof ApiError) {
+          errorMessage = error.message;
+        }
+
+        toaster.create({
+          title: "エラー",
+          description: errorMessage,
+          type: "error",
+          duration: 5000,
+        });
       });
-
-      toaster.create({
-        title: "フィードを追加しました",
-        type: "success",
-        duration: 3000,
-      });
-
-      // フォームをリセット
-      setFormData({ url: "", folder: "" });
-      setErrors({});
-
-      onSuccess?.();
-    } catch (error) {
-      console.error("フィード作成エラー:", error);
-
-      let errorMessage = "フィードの追加に失敗しました";
-      if (error instanceof ApiAuthError) {
-        errorMessage = "認証エラー: API Keyを確認してください";
-      } else if (error instanceof ApiError) {
-        errorMessage = error.message;
-      }
-
-      toaster.create({
-        title: "エラー",
-        description: errorMessage,
-        type: "error",
-        duration: 5000,
-      });
-    }
   };
 
   const handleInputChange =

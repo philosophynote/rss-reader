@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Box,
   Button,
@@ -18,15 +18,15 @@ import {
   AlertIndicator,
   AlertContent,
 } from "@chakra-ui/react";
+import { useUpdateKeyword } from "../../hooks";
+import { ApiAuthError, ApiError } from "../../api";
+import type { Keyword, UpdateKeywordRequest } from "../../api";
 
 // toasterを作成
 const toaster = createToaster({
   placement: "top",
   duration: 3000,
 });
-import { useUpdateKeyword } from "../../hooks";
-import { ApiAuthError, ApiError } from "../../api";
-import type { Keyword, UpdateKeywordRequest } from "../../api";
 
 interface KeywordEditFormProps {
   keyword: Keyword;
@@ -85,47 +85,49 @@ export function KeywordEditForm({
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!validateForm()) {
       return;
     }
 
-    try {
-      await updateKeyword.mutateAsync({
+    void updateKeyword
+      .mutateAsync({
         keywordId: keyword.keyword_id,
         data: {
           text: formData.text?.trim(),
           weight: formData.weight,
           is_active: formData.is_active,
         },
+      })
+      .then(() => {
+        toaster.create({
+          title: "キーワードを更新しました",
+          type: "success",
+          duration: 3000,
+        });
+
+        onSuccess?.();
+      })
+      .catch((error) => {
+        // eslint-disable-next-line no-console
+        console.error("キーワード更新エラー:", error);
+
+        let errorMessage = "キーワードの更新に失敗しました";
+        if (error instanceof ApiAuthError) {
+          errorMessage = "認証エラー: API Keyを確認してください";
+        } else if (error instanceof ApiError) {
+          errorMessage = error.message;
+        }
+
+        toaster.create({
+          title: "エラー",
+          description: errorMessage,
+          type: "error",
+          duration: 5000,
+        });
       });
-
-      toaster.create({
-        title: "キーワードを更新しました",
-        type: "success",
-        duration: 3000,
-      });
-
-      onSuccess?.();
-    } catch (error) {
-      console.error("キーワード更新エラー:", error);
-
-      let errorMessage = "キーワードの更新に失敗しました";
-      if (error instanceof ApiAuthError) {
-        errorMessage = "認証エラー: API Keyを確認してください";
-      } else if (error instanceof ApiError) {
-        errorMessage = error.message;
-      }
-
-      toaster.create({
-        title: "エラー",
-        description: errorMessage,
-        type: "error",
-        duration: 5000,
-      });
-    }
   };
 
   const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {

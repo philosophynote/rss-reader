@@ -12,7 +12,7 @@ import type {
 export const keywordsKeys = {
   all: ["keywords"] as const,
   lists: () => [...keywordsKeys.all, "list"] as const,
-  list: (filters: Record<string, any> = {}) =>
+  list: (filters: Record<string, unknown> = {}) =>
     [...keywordsKeys.lists(), filters] as const,
   details: () => [...keywordsKeys.all, "detail"] as const,
   detail: (id: string) => [...keywordsKeys.details(), id] as const,
@@ -24,7 +24,7 @@ export const keywordsKeys = {
 export function useKeywords() {
   return useQuery({
     queryKey: keywordsKeys.list(),
-    queryFn: keywordsApi.getKeywords,
+    queryFn: () => keywordsApi.getKeywords(),
     retry: (failureCount, error) => {
       // 認証エラーの場合はリトライしない
       if (error instanceof ApiAuthError) {
@@ -54,9 +54,10 @@ export function useCreateKeyword() {
       });
 
       // キーワード一覧を再取得
-      queryClient.invalidateQueries({ queryKey: keywordsKeys.lists() });
+      void queryClient.invalidateQueries({ queryKey: keywordsKeys.lists() });
     },
     onError: (error) => {
+      // eslint-disable-next-line no-console
       console.error("キーワード作成エラー:", error);
     },
   });
@@ -93,9 +94,10 @@ export function useUpdateKeyword() {
       );
 
       // キーワード更新時は記事の重要度スコアに影響するため、記事キャッシュを無効化
-      queryClient.invalidateQueries({ queryKey: ["articles"] });
+      void queryClient.invalidateQueries({ queryKey: ["articles"] });
     },
     onError: (error) => {
+      // eslint-disable-next-line no-console
       console.error("キーワード更新エラー:", error);
     },
   });
@@ -119,9 +121,10 @@ export function useDeleteKeyword() {
       queryClient.removeQueries({ queryKey: keywordsKeys.detail(keywordId) });
 
       // キーワード削除時は記事の重要度スコアに影響するため、記事キャッシュを無効化
-      queryClient.invalidateQueries({ queryKey: ["articles"] });
+      void queryClient.invalidateQueries({ queryKey: ["articles"] });
     },
     onError: (error) => {
+      // eslint-disable-next-line no-console
       console.error("キーワード削除エラー:", error);
     },
   });
@@ -134,12 +137,13 @@ export function useRecalculateScores() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: keywordsApi.recalculateScores,
+    mutationFn: () => keywordsApi.recalculateScores(),
     onSuccess: () => {
       // 記事キャッシュを無効化（重要度スコアが変更されるため）
-      queryClient.invalidateQueries({ queryKey: ["articles"] });
+      void queryClient.invalidateQueries({ queryKey: ["articles"] });
     },
     onError: (error) => {
+      // eslint-disable-next-line no-console
       console.error("重要度スコア再計算エラー:", error);
     },
   });

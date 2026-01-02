@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { screen, fireEvent, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { render } from "../../../test/test-utils";
 import { ArticleActionButtons } from "../ArticleActionButtons";
@@ -40,12 +40,12 @@ describe("ArticleActionButtons", () => {
     mockedUseToggleArticleRead.mockReturnValue({
       mutateAsync: mockToggleReadMutateAsync,
       isPending: false,
-    } as any);
+    } as ReturnType<typeof useToggleArticleRead>);
 
     mockedUseToggleArticleSave.mockReturnValue({
       mutateAsync: mockToggleSaveMutateAsync,
       isPending: false,
-    } as any);
+    } as ReturnType<typeof useToggleArticleSave>);
 
     // window.openをモック
     vi.stubGlobal("open", vi.fn());
@@ -141,7 +141,7 @@ describe("ArticleActionButtons", () => {
     const mockParentClick = vi.fn();
     mockToggleReadMutateAsync.mockResolvedValue({});
 
-    const { container } = render(
+    render(
       <div onClick={mockParentClick}>
         <ArticleActionButtons article={mockArticle} />
       </div>
@@ -158,7 +158,7 @@ describe("ArticleActionButtons", () => {
     mockedUseToggleArticleRead.mockReturnValue({
       mutateAsync: mockToggleReadMutateAsync,
       isPending: true,
-    } as any);
+    } as ReturnType<typeof useToggleArticleRead>);
 
     render(<ArticleActionButtons article={mockArticle} />);
 
@@ -170,7 +170,7 @@ describe("ArticleActionButtons", () => {
     mockedUseToggleArticleSave.mockReturnValue({
       mutateAsync: mockToggleSaveMutateAsync,
       isPending: true,
-    } as any);
+    } as ReturnType<typeof useToggleArticleSave>);
 
     render(<ArticleActionButtons article={mockArticle} />);
 

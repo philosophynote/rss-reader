@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import type { UseQueryResult } from "@tanstack/react-query";
 import userEvent from "@testing-library/user-event";
 import { render } from "../../../test/test-utils";
 import { ArticleList } from "../ArticleList";
 import { useArticles } from "../../../hooks";
-import type { Article } from "../../../api";
+import type { Article, ArticleListResponse } from "../../../api";
 
 // フックをモック
 vi.mock("../../../hooks", () => ({
@@ -61,7 +62,7 @@ describe("ArticleList", () => {
       },
       isLoading: false,
       error: null,
-    } as any);
+    } as UseQueryResult<ArticleListResponse, Error>);
   });
 
   it("should render article list correctly", () => {
@@ -76,7 +77,7 @@ describe("ArticleList", () => {
       data: null,
       isLoading: true,
       error: null,
-    } as any);
+    } as UseQueryResult<ArticleListResponse, Error>);
 
     render(<ArticleList />);
 
@@ -90,7 +91,7 @@ describe("ArticleList", () => {
       data: null,
       isLoading: false,
       error: new Error("Test error"),
-    } as any);
+    } as UseQueryResult<ArticleListResponse, Error>);
 
     render(<ArticleList />);
 
@@ -107,7 +108,7 @@ describe("ArticleList", () => {
       },
       isLoading: false,
       error: null,
-    } as any);
+    } as UseQueryResult<ArticleListResponse, Error>);
 
     render(<ArticleList />);
 
@@ -197,7 +198,7 @@ describe("ArticleList", () => {
       },
       isLoading: false,
       error: null,
-    } as any);
+    } as UseQueryResult<ArticleListResponse, Error>);
 
     render(<ArticleList />);
 

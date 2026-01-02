@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import axios, { AxiosInstance } from "axios";
+import axios from "axios";
+import type { AxiosInstance } from "axios";
 
 // axiosをモック（モジュールインポート前に実行）
 vi.mock("axios", () => {
@@ -40,7 +41,7 @@ import { ApiClient, ApiAuthError, ApiError } from "../client";
 
 describe("ApiClient", () => {
   let apiClient: ApiClient;
-  let mockAxiosInstance: any;
+  let mockAxiosInstance: AxiosInstance;
 
   const mockConfig = {
     baseURL: "https://api.example.com",
@@ -55,7 +56,7 @@ describe("ApiClient", () => {
     // axios.createの最後の呼び出しで返されたインスタンスを取得
     mockAxiosInstance = mockedAxios.create.mock.results[
       mockedAxios.create.mock.results.length - 1
-    ]?.value;
+    ]?.value as AxiosInstance;
   });
 
   afterEach(() => {

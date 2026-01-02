@@ -18,12 +18,10 @@ import {
   Spacer,
 } from "@chakra-ui/react";
 import { FiExternalLink, FiCalendar, FiTrendingUp } from "react-icons/fi";
-import { format } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
 import { ja } from "date-fns/locale";
 import { useArticle, useArticleReasons } from "../../hooks";
 import { ApiAuthError, ApiError } from "../../api";
-import type { Article } from "../../api";
 import { ArticleStatusBadge } from "./ArticleStatusBadge";
 import { ArticleActionButtons } from "./ArticleActionButtons";
 
@@ -35,7 +33,7 @@ interface ArticleDetailProps {
 /**
  * 記事詳細コンポーネント
  */
-export function ArticleDetail({ articleId, onClose }: ArticleDetailProps) {
+export function ArticleDetail({ articleId }: ArticleDetailProps) {
   const {
     data: article,
     isLoading: articleLoading,
@@ -188,7 +186,7 @@ export function ArticleDetail({ articleId, onClose }: ArticleDetailProps) {
                 },
               }}
             >
-              {article.content || "記事の内容がありません。"}
+              {article.content ?? "記事の内容がありません。"}
             </Box>
           </CardBody>
         </CardRoot>

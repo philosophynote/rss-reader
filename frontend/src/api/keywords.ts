@@ -17,7 +17,7 @@ export const keywordsApi = {
     const response = await apiClient.get<ApiResponse<Keyword[]>>(
       "/api/keywords"
     );
-    return response.data || [];
+    return response.data ?? [];
   },
 
   /**

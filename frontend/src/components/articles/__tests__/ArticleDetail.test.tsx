@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen } from "@testing-library/react";
+import type { UseQueryResult } from "@tanstack/react-query";
 import { render } from "../../../test/test-utils";
 import { ArticleDetail } from "../ArticleDetail";
 import { useArticle, useArticleReasons } from "../../../hooks";
@@ -55,8 +56,6 @@ const mockReasons: ImportanceReason[] = [
 ];
 
 describe("ArticleDetail", () => {
-  const mockOnClose = vi.fn();
-
   beforeEach(() => {
     vi.clearAllMocks();
 
@@ -64,13 +63,13 @@ describe("ArticleDetail", () => {
       data: mockArticle,
       isLoading: false,
       error: null,
-    } as any);
+    } as UseQueryResult<Article, Error>);
 
     mockedUseArticleReasons.mockReturnValue({
       data: mockReasons,
       isLoading: false,
       error: null,
-    } as any);
+    } as UseQueryResult<ImportanceReason[], Error>);
   });
 
   it("should render article details correctly", () => {
@@ -88,7 +87,7 @@ describe("ArticleDetail", () => {
       data: null,
       isLoading: true,
       error: null,
-    } as any);
+    } as UseQueryResult<Article, Error>);
 
     render(<ArticleDetail articleId="1" />);
 
@@ -102,7 +101,7 @@ describe("ArticleDetail", () => {
       data: null,
       isLoading: false,
       error: new Error("Test error"),
-    } as any);
+    } as UseQueryResult<Article, Error>);
 
     render(<ArticleDetail articleId="1" />);
 
@@ -190,7 +189,7 @@ describe("ArticleDetail", () => {
       data: readArticle,
       isLoading: false,
       error: null,
-    } as any);
+    } as UseQueryResult<Article, Error>);
 
     render(<ArticleDetail articleId="1" />);
 
@@ -208,7 +207,7 @@ describe("ArticleDetail", () => {
       data: articleWithoutContent,
       isLoading: false,
       error: null,
-    } as any);
+    } as UseQueryResult<Article, Error>);
 
     render(<ArticleDetail articleId="1" />);
 
@@ -220,7 +219,7 @@ describe("ArticleDetail", () => {
       data: null,
       isLoading: true,
       error: null,
-    } as any);
+    } as UseQueryResult<ImportanceReason[], Error>);
 
     render(<ArticleDetail articleId="1" />);
 
@@ -233,7 +232,7 @@ describe("ArticleDetail", () => {
       data: null,
       isLoading: false,
       error: new Error("Reasons error"),
-    } as any);
+    } as UseQueryResult<ImportanceReason[], Error>);
 
     render(<ArticleDetail articleId="1" />);
 
@@ -247,7 +246,7 @@ describe("ArticleDetail", () => {
       data: [],
       isLoading: false,
       error: null,
-    } as any);
+    } as UseQueryResult<ImportanceReason[], Error>);
 
     render(<ArticleDetail articleId="1" />);
 

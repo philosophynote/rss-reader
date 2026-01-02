@@ -43,74 +43,78 @@ export function ArticleActionButtons({
   const toggleRead = useToggleArticleRead();
   const toggleSave = useToggleArticleSave();
 
-  const handleToggleRead = async (e: React.MouseEvent) => {
+  const handleToggleRead = (e: React.MouseEvent) => {
     e.stopPropagation();
 
-    try {
-      await toggleRead.mutateAsync({
+    void toggleRead
+      .mutateAsync({
         articleId: article.article_id,
         data: { is_read: !article.is_read },
+      })
+      .then(() => {
+        onReadToggle?.(article);
+
+        toaster.create({
+          title: article.is_read ? "未読にしました" : "既読にしました",
+          type: "success",
+          duration: 2000,
+        });
+      })
+      .catch((error) => {
+        // eslint-disable-next-line no-console
+        console.error("既読状態更新エラー:", error);
+
+        let errorMessage = "既読状態の更新に失敗しました";
+        if (error instanceof ApiAuthError) {
+          errorMessage = "認証エラー: API Keyを確認してください";
+        } else if (error instanceof ApiError) {
+          errorMessage = error.message;
+        }
+
+        toaster.create({
+          title: "エラー",
+          description: errorMessage,
+          type: "error",
+          duration: 5000,
+        });
       });
-
-      onReadToggle?.(article);
-
-      toaster.create({
-        title: article.is_read ? "未読にしました" : "既読にしました",
-        type: "success",
-        duration: 2000,
-      });
-    } catch (error) {
-      console.error("既読状態更新エラー:", error);
-
-      let errorMessage = "既読状態の更新に失敗しました";
-      if (error instanceof ApiAuthError) {
-        errorMessage = "認証エラー: API Keyを確認してください";
-      } else if (error instanceof ApiError) {
-        errorMessage = error.message;
-      }
-
-      toaster.create({
-        title: "エラー",
-        description: errorMessage,
-        type: "error",
-        duration: 5000,
-      });
-    }
   };
 
-  const handleToggleSave = async (e: React.MouseEvent) => {
+  const handleToggleSave = (e: React.MouseEvent) => {
     e.stopPropagation();
 
-    try {
-      await toggleSave.mutateAsync({
+    void toggleSave
+      .mutateAsync({
         articleId: article.article_id,
         data: { is_saved: !article.is_saved },
+      })
+      .then(() => {
+        onSaveToggle?.(article);
+
+        toaster.create({
+          title: article.is_saved ? "保存を解除しました" : "保存しました",
+          type: "success",
+          duration: 2000,
+        });
+      })
+      .catch((error) => {
+        // eslint-disable-next-line no-console
+        console.error("保存状態更新エラー:", error);
+
+        let errorMessage = "保存状態の更新に失敗しました";
+        if (error instanceof ApiAuthError) {
+          errorMessage = "認証エラー: API Keyを確認してください";
+        } else if (error instanceof ApiError) {
+          errorMessage = error.message;
+        }
+
+        toaster.create({
+          title: "エラー",
+          description: errorMessage,
+          type: "error",
+          duration: 5000,
+        });
       });
-
-      onSaveToggle?.(article);
-
-      toaster.create({
-        title: article.is_saved ? "保存を解除しました" : "保存しました",
-        type: "success",
-        duration: 2000,
-      });
-    } catch (error) {
-      console.error("保存状態更新エラー:", error);
-
-      let errorMessage = "保存状態の更新に失敗しました";
-      if (error instanceof ApiAuthError) {
-        errorMessage = "認証エラー: API Keyを確認してください";
-      } else if (error instanceof ApiError) {
-        errorMessage = error.message;
-      }
-
-      toaster.create({
-        title: "エラー",
-        description: errorMessage,
-        type: "error",
-        duration: 5000,
-      });
-    }
   };
 
   const handleOpenExternal = (e: React.MouseEvent) => {
