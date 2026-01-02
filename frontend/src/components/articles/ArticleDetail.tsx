@@ -19,6 +19,7 @@ import {
 } from "@chakra-ui/react";
 import { FiExternalLink, FiCalendar, FiTrendingUp } from "react-icons/fi";
 import { format } from "date-fns";
+import { formatInTimeZone } from "date-fns-tz";
 import { ja } from "date-fns/locale";
 import { useArticle, useArticleReasons } from "../../hooks";
 import { ApiAuthError, ApiError } from "../../api";
@@ -48,9 +49,12 @@ export function ArticleDetail({ articleId, onClose }: ArticleDetailProps) {
 
   const formatDate = (dateString: string) => {
     try {
-      return format(new Date(dateString), "yyyy年MM月dd日 HH:mm", {
-        locale: ja,
-      });
+      return formatInTimeZone(
+        dateString,
+        "UTC",
+        "yyyy年MM月dd日 HH:mm",
+        { locale: ja }
+      );
     } catch {
       return "不明";
     }
@@ -118,7 +122,8 @@ export function ArticleDetail({ articleId, onClose }: ArticleDetailProps) {
 
           <Link
             href={article.link}
-            isExternal
+            target="_blank"
+            rel="noopener noreferrer"
             color="blue.500"
             fontSize="sm"
             display="inline-flex"
@@ -189,7 +194,7 @@ export function ArticleDetail({ articleId, onClose }: ArticleDetailProps) {
         </CardRoot>
 
         {/* 重要度理由 */}
-        {reasons && reasons.length > 0 && (
+        {((reasons && reasons.length > 0) || reasonsLoading || reasonsError) && (
           <CardRoot variant="outline">
             <CardBody>
               <Heading size="md" mb={4}>
@@ -209,7 +214,7 @@ export function ArticleDetail({ articleId, onClose }: ArticleDetailProps) {
                 </AlertRoot>
               ) : (
                 <VStack spacing={3} align="stretch">
-                  {reasons.map((reason, index) => (
+                  {reasons?.map((reason, index) => (
                     <Box
                       key={index}
                       p={3}
