@@ -180,7 +180,7 @@ export function ArticleList({ onArticleClick }: ArticleListProps) {
   if (isLoading) {
     return (
       <VStack spacing={4} align="stretch">
-        {[...Array(5)].map((_, i) => (
+        {Array.from({ length: 5 }).map((_, i) => (
           <Skeleton key={i} height="60px" borderRadius="md" data-testid="skeleton" />
         ))}
       </VStack>

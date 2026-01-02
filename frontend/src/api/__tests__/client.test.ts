@@ -54,9 +54,8 @@ describe("ApiClient", () => {
     vi.clearAllMocks();
     apiClient = new ApiClient(mockConfig);
     // axios.createの最後の呼び出しで返されたインスタンスを取得
-    mockAxiosInstance = mockedAxios.create.mock.results[
-      mockedAxios.create.mock.results.length - 1
-    ]?.value as AxiosInstance;
+    const lastResult = mockedAxios.create.mock.results.at(-1);
+    mockAxiosInstance = lastResult?.value as AxiosInstance;
   });
 
   afterEach(() => {
@@ -71,6 +70,7 @@ describe("ApiClient", () => {
 
         const result = await apiClient.get("/test", { param: "value" });
         expect(result).toEqual(mockResponse.data);
+        // eslint-disable-next-line @typescript-eslint/unbound-method
         expect(mockAxiosInstance.get).toHaveBeenCalledWith("/test", {
           params: { param: "value" },
         });
@@ -92,6 +92,7 @@ describe("ApiClient", () => {
 
         const result = await apiClient.post("/test", postData);
         expect(result).toEqual(mockResponse.data);
+        // eslint-disable-next-line @typescript-eslint/unbound-method
         expect(mockAxiosInstance.post).toHaveBeenCalledWith("/test", postData);
       });
     });
@@ -104,6 +105,7 @@ describe("ApiClient", () => {
 
         const result = await apiClient.put("/test/1", putData);
         expect(result).toEqual(mockResponse.data);
+        // eslint-disable-next-line @typescript-eslint/unbound-method
         expect(mockAxiosInstance.put).toHaveBeenCalledWith("/test/1", putData);
       });
     });
@@ -115,6 +117,7 @@ describe("ApiClient", () => {
 
         const result = await apiClient.delete("/test/1");
         expect(result).toEqual(mockResponse.data);
+        // eslint-disable-next-line @typescript-eslint/unbound-method
         expect(mockAxiosInstance.delete).toHaveBeenCalledWith("/test/1");
       });
     });

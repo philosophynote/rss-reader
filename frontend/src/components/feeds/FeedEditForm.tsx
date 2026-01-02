@@ -37,7 +37,7 @@ interface FeedEditFormProps {
 export function FeedEditForm({ feed, onSuccess, onCancel }: FeedEditFormProps) {
   const [formData, setFormData] = useState<UpdateFeedRequest>({
     title: feed.title,
-    folder: feed.folder || "",
+    folder: feed.folder ?? "",
     is_active: feed.is_active,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -48,7 +48,7 @@ export function FeedEditForm({ feed, onSuccess, onCancel }: FeedEditFormProps) {
   useEffect(() => {
     setFormData({
       title: feed.title,
-      folder: feed.folder || "",
+      folder: feed.folder ?? "",
       is_active: feed.is_active,
     });
   }, [feed]);
@@ -77,7 +77,7 @@ export function FeedEditForm({ feed, onSuccess, onCancel }: FeedEditFormProps) {
         feedId: feed.feed_id,
         data: {
           title: formData.title?.trim(),
-          folder: formData.folder?.trim() || undefined,
+          folder: formData.folder?.trim() ?? undefined,
           is_active: formData.is_active,
         },
       })
@@ -146,7 +146,7 @@ export function FeedEditForm({ feed, onSuccess, onCancel }: FeedEditFormProps) {
         <FieldRoot invalid={!!errors.title} required>
           <FieldLabel>タイトル</FieldLabel>
           <Input
-            value={formData.title || ""}
+            value={formData.title ?? ""}
             onChange={handleInputChange("title")}
             placeholder="フィードのタイトル"
             disabled={updateFeed.isPending}
@@ -157,7 +157,7 @@ export function FeedEditForm({ feed, onSuccess, onCancel }: FeedEditFormProps) {
         <FieldRoot invalid={!!errors.folder}>
           <FieldLabel>フォルダ（任意）</FieldLabel>
           <Input
-            value={formData.folder || ""}
+            value={formData.folder ?? ""}
             onChange={handleInputChange("folder")}
             placeholder="例: テクノロジー"
             disabled={updateFeed.isPending}

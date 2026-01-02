@@ -44,6 +44,8 @@ export function ArticleDetail({ articleId }: ArticleDetailProps) {
     isLoading: reasonsLoading,
     error: reasonsError,
   } = useArticleReasons(articleId);
+  const hasReasons = (reasons?.length ?? 0) > 0;
+  const shouldShowReasons = hasReasons || reasonsLoading || reasonsError;
 
   const formatDate = (dateString: string) => {
     try {
@@ -186,7 +188,7 @@ export function ArticleDetail({ articleId }: ArticleDetailProps) {
                 },
               }}
             >
-              {article.content && article.content.trim()
+              {article.content?.trim()
                 ? article.content
                 : "記事の内容がありません。"}
             </Box>
@@ -194,7 +196,7 @@ export function ArticleDetail({ articleId }: ArticleDetailProps) {
         </CardRoot>
 
         {/* 重要度理由 */}
-        {((reasons && reasons.length > 0) || reasonsLoading || reasonsError) && (
+        {shouldShowReasons && (
           <CardRoot variant="outline">
             <CardBody>
               <Heading size="md" mb={4}>
@@ -203,7 +205,7 @@ export function ArticleDetail({ articleId }: ArticleDetailProps) {
 
               {reasonsLoading ? (
                 <VStack spacing={2}>
-                  {[...Array(3)].map((_, i) => (
+                  {Array.from({ length: 3 }).map((_, i) => (
                     <Skeleton key={i} height="40px" />
                   ))}
                 </VStack>
