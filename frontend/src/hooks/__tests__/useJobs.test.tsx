@@ -66,7 +66,18 @@ describe("useFetchFeeds", () => {
   it("should be in pending state during execution", async () => {
     // 長時間かかるPromiseをモック
     mockedJobsApi.fetchFeeds.mockImplementation(
-      () => new Promise((resolve) => setTimeout(resolve, 1000))
+      () =>
+        new Promise((resolve) =>
+          setTimeout(
+            () =>
+              resolve({
+                message: "Success",
+                feeds_processed: 1,
+                new_articles: 1,
+              }),
+            100
+          )
+        )
     );
 
     const { result } = renderHook(() => useFetchFeeds(), {
@@ -76,13 +87,8 @@ describe("useFetchFeeds", () => {
     const promise = result.current.mutateAsync();
 
     // 実行中はpendingになる
-    expect(result.current.isPending).toBe(true);
-
-    // Promiseを解決
-    mockedJobsApi.fetchFeeds.mockResolvedValue({
-      message: "Success",
-      feeds_processed: 1,
-      articles_added: 1,
+    await waitFor(() => {
+      expect(result.current.isPending).toBe(true);
     });
 
     await promise;
@@ -132,7 +138,18 @@ describe("useCleanupArticles", () => {
   it("should be in pending state during execution", async () => {
     // 長時間かかるPromiseをモック
     mockedJobsApi.cleanupArticles.mockImplementation(
-      () => new Promise((resolve) => setTimeout(resolve, 1000))
+      () =>
+        new Promise((resolve) =>
+          setTimeout(
+            () =>
+              resolve({
+                message: "Success",
+                deleted_articles: 1,
+                deleted_reasons: 1,
+              }),
+            100
+          )
+        )
     );
 
     const { result } = renderHook(() => useCleanupArticles(), {
@@ -142,13 +159,8 @@ describe("useCleanupArticles", () => {
     const promise = result.current.mutateAsync();
 
     // 実行中はpendingになる
-    expect(result.current.isPending).toBe(true);
-
-    // Promiseを解決
-    mockedJobsApi.cleanupArticles.mockResolvedValue({
-      message: "Success",
-      deleted_articles: 1,
-      deleted_reasons: 1,
+    await waitFor(() => {
+      expect(result.current.isPending).toBe(true);
     });
 
     await promise;

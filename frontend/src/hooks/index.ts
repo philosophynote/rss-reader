@@ -31,4 +31,9 @@ export {
 } from "./useKeywords";
 
 // ジョブ関連フック
-export { useFetchFeedsJob, useCleanupArticlesJob } from "./useJobs";
+export {
+  useFetchFeedsJob,
+  useFetchFeedsJob as useFetchFeeds,
+  useCleanupArticlesJob,
+  useCleanupArticlesJob as useCleanupArticles,
+} from "./useJobs";

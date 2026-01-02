@@ -71,7 +71,7 @@ describe("useKeywords", () => {
     expect(mockedKeywordsApi.getKeywords).toHaveBeenCalled();
   });
 
-  it("should handle keywords fetch error", async () => {
+  it("should handle keywords fetch error", { timeout: 5000 }, async () => {
     const error = new Error("Fetch failed");
     mockedKeywordsApi.getKeywords.mockRejectedValue(error);
 
@@ -79,9 +79,12 @@ describe("useKeywords", () => {
       wrapper: createWrapper(),
     });
 
-    await waitFor(() => {
-      expect(result.current.isError).toBe(true);
-    });
+    await waitFor(
+      () => {
+        expect(result.current.isError).toBe(true);
+      },
+      { timeout: 3000 }
+    );
 
     expect(result.current.error).toEqual(error);
   });

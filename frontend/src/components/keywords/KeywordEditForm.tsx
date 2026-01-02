@@ -1,22 +1,22 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   Box,
   Button,
-  FormControl,
-  FormLabel,
-  FormErrorMessage,
-  FormHelperText,
+  FieldRoot,
+  FieldLabel,
+  FieldErrorText,
+  FieldHelperText,
   Input,
   NumberInput,
-  NumberInputField,
-  NumberInputStepper,
-  NumberIncrementStepper,
-  NumberDecrementStepper,
-  Switch,
+  SwitchRoot,
+  SwitchHiddenInput,
+  SwitchControl,
+  SwitchThumb,
   VStack,
   createToaster,
-  Alert,
-  AlertIcon,
+  AlertRoot,
+  AlertIndicator,
+  AlertContent,
 } from "@chakra-ui/react";
 
 // toasterを作成
@@ -143,97 +143,94 @@ export function KeywordEditForm({
     }
   };
 
-  const handleWeightChange = (valueString: string, valueNumber: number) => {
-    setFormData((prev) => ({
-      ...prev,
-      weight: valueNumber,
-    }));
-
-    // エラーをクリア
-    if (errors.weight) {
-      setErrors((prev) => ({
-        ...prev,
-        weight: "",
-      }));
-    }
-  };
-
-  const handleActiveChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData((prev) => ({
-      ...prev,
-      is_active: e.target.checked,
-    }));
-  };
-
   return (
     <Box as="form" onSubmit={handleSubmit}>
       <VStack spacing={4} align="stretch">
         {updateKeyword.error && (
-          <Alert status="error">
-            <AlertIcon />
-            {updateKeyword.error instanceof ApiAuthError
-              ? "認証エラー: API Keyを確認してください"
-              : updateKeyword.error instanceof ApiError
-              ? updateKeyword.error.message
-              : "キーワードの更新に失敗しました"}
-          </Alert>
+          <AlertRoot status="error">
+            <AlertIndicator />
+            <AlertContent>
+              {updateKeyword.error instanceof ApiAuthError
+                ? "認証エラー: API Keyを確認してください"
+                : updateKeyword.error instanceof ApiError
+                ? updateKeyword.error.message
+                : "キーワードの更新に失敗しました"}
+            </AlertContent>
+          </AlertRoot>
         )}
 
-        <FormControl isInvalid={!!errors.text} isRequired>
-          <FormLabel>キーワード</FormLabel>
+        <FieldRoot invalid={!!errors.text} required>
+          <FieldLabel>キーワード</FieldLabel>
           <Input
             value={formData.text || ""}
             onChange={handleTextChange}
             placeholder="例: Python, 機械学習, React"
             disabled={updateKeyword.isPending}
           />
-          <FormErrorMessage>{errors.text}</FormErrorMessage>
-        </FormControl>
+          <FieldErrorText>{errors.text}</FieldErrorText>
+        </FieldRoot>
 
-        <FormControl isInvalid={!!errors.weight}>
-          <FormLabel>重み</FormLabel>
-          <NumberInput
-            value={formData.weight}
-            onChange={handleWeightChange}
+        <FieldRoot invalid={!!errors.weight}>
+          <FieldLabel>重み</FieldLabel>
+          <NumberInput.Root
+            value={formData.weight?.toString()}
+            onValueChange={(details) => {
+              setFormData((prev) => ({
+                ...prev,
+                weight: details.valueAsNumber,
+              }));
+              // エラーをクリア
+              if (errors.weight) {
+                setErrors((prev) => ({
+                  ...prev,
+                  weight: "",
+                }));
+              }
+            }}
             min={0.1}
             max={10.0}
             step={0.1}
-            precision={1}
             disabled={updateKeyword.isPending}
           >
-            <NumberInputField />
-            <NumberInputStepper>
-              <NumberIncrementStepper />
-              <NumberDecrementStepper />
-            </NumberInputStepper>
-          </NumberInput>
-          <FormHelperText>
+            <NumberInput.Control />
+            <NumberInput.Input />
+          </NumberInput.Root>
+          <FieldHelperText>
             キーワードの重要度を調整できます（0.1〜10.0）
-          </FormHelperText>
-          <FormErrorMessage>{errors.weight}</FormErrorMessage>
-        </FormControl>
+          </FieldHelperText>
+          <FieldErrorText>{errors.weight}</FieldErrorText>
+        </FieldRoot>
 
-        <FormControl display="flex" alignItems="center">
-          <FormLabel htmlFor="is-active" mb="0">
+        <FieldRoot display="flex" alignItems="center">
+          <FieldLabel htmlFor="is-active" mb="0">
             有効
-          </FormLabel>
-          <Switch
-            id="is-active"
-            isChecked={formData.is_active}
-            onChange={handleActiveChange}
+          </FieldLabel>
+          <SwitchRoot
+            checked={formData.is_active}
+            onCheckedChange={(e) => {
+              setFormData((prev) => ({
+                ...prev,
+                is_active: e.checked,
+              }));
+            }}
             disabled={updateKeyword.isPending}
-          />
-          <FormHelperText ml={3}>
+          >
+            <SwitchHiddenInput id="is-active" />
+            <SwitchControl>
+              <SwitchThumb />
+            </SwitchControl>
+          </SwitchRoot>
+          <FieldHelperText ml={3}>
             無効にすると重要度計算から除外されます
-          </FormHelperText>
-        </FormControl>
+          </FieldHelperText>
+        </FieldRoot>
 
         <VStack spacing={2}>
           <Button
             type="submit"
-            colorScheme="blue"
+            colorPalette="blue"
             width="full"
-            isLoading={updateKeyword.isPending}
+            loading={updateKeyword.isPending}
             loadingText="更新中..."
           >
             キーワードを更新

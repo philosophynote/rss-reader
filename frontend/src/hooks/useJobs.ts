@@ -47,3 +47,7 @@ export function useCleanupArticlesJob() {
     },
   });
 }
+
+// エイリアスエクスポート（テストとの互換性のため）
+export { useFetchFeedsJob as useFetchFeeds };
+export { useCleanupArticlesJob as useCleanupArticles };
