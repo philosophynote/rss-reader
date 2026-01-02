@@ -78,6 +78,6 @@ export const articlesApi = {
     const response = await apiClient.get<ApiResponse<ImportanceReason[]>>(
       `/api/articles/${articleId}/reasons`
     );
-    return response.data || [];
+    return response.data ?? [];
   },
 };

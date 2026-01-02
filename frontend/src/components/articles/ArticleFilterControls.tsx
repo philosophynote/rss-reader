@@ -65,7 +65,7 @@ export function ArticleFilterControls({
       <ButtonGroup size="sm" variant="outline" spacing={2}>
         {filterOptions.map((option) => (
           <Button
-            key={option.value || "all"}
+            key={option.value ?? "all"}
             colorScheme={filterBy === option.value ? "blue" : "gray"}
             variant={filterBy === option.value ? "solid" : "outline"}
             onClick={() => onFilterChange(option.value)}

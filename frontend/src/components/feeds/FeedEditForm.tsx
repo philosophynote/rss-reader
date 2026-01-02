@@ -9,22 +9,21 @@ import {
   SwitchRoot,
   SwitchHiddenInput,
   SwitchControl,
-  SwitchLabel,
   VStack,
   createToaster,
   AlertRoot,
   AlertIndicator,
   AlertContent,
 } from "@chakra-ui/react";
+import { useUpdateFeed } from "../../hooks";
+import { ApiAuthError, ApiError } from "../../api";
+import type { Feed, UpdateFeedRequest } from "../../api";
 
 // toasterを作成
 const toaster = createToaster({
   placement: "top",
   duration: 3000,
 });
-import { useUpdateFeed } from "../../hooks";
-import { ApiAuthError, ApiError } from "../../api";
-import type { Feed, UpdateFeedRequest } from "../../api";
 
 interface FeedEditFormProps {
   feed: Feed;
@@ -66,47 +65,49 @@ export function FeedEditForm({ feed, onSuccess, onCancel }: FeedEditFormProps) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!validateForm()) {
       return;
     }
 
-    try {
-      await updateFeed.mutateAsync({
+    void updateFeed
+      .mutateAsync({
         feedId: feed.feed_id,
         data: {
           title: formData.title?.trim(),
           folder: formData.folder?.trim() || undefined,
           is_active: formData.is_active,
         },
+      })
+      .then(() => {
+        toaster.create({
+          title: "フィードを更新しました",
+          type: "success",
+          duration: 3000,
+        });
+
+        onSuccess?.();
+      })
+      .catch((error) => {
+        // eslint-disable-next-line no-console
+        console.error("フィード更新エラー:", error);
+
+        let errorMessage = "フィードの更新に失敗しました";
+        if (error instanceof ApiAuthError) {
+          errorMessage = "認証エラー: API Keyを確認してください";
+        } else if (error instanceof ApiError) {
+          errorMessage = error.message;
+        }
+
+        toaster.create({
+          title: "エラー",
+          description: errorMessage,
+          type: "error",
+          duration: 5000,
+        });
       });
-
-      toaster.create({
-        title: "フィードを更新しました",
-        type: "success",
-        duration: 3000,
-      });
-
-      onSuccess?.();
-    } catch (error) {
-      console.error("フィード更新エラー:", error);
-
-      let errorMessage = "フィードの更新に失敗しました";
-      if (error instanceof ApiAuthError) {
-        errorMessage = "認証エラー: API Keyを確認してください";
-      } else if (error instanceof ApiError) {
-        errorMessage = error.message;
-      }
-
-      toaster.create({
-        title: "エラー",
-        description: errorMessage,
-        type: "error",
-        duration: 5000,
-      });
-    }
   };
 
   const handleInputChange =

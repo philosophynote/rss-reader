@@ -73,7 +73,9 @@ class ApiClient {
         return config;
       },
       (error) => {
-        return Promise.reject(error);
+        return Promise.reject(
+          error instanceof Error ? error : new Error(String(error))
+        );
       }
     );
 
@@ -179,8 +181,8 @@ class ApiClient {
  * 環境変数からAPI設定を取得
  */
 function getApiConfig(): ApiConfig {
-  const baseURL = import.meta.env.VITE_API_BASE_URL;
-  const apiKey = import.meta.env.VITE_API_KEY;
+  const baseURL = import.meta.env.VITE_API_BASE_URL as string | undefined;
+  const apiKey = import.meta.env.VITE_API_KEY as string | undefined;
 
   if (!baseURL) {
     throw new Error("VITE_API_BASE_URL環境変数が設定されていません");

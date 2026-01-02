@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
+import type { UseQueryResult } from "@tanstack/react-query";
 import userEvent from "@testing-library/user-event";
 import { render } from "../../../test/test-utils";
 import { KeywordList } from "../KeywordList";
@@ -70,22 +71,22 @@ describe("KeywordList", () => {
       isLoading: false,
       error: null,
       refetch: mockRefetch,
-    } as any);
+    } as UseQueryResult<Keyword[], Error>);
 
     mockedUseDeleteKeyword.mockReturnValue({
       mutateAsync: mockDeleteMutateAsync,
       isPending: false,
-    } as any);
+    } as ReturnType<typeof useDeleteKeyword>);
 
     mockedUseToggleKeywordActive.mockReturnValue({
       mutateAsync: mockToggleActiveMutateAsync,
       isPending: false,
-    } as any);
+    } as ReturnType<typeof useToggleKeywordActive>);
 
     mockedUseRecalculateScores.mockReturnValue({
       mutateAsync: mockRecalculateMutateAsync,
       isPending: false,
-    } as any);
+    } as ReturnType<typeof useRecalculateScores>);
 
     // window.confirmをモック
     vi.stubGlobal(
@@ -108,7 +109,7 @@ describe("KeywordList", () => {
       isLoading: true,
       error: null,
       refetch: mockRefetch,
-    } as any);
+    } as UseQueryResult<Keyword[], Error>);
 
     render(<KeywordList />);
 
@@ -123,7 +124,7 @@ describe("KeywordList", () => {
       isLoading: false,
       error: new Error("Test error"),
       refetch: mockRefetch,
-    } as any);
+    } as UseQueryResult<Keyword[], Error>);
 
     render(<KeywordList />);
 
@@ -138,7 +139,7 @@ describe("KeywordList", () => {
       isLoading: false,
       error: null,
       refetch: mockRefetch,
-    } as any);
+    } as UseQueryResult<Keyword[], Error>);
 
     render(<KeywordList />);
 
@@ -304,7 +305,7 @@ describe("KeywordList", () => {
     mockedUseRecalculateScores.mockReturnValue({
       mutateAsync: mockRecalculateMutateAsync,
       isPending: true,
-    } as any);
+    } as ReturnType<typeof useRecalculateScores>);
 
     render(<KeywordList />);
 
@@ -315,7 +316,7 @@ describe("KeywordList", () => {
     mockedUseDeleteKeyword.mockReturnValue({
       mutateAsync: mockDeleteMutateAsync,
       isPending: true,
-    } as any);
+    } as ReturnType<typeof useDeleteKeyword>);
 
     render(<KeywordList />);
 
@@ -329,7 +330,7 @@ describe("KeywordList", () => {
     mockedUseToggleKeywordActive.mockReturnValue({
       mutateAsync: mockToggleActiveMutateAsync,
       isPending: true,
-    } as any);
+    } as ReturnType<typeof useToggleKeywordActive>);
 
     render(<KeywordList />);
 

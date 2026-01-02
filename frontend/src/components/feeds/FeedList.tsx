@@ -27,12 +27,6 @@ import {
   DialogCloseTrigger,
 } from "@chakra-ui/react";
 import { Tooltip } from "../../compositions/ui/tooltip";
-
-// toasterを作成
-const toaster = createToaster({
-  placement: "top",
-  duration: 3000,
-});
 import { FiEdit2, FiTrash2, FiExternalLink, FiPlus } from "react-icons/fi";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
@@ -41,6 +35,12 @@ import { ApiAuthError, ApiError } from "../../api";
 import type { Feed } from "../../api";
 import { FeedForm } from "./FeedForm";
 import { FeedEditForm } from "./FeedEditForm";
+
+// toasterを作成
+const toaster = createToaster({
+  placement: "top",
+  duration: 3000,
+});
 
 /**
  * フィード一覧コンポーネント
@@ -58,7 +58,7 @@ export function FeedList() {
     setIsEditOpen(true);
   };
 
-  const handleDelete = async (feed: Feed) => {
+  const handleDelete = (feed: Feed) => {
     if (
       !confirm(
         `フィード「${feed.title}」を削除しますか？\n関連する記事もすべて削除されます。`
@@ -67,31 +67,33 @@ export function FeedList() {
       return;
     }
 
-    try {
-      await deleteFeed.mutateAsync(feed.feed_id);
+    void deleteFeed
+      .mutateAsync(feed.feed_id)
+      .then(() => {
+        toaster.create({
+          title: "フィードを削除しました",
+          type: "success",
+          duration: 3000,
+        });
+      })
+      .catch((error) => {
+        // eslint-disable-next-line no-console
+        console.error("フィード削除エラー:", error);
 
-      toaster.create({
-        title: "フィードを削除しました",
-        type: "success",
-        duration: 3000,
+        let errorMessage = "フィードの削除に失敗しました";
+        if (error instanceof ApiAuthError) {
+          errorMessage = "認証エラー: API Keyを確認してください";
+        } else if (error instanceof ApiError) {
+          errorMessage = error.message;
+        }
+
+        toaster.create({
+          title: "エラー",
+          description: errorMessage,
+          type: "error",
+          duration: 5000,
+        });
       });
-    } catch (error) {
-      console.error("フィード削除エラー:", error);
-
-      let errorMessage = "フィードの削除に失敗しました";
-      if (error instanceof ApiAuthError) {
-        errorMessage = "認証エラー: API Keyを確認してください";
-      } else if (error instanceof ApiError) {
-        errorMessage = error.message;
-      }
-
-      toaster.create({
-        title: "エラー",
-        description: errorMessage,
-        type: "error",
-        duration: 5000,
-      });
-    }
   };
 
   const handleAddSuccess = () => {

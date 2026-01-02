@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
+import type { UseQueryResult } from "@tanstack/react-query";
 import userEvent from "@testing-library/user-event";
 import { render } from "../../../test/test-utils";
 import { FeedList } from "../FeedList";
@@ -65,12 +66,12 @@ describe("FeedList", () => {
       isLoading: false,
       error: null,
       refetch: mockRefetch,
-    } as any);
+    } as UseQueryResult<Feed[], Error>);
 
     mockedUseDeleteFeed.mockReturnValue({
       mutateAsync: mockDeleteMutateAsync,
       isPending: false,
-    } as any);
+    } as ReturnType<typeof useDeleteFeed>);
 
     // window.confirmをモック
     vi.stubGlobal(
@@ -93,7 +94,7 @@ describe("FeedList", () => {
       isLoading: true,
       error: null,
       refetch: mockRefetch,
-    } as any);
+    } as UseQueryResult<Feed[], Error>);
 
     render(<FeedList />);
 
@@ -108,7 +109,7 @@ describe("FeedList", () => {
       isLoading: false,
       error: new Error("Test error"),
       refetch: mockRefetch,
-    } as any);
+    } as UseQueryResult<Feed[], Error>);
 
     render(<FeedList />);
 
@@ -123,7 +124,7 @@ describe("FeedList", () => {
       isLoading: false,
       error: null,
       refetch: mockRefetch,
-    } as any);
+    } as UseQueryResult<Feed[], Error>);
 
     render(<FeedList />);
 
@@ -279,7 +280,7 @@ describe("FeedList", () => {
     mockedUseDeleteFeed.mockReturnValue({
       mutateAsync: mockDeleteMutateAsync,
       isPending: true,
-    } as any);
+    } as ReturnType<typeof useDeleteFeed>);
 
     render(<FeedList />);
 

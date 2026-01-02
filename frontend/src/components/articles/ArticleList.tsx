@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   Box,
   TableRoot,
@@ -68,9 +68,12 @@ export function ArticleList({ onArticleClick }: ArticleListProps) {
     }
   };
 
-  const handleRowClick = (article: Article) => {
-    onArticleClick?.(article);
-  };
+  const handleRowClick = useCallback(
+    (article: Article) => {
+      onArticleClick?.(article);
+    },
+    [onArticleClick]
+  );
 
   const handleSortChange = (sortBy: ArticleListParams["sort_by"]) => {
     setParams((prev) => ({ ...prev, sort_by: sortBy }));
@@ -157,11 +160,11 @@ export function ArticleList({ onArticleClick }: ArticleListProps) {
         size: 150,
       }),
     ],
-    [onArticleClick]
+    [handleRowClick]
   );
 
   const table = useReactTable({
-    data: articleData?.articles || [],
+    data: articleData?.articles ?? [],
     columns,
     state: {
       sorting,

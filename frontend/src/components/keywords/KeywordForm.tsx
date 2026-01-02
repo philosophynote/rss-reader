@@ -60,47 +60,49 @@ export function KeywordForm({ onSuccess, onCancel }: KeywordFormProps) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!validateForm()) {
       return;
     }
 
-    try {
-      await createKeyword.mutateAsync({
+    void createKeyword
+      .mutateAsync({
         text: formData.text.trim(),
         weight: formData.weight,
+      })
+      .then(() => {
+        toaster.create({
+          title: "キーワードを追加しました",
+          type: "success",
+          duration: 3000,
+        });
+
+        // フォームをリセット
+        setFormData({ text: "", weight: 1.0 });
+        setErrors({});
+
+        onSuccess?.();
+      })
+      .catch((error) => {
+        // eslint-disable-next-line no-console
+        console.error("キーワード作成エラー:", error);
+
+        let errorMessage = "キーワードの追加に失敗しました";
+        if (error instanceof ApiAuthError) {
+          errorMessage = "認証エラー: API Keyを確認してください";
+        } else if (error instanceof ApiError) {
+          errorMessage = error.message;
+        }
+
+        toaster.create({
+          title: "エラー",
+          description: errorMessage,
+          type: "error",
+          duration: 5000,
+        });
       });
-
-      toaster.create({
-        title: "キーワードを追加しました",
-        type: "success",
-        duration: 3000,
-      });
-
-      // フォームをリセット
-      setFormData({ text: "", weight: 1.0 });
-      setErrors({});
-
-      onSuccess?.();
-    } catch (error) {
-      console.error("キーワード作成エラー:", error);
-
-      let errorMessage = "キーワードの追加に失敗しました";
-      if (error instanceof ApiAuthError) {
-        errorMessage = "認証エラー: API Keyを確認してください";
-      } else if (error instanceof ApiError) {
-        errorMessage = error.message;
-      }
-
-      toaster.create({
-        title: "エラー",
-        description: errorMessage,
-        type: "error",
-        duration: 5000,
-      });
-    }
   };
 
   const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
