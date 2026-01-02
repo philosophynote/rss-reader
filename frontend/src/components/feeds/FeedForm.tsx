@@ -149,7 +149,7 @@ export function FeedForm({ onSuccess, onCancel }: FeedFormProps) {
         <Field.Root invalid={!!errors.folder}>
           <Field.Label>フォルダ（任意）</Field.Label>
           <Input
-            value={formData.folder || ""}
+            value={formData.folder ?? ""}
             onChange={handleInputChange("folder")}
             placeholder="例: テクノロジー"
             disabled={createFeed.isPending}

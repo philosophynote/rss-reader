@@ -1,31 +1,26 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import axios from "axios";
 import type { AxiosInstance } from "axios";
 
+const mockInterceptors = {
+  request: { use: vi.fn(), eject: vi.fn() },
+  response: { use: vi.fn(), eject: vi.fn() },
+};
+
+const mockAxiosInstance = {
+  get: vi.fn(),
+  post: vi.fn(),
+  put: vi.fn(),
+  delete: vi.fn(),
+  interceptors: mockInterceptors,
+} as AxiosInstance;
+
 // axiosをモック（モジュールインポート前に実行）
-vi.mock("axios", () => {
-  const mockInterceptors = {
-    request: { use: vi.fn(), eject: vi.fn() },
-    response: { use: vi.fn(), eject: vi.fn() },
-  };
-
-  const mockAxiosInstance = {
-    get: vi.fn(),
-    post: vi.fn(),
-    put: vi.fn(),
-    delete: vi.fn(),
-    interceptors: mockInterceptors,
-  };
-
-  return {
-    default: {
-      create: vi.fn(() => mockAxiosInstance),
-      isAxiosError: vi.fn(),
-    },
-  };
-});
-
-const mockedAxios = vi.mocked(axios);
+vi.mock("axios", () => ({
+  default: {
+    create: vi.fn(() => mockAxiosInstance),
+    isAxiosError: vi.fn(),
+  },
+}));
 
 // 環境変数をモック（apiClientのモジュールレベル初期化用）
 vi.stubGlobal("import.meta", {
@@ -41,7 +36,6 @@ import { ApiClient, ApiAuthError, ApiError } from "../client";
 
 describe("ApiClient", () => {
   let apiClient: ApiClient;
-  let mockAxiosInstance: AxiosInstance;
 
   const mockConfig = {
     baseURL: "https://api.example.com",
@@ -53,9 +47,6 @@ describe("ApiClient", () => {
     // axios.createから返されるモックインスタンスを取得
     vi.clearAllMocks();
     apiClient = new ApiClient(mockConfig);
-    // axios.createの最後の呼び出しで返されたインスタンスを取得
-    const lastResult = mockedAxios.create.mock.results.at(-1);
-    mockAxiosInstance = lastResult?.value as AxiosInstance;
   });
 
   afterEach(() => {

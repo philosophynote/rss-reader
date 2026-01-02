@@ -98,13 +98,13 @@ export function FeedList() {
 
   const handleAddSuccess = () => {
     setIsAddOpen(false);
-    refetch();
+    void refetch();
   };
 
   const handleEditSuccess = () => {
     setIsEditOpen(false);
     setSelectedFeed(null);
-    refetch();
+    void refetch();
   };
 
   const formatDate = (dateString: string) => {

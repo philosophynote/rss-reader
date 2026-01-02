@@ -140,6 +140,10 @@ export function KeywordForm({ onSuccess, onCancel }: KeywordFormProps) {
     }
   };
 
+  const weightValue = Number.isFinite(formData.weight)
+    ? formData.weight.toString()
+    : "1.0";
+
   return (
     <Box as="form" onSubmit={handleSubmit}>
       <VStack gap={4} align="stretch">
@@ -176,7 +180,7 @@ export function KeywordForm({ onSuccess, onCancel }: KeywordFormProps) {
         <Field.Root invalid={!!errors.weight}>
           <Field.Label>重み（任意）</Field.Label>
           <NumberInput.Root
-            value={formData.weight?.toString() || "1.0"}
+            value={weightValue}
             onValueChange={handleWeightChange}
             step={0.1}
             disabled={createKeyword.isPending}

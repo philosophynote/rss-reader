@@ -72,6 +72,7 @@ describe("useArticles", () => {
     });
 
     expect(result.current.data).toEqual(mockResponse);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(mockedArticlesApi.getArticles).toHaveBeenCalledWith({
       sort_by: "published_at",
       limit: 50,
@@ -113,6 +114,7 @@ describe("useArticles", () => {
       expect(result.current.isSuccess).toBe(true);
     });
 
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(mockedArticlesApi.getArticles).toHaveBeenCalledWith({
       sort_by: "published_at",
       limit: 50,
@@ -142,6 +144,7 @@ describe("useArticles", () => {
       expect(result.current.isSuccess).toBe(true);
     });
 
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(mockedArticlesApi.getArticles).toHaveBeenCalledWith(params);
   });
 });
@@ -163,6 +166,7 @@ describe("useArticle", () => {
     });
 
     expect(result.current.data).toEqual(mockArticle);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(mockedArticlesApi.getArticle).toHaveBeenCalledWith("1");
   });
 
@@ -203,6 +207,7 @@ describe("useToggleArticleRead", () => {
       data: { is_read: true },
     });
 
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(mockedArticlesApi.updateArticleRead).toHaveBeenCalledWith("1", {
       is_read: true,
     });
@@ -243,6 +248,7 @@ describe("useToggleArticleSave", () => {
       data: { is_saved: true },
     });
 
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(mockedArticlesApi.updateArticleSave).toHaveBeenCalledWith("1", {
       is_saved: true,
     });

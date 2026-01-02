@@ -173,13 +173,13 @@ export function KeywordList() {
 
   const handleAddSuccess = () => {
     onAddClose();
-    refetch();
+    void refetch();
   };
 
   const handleEditSuccess = () => {
     onEditClose();
     setSelectedKeyword(null);
-    refetch();
+    void refetch();
   };
 
   const formatDate = (dateString: string) => {
@@ -197,7 +197,7 @@ export function KeywordList() {
   if (isLoading) {
     return (
       <VStack gap={4} align="stretch">
-        {[...Array(3)].map((_, i) => (
+        {Array.from({ length: 3 }).map((_, i) => (
           <Skeleton key={i} height="100px" borderRadius="md" data-testid="skeleton" />
         ))}
       </VStack>
