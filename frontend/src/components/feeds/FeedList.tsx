@@ -117,7 +117,7 @@ export function FeedList() {
 
   const groupFeedsByFolder = (feeds: Feed[]) => {
     const grouped = feeds.reduce((acc, feed) => {
-      const folder = feed.folder || "未分類";
+      const folder = feed.folder ?? "未分類";
       if (!acc[folder]) {
         acc[folder] = [];
       }
@@ -131,7 +131,7 @@ export function FeedList() {
   if (isLoading) {
     return (
       <VStack spacing={4} align="stretch">
-        {[...Array(3)].map((_, i) => (
+        {Array.from({ length: 3 }).map((_, i) => (
           <Skeleton key={i} height="120px" borderRadius="md" data-testid="skeleton" />
         ))}
       </VStack>

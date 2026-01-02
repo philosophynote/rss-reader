@@ -1,3 +1,4 @@
+import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -68,6 +69,7 @@ describe("useKeywords", () => {
     });
 
     expect(result.current.data).toEqual(mockKeywords);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(mockedKeywordsApi.getKeywords).toHaveBeenCalled();
   });
 
@@ -112,6 +114,7 @@ describe("useCreateKeyword", () => {
 
     await result.current.mutateAsync(createData);
 
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(mockedKeywordsApi.createKeyword).toHaveBeenCalledWith(createData);
   });
 
@@ -156,6 +159,7 @@ describe("useUpdateKeyword", () => {
       data: updateData,
     });
 
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(mockedKeywordsApi.updateKeyword).toHaveBeenCalledWith(
       "1",
       updateData
@@ -197,6 +201,7 @@ describe("useDeleteKeyword", () => {
 
     await result.current.mutateAsync("1");
 
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(mockedKeywordsApi.deleteKeyword).toHaveBeenCalledWith("1");
   });
 
@@ -232,6 +237,7 @@ describe("useToggleKeywordActive", () => {
       data: { is_active: false },
     });
 
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(mockedKeywordsApi.updateKeyword).toHaveBeenCalledWith("1", {
       is_active: false,
     });
@@ -269,6 +275,7 @@ describe("useRecalculateScores", () => {
 
     await result.current.mutateAsync();
 
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(mockedKeywordsApi.recalculateScores).toHaveBeenCalled();
   });
 

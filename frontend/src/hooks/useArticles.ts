@@ -29,13 +29,14 @@ export function useArticles(params?: ArticleListParams) {
     limit: 50,
     ...params,
   };
+  const env = import.meta.env as Record<string, unknown>;
 
   return useQuery({
     queryKey: articlesKeys.list(defaultParams),
     queryFn: () => articlesApi.getArticles(defaultParams),
     retry: (failureCount, error) => {
       // テスト環境ではリトライしない
-      if (import.meta.env.MODE === "test") {
+      if (env.MODE === "test") {
         return false;
       }
       
@@ -56,13 +57,15 @@ export function useArticles(params?: ArticleListParams) {
  * 記事詳細を取得するフック
  */
 export function useArticle(articleId: string) {
+  const env = import.meta.env as Record<string, unknown>;
+
   return useQuery({
     queryKey: articlesKeys.detail(articleId),
     queryFn: () => articlesApi.getArticle(articleId),
     enabled: !!articleId,
     retry: (failureCount, error) => {
       // テスト環境ではリトライしない
-      if (import.meta.env.MODE === "test") {
+      if (env.MODE === "test") {
         return false;
       }
       

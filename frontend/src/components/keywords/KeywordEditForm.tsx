@@ -164,7 +164,7 @@ export function KeywordEditForm({
         <FieldRoot invalid={!!errors.text} required>
           <FieldLabel>キーワード</FieldLabel>
           <Input
-            value={formData.text || ""}
+            value={formData.text ?? ""}
             onChange={handleTextChange}
             placeholder="例: Python, 機械学習, React"
             disabled={updateKeyword.isPending}

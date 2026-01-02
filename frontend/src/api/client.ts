@@ -181,8 +181,9 @@ class ApiClient {
  * 環境変数からAPI設定を取得
  */
 function getApiConfig(): ApiConfig {
-  const baseURL = import.meta.env.VITE_API_BASE_URL as string | undefined;
-  const apiKey = import.meta.env.VITE_API_KEY as string | undefined;
+  const env = import.meta.env as Record<string, unknown>;
+  const baseURL = env.VITE_API_BASE_URL as string | undefined;
+  const apiKey = env.VITE_API_KEY as string | undefined;
 
   if (!baseURL) {
     throw new Error("VITE_API_BASE_URL環境変数が設定されていません");
