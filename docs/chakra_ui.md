@@ -677,6 +677,10 @@ npm test 2>&1 | grep -E "Test Files.*failed.*passed|Tests.*failed.*passed"
    - すべてのカラー関連のプロパティが`colorPalette`に統一された
    - Button, IconButton, Badge など多くのコンポーネントで変更が必要
 
+3. **Link コンポーネントの使用**
+   - `Text`に`href`を渡すと型エラーになるため、リンク表示は`Link`を使う
+   - `as="a"`で回避せず、`Link`に`href`/`target`/`rel`を渡す
+
 3. **アイコンの配置方法**
    - `leftIcon`や`icon`プロパティは廃止され、子要素として配置する
    - IconButtonも同様に子要素としてアイコンを渡す
@@ -718,6 +722,9 @@ npm test 2>&1 | grep -E "Test Files.*failed.*passed|Tests.*failed.*passed"
     - v3のTooltip APIは冗長なため、カスタムコンポーネントの作成を推奨
     - `src/compositions/ui/`ディレクトリに再利用可能なコンポーネントを配置
     - v2のような`content`プロパティを提供するラッパーを作成
+
+12. **sx プロパティの削除**
+    - v3 では `sx` が非対応のため、スタイルは `css` に移す
 
 12. **テスト修正のベストプラクティス**
     - 重複するテキストには`getAllByText`を使用

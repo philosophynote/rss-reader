@@ -161,6 +161,7 @@ make infra-synth         # cdk synth
 * サーバ状態は TanStack Query
 * Chakra UI を使用
 * Chakra UIのバージョンはv3を使用しています。`docs/chakra_ui.md`を必ず参照してください
+* フロントエンドを修正する際は `docs/chakra_ui.md` を必ず参照してください
 
 ## 開発ワークフロー（Kiro Spec-Driven Development）
 
