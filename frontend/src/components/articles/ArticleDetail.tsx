@@ -1,4 +1,3 @@
-import React from "react";
 import {
   Box,
   VStack,
@@ -66,7 +65,7 @@ export function ArticleDetail({ articleId }: ArticleDetailProps) {
 
   if (articleLoading) {
     return (
-      <VStack spacing={4} align="stretch" p={6}>
+      <VStack gap={4} align="stretch" p={6}>
         <Skeleton height="40px" data-testid="skeleton" />
         <Skeleton height="20px" data-testid="skeleton" />
         <Skeleton height="200px" data-testid="skeleton" />
@@ -92,7 +91,7 @@ export function ArticleDetail({ articleId }: ArticleDetailProps) {
 
   return (
     <Box maxW="4xl" mx="auto" p={6}>
-      <VStack spacing={6} align="stretch">
+      <VStack gap={6} align="stretch">
         {/* ヘッダー */}
         <Box>
           <Flex mb={4}>
@@ -109,7 +108,7 @@ export function ArticleDetail({ articleId }: ArticleDetailProps) {
             {article.title}
           </Heading>
 
-          <HStack spacing={4} fontSize="sm" color="gray.500" mb={4}>
+          <HStack gap={4} fontSize="sm" color="gray.500" mb={4}>
             <HStack>
               <FiCalendar />
               <Text>公開: {formatDate(article.published_at)}</Text>
@@ -149,7 +148,7 @@ export function ArticleDetail({ articleId }: ArticleDetailProps) {
               fontSize="md"
               lineHeight="1.7"
               whiteSpace="pre-wrap"
-              sx={{
+              css={{
                 "& p": {
                   mb: 4,
                 },
@@ -204,7 +203,7 @@ export function ArticleDetail({ articleId }: ArticleDetailProps) {
               </Heading>
 
               {reasonsLoading ? (
-                <VStack spacing={2}>
+                <VStack gap={2}>
                   {Array.from({ length: 3 }).map((_, i) => (
                     <Skeleton key={i} height="40px" />
                   ))}
@@ -215,7 +214,7 @@ export function ArticleDetail({ articleId }: ArticleDetailProps) {
                   <AlertContent>重要度理由の取得に失敗しました</AlertContent>
                 </AlertRoot>
               ) : (
-                <VStack spacing={3} align="stretch">
+                <VStack gap={3} align="stretch">
                   {reasons?.map((reason, index) => (
                     <Box
                       key={index}
@@ -224,7 +223,7 @@ export function ArticleDetail({ articleId }: ArticleDetailProps) {
                       borderRadius="md"
                     >
                       <HStack justify="space-between" mb={2}>
-                        <Badge colorScheme="blue" variant="subtle">
+                        <Badge colorPalette="blue" variant="subtle">
                           {reason.keyword_text}
                         </Badge>
                         <Text fontSize="sm" fontWeight="bold" color="green.500">
@@ -257,7 +256,7 @@ export function ArticleDetail({ articleId }: ArticleDetailProps) {
             <Heading size="sm" mb={3}>
               記事情報
             </Heading>
-            <VStack spacing={2} align="stretch" fontSize="sm">
+            <VStack gap={2} align="stretch" fontSize="sm">
               <HStack justify="space-between">
                 <Text color="gray.600">記事ID:</Text>
                 <Text fontFamily="mono">{article.article_id}</Text>
