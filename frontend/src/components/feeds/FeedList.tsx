@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   Box,
   VStack,
   HStack,
   Text,
+  Link,
   Badge,
   Button,
   IconButton,
@@ -130,7 +131,7 @@ export function FeedList() {
 
   if (isLoading) {
     return (
-      <VStack spacing={4} align="stretch">
+      <VStack gap={4} align="stretch">
         {Array.from({ length: 3 }).map((_, i) => (
           <Skeleton key={i} height="120px" borderRadius="md" data-testid="skeleton" />
         ))}
@@ -155,7 +156,7 @@ export function FeedList() {
 
   if (!feeds || feeds.length === 0) {
     return (
-      <VStack spacing={6} py={8}>
+      <VStack gap={6} py={8}>
         <Text color="gray.500" textAlign="center">
           登録されているフィードがありません
         </Text>
@@ -193,7 +194,7 @@ export function FeedList() {
   const groupedFeeds = groupFeedsByFolder(feeds);
 
   return (
-    <VStack spacing={6} align="stretch">
+    <VStack gap={6} align="stretch">
       <Flex>
         <Spacer />
         <Button colorPalette="blue" onClick={() => setIsAddOpen(true)}>
@@ -208,13 +209,13 @@ export function FeedList() {
             {folder} ({folderFeeds.length})
           </Text>
 
-          <VStack spacing={3} align="stretch">
+          <VStack gap={3} align="stretch">
             {folderFeeds.map((feed) => (
               <CardRoot key={feed.feed_id} variant="outline">
                 <CardBody role="article">
-                  <VStack spacing={3} align="stretch">
+                  <VStack gap={3} align="stretch">
                     <HStack>
-                      <VStack align="start" spacing={1} flex={1}>
+                      <VStack align="start" gap={1} flex={1}>
                         <HStack>
                           <Text fontWeight="bold" fontSize="md">
                             {feed.title}
@@ -226,16 +227,16 @@ export function FeedList() {
                           </Badge>
                         </HStack>
 
-                        <HStack spacing={2}>
-                          <Text
+                        <HStack gap={2}>
+                          <Link
                             fontSize="sm"
                             color="blue.500"
-                            as="a"
                             href={feed.url}
                             target="_blank"
+                            rel="noreferrer"
                           >
                             {feed.url}
-                          </Text>
+                          </Link>
                           <IconButton
                             aria-label="外部リンクで開く"
                             size="xs"
@@ -249,7 +250,7 @@ export function FeedList() {
                         </HStack>
                       </VStack>
 
-                      <HStack spacing={2}>
+                      <HStack gap={2}>
                         <Tooltip content="編集">
                           <IconButton
                             aria-label="フィードを編集"
