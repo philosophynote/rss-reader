@@ -43,12 +43,12 @@ export interface ArticleListParams {
   sort_by?: "published_at" | "importance_score";
   filter_by?: "unread" | "read" | "saved";
   limit?: number;
-  last_evaluated_key?: Record<string, any>;
+  last_evaluated_key?: Record<string, unknown>;
 }
 
 export interface ArticleListResponse {
   articles: Article[];
-  last_evaluated_key?: Record<string, any>;
+  last_evaluated_key?: Record<string, unknown>;
   total_count?: number;
 }
 
@@ -122,7 +122,7 @@ export interface ApiErrorResponse {
 /**
  * 共通レスポンス型
  */
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   data?: T;
   message?: string;
   success: boolean;

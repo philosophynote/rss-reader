@@ -21,7 +21,7 @@ export const articlesApi = {
       "/api/articles",
       params
     );
-    return response.data || { articles: [] };
+    return response.data ?? { articles: [] };
   },
 
   /**

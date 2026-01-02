@@ -1,6 +1,19 @@
 import axios, { AxiosInstance, AxiosError, AxiosResponse } from "axios";
 
 /**
+ * APIエラーレスポンスのデータ型
+ */
+export interface ApiErrorData {
+  error?: {
+    code?: string;
+    message?: string;
+    details?: string;
+  };
+  message?: string;
+  [key: string]: unknown;
+}
+
+/**
  * API認証エラー
  */
 export class ApiAuthError extends Error {
@@ -14,7 +27,11 @@ export class ApiAuthError extends Error {
  * API通信エラー
  */
 export class ApiError extends Error {
-  constructor(message: string, public status?: number, public data?: any) {
+  constructor(
+    message: string,
+    public status?: number,
+    public data?: ApiErrorData
+  ) {
     super(message);
     this.name = "ApiError";
   }
@@ -41,7 +58,7 @@ class ApiClient {
 
     this.client = axios.create({
       baseURL: config.baseURL,
-      timeout: config.timeout || 30000,
+      timeout: config.timeout ?? 30000,
       headers: {
         "Content-Type": "application/json",
       },
@@ -79,20 +96,29 @@ class ApiClient {
           throw new ApiError(
             "リクエストが多すぎます。しばらく待ってから再試行してください。",
             error.response.status,
-            error.response.data
+            error.response.data as ApiErrorData
           );
         }
 
         if (error.response) {
           // サーバーエラー
-          const message =
-            error.response.data?.error?.message ||
-            error.response.data?.message ||
-            `サーバーエラーが発生しました (${error.response.status})`;
+          const data = error.response.data as ApiErrorData;
+          let message = `サーバーエラーが発生しました (${error.response.status})`;
+
+          if (data && typeof data === 'object') {
+            if (data.error && typeof data.error === 'object') {
+              if (data.error.message && typeof data.error.message === 'string') {
+                message = data.error.message;
+              }
+            } else if (data.message && typeof data.message === 'string') {
+              message = data.message;
+            }
+          }
+
           throw new ApiError(
             message,
             error.response.status,
-            error.response.data
+            data
           );
         }
 
@@ -104,7 +130,7 @@ class ApiClient {
         }
 
         // その他のエラー
-        throw new ApiError(error.message || "予期しないエラーが発生しました。");
+        throw new ApiError(error.message ?? "予期しないエラーが発生しました。");
       }
     );
   }
@@ -119,7 +145,7 @@ class ApiClient {
   /**
    * GETリクエスト
    */
-  async get<T = any>(url: string, params?: Record<string, any>): Promise<T> {
+  async get<T = unknown>(url: string, params?: Record<string, unknown>): Promise<T> {
     const response = await this.client.get<T>(url, { params });
     return response.data;
   }
@@ -127,7 +153,7 @@ class ApiClient {
   /**
    * POSTリクエスト
    */
-  async post<T = any>(url: string, data?: any): Promise<T> {
+  async post<T = unknown>(url: string, data?: unknown): Promise<T> {
     const response = await this.client.post<T>(url, data);
     return response.data;
   }
@@ -135,7 +161,7 @@ class ApiClient {
   /**
    * PUTリクエスト
    */
-  async put<T = any>(url: string, data?: any): Promise<T> {
+  async put<T = unknown>(url: string, data?: unknown): Promise<T> {
     const response = await this.client.put<T>(url, data);
     return response.data;
   }
@@ -143,7 +169,7 @@ class ApiClient {
   /**
    * DELETEリクエスト
    */
-  async delete<T = any>(url: string): Promise<T> {
+  async delete<T = unknown>(url: string): Promise<T> {
     const response = await this.client.delete<T>(url);
     return response.data;
   }

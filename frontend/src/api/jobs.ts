@@ -17,7 +17,7 @@ export const jobsApi = {
       "/api/jobs/fetch-feeds"
     );
     return (
-      response.data || {
+      response.data ?? {
         total_feeds: 0,
         successful_feeds: 0,
         failed_feeds: 0,
@@ -35,7 +35,7 @@ export const jobsApi = {
       "/api/jobs/cleanup-articles"
     );
     return (
-      response.data || {
+      response.data ?? {
         deleted_articles: 0,
         deleted_reasons: 0,
       }
