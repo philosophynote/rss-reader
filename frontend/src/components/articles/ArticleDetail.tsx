@@ -186,7 +186,9 @@ export function ArticleDetail({ articleId }: ArticleDetailProps) {
                 },
               }}
             >
-              {article.content ?? "記事の内容がありません。"}
+              {article.content && article.content.trim()
+                ? article.content
+                : "記事の内容がありません。"}
             </Box>
           </CardBody>
         </CardRoot>
