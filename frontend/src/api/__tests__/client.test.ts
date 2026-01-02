@@ -1,9 +1,27 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import type { AxiosInstance } from "axios";
+
+type MockAxiosInstance = {
+  get: ReturnType<typeof vi.fn>;
+  post: ReturnType<typeof vi.fn>;
+  put: ReturnType<typeof vi.fn>;
+  delete: ReturnType<typeof vi.fn>;
+  interceptors: {
+    request: {
+      use: ReturnType<typeof vi.fn>;
+      eject: ReturnType<typeof vi.fn>;
+      clear: ReturnType<typeof vi.fn>;
+    };
+    response: {
+      use: ReturnType<typeof vi.fn>;
+      eject: ReturnType<typeof vi.fn>;
+      clear: ReturnType<typeof vi.fn>;
+    };
+  };
+};
 
 const mockInterceptors = {
-  request: { use: vi.fn(), eject: vi.fn() },
-  response: { use: vi.fn(), eject: vi.fn() },
+  request: { use: vi.fn(), eject: vi.fn(), clear: vi.fn() },
+  response: { use: vi.fn(), eject: vi.fn(), clear: vi.fn() },
 };
 
 const mockAxiosInstance = {
@@ -12,7 +30,7 @@ const mockAxiosInstance = {
   put: vi.fn(),
   delete: vi.fn(),
   interceptors: mockInterceptors,
-} as AxiosInstance;
+} satisfies MockAxiosInstance;
 
 // axiosをモック（モジュールインポート前に実行）
 vi.mock("axios", () => ({
