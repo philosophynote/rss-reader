@@ -8,7 +8,8 @@
 
 #### `AWS_ROLE_ARN`
 - **説明**: GitHub ActionsがAWSリソースにアクセスするためのIAMロールARN
-- **形式**: `arn:aws:iam::123456789012:role/GitHubActionsRole`
+- **形式**: `arn:aws:iam::{YOUR_AWS_ACCOUNT_ID}:role/GitHubActionsRole`
+- **注意**: `{YOUR_AWS_ACCOUNT_ID}` を実際の12桁のAWSアカウントIDに置き換えてください
 - **設定方法**:
   1. AWSコンソールでIAMロールを作成
   2. GitHub ActionsのOIDCプロバイダーを信頼関係に追加
@@ -19,7 +20,7 @@
 
 #### `RSS_READER_API_KEY_SECRET_ID`
 - **説明**: Secrets Managerに保存したAPI KeyのシークレットIDまたはARN
-- **形式**: `rss-reader/production/api-key` または `arn:aws:secretsmanager:ap-northeast-1:123456789012:secret:rss-reader/production/api-key`
+- **形式**: `rss-reader/production/api-key` または `arn:aws:secretsmanager:ap-northeast-1:{YOUR_AWS_ACCOUNT_ID}:secret:rss-reader/production/api-key`
 - **設定方法**: AWS Secrets Managerでシークレットを作成し、そのID/ARNをGitHub Secretsに登録
 - **API Keyの生成方法**:
 ```bash
@@ -46,6 +47,18 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
 - **形式**: `https://your-cloudfront-domain.cloudfront.net,http://localhost:5173`
 - **例**: `https://d1234567890.cloudfront.net,http://localhost:5173`
 
+### Bedrock設定
+
+#### `BEDROCK_REGION`
+- **説明**: AWS Bedrock（Nova 2 Multimodal Embeddings）を使用するリージョン
+- **値**: `us-east-1`
+- **注意**: Nova 2 Multimodal Embeddingsは現在 `us-east-1` でのみ利用可能です
+
+#### `EMBEDDING_DIMENSION`
+- **説明**: Nova 2 Multimodal Embeddingsの埋め込み次元数
+- **値**: `1024`
+- **選択肢**: `256`, `384`, `1024`, `3072` (精度とストレージコストのトレードオフ)
+
 ## セキュリティ設定手順
 
 ### 1. AWS IAMロールの作成
@@ -63,7 +76,7 @@ aws iam create-role \
     {
       "Effect": "Allow",
       "Principal": {
-        "Federated": "arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com"
+        "Federated": "arn:aws:iam::{YOUR_AWS_ACCOUNT_ID}:oidc-provider/token.actions.githubusercontent.com"
       },
       "Action": "sts:AssumeRoleWithWebIdentity",
       "Condition": {
@@ -99,16 +112,16 @@ aws iam create-role \
         "cloudformation:*"
       ],
       "Resource": [
-        "arn:aws:dynamodb:ap-northeast-1:123456789012:table/rss-reader-*",
-        "arn:aws:dynamodb:ap-northeast-1:123456789012:table/rss-reader-*/index/*",
-        "arn:aws:lambda:ap-northeast-1:123456789012:function:rss-reader-*",
-        "arn:aws:ecr:ap-northeast-1:123456789012:repository/rss-reader-*",
+        "arn:aws:dynamodb:ap-northeast-1:{YOUR_AWS_ACCOUNT_ID}:table/rss-reader-*",
+        "arn:aws:dynamodb:ap-northeast-1:{YOUR_AWS_ACCOUNT_ID}:table/rss-reader-*/index/*",
+        "arn:aws:lambda:ap-northeast-1:{YOUR_AWS_ACCOUNT_ID}:function:rss-reader-*",
+        "arn:aws:ecr:ap-northeast-1:{YOUR_AWS_ACCOUNT_ID}:repository/rss-reader-*",
         "arn:aws:s3:::rss-reader-*",
         "arn:aws:s3:::rss-reader-*/*",
-        "arn:aws:cloudfront::123456789012:distribution/*",
-        "arn:aws:events:ap-northeast-1:123456789012:rule/rss-reader-*",
-        "arn:aws:cloudformation:ap-northeast-1:123456789012:stack/rss-reader-*/*",
-        "arn:aws:iam::123456789012:role/rss-reader-*"
+        "arn:aws:cloudfront::{YOUR_AWS_ACCOUNT_ID}:distribution/*",
+        "arn:aws:events:ap-northeast-1:{YOUR_AWS_ACCOUNT_ID}:rule/rss-reader-*",
+        "arn:aws:cloudformation:ap-northeast-1:{YOUR_AWS_ACCOUNT_ID}:stack/rss-reader-*/*",
+        "arn:aws:iam::{YOUR_AWS_ACCOUNT_ID}:role/rss-reader-*"
       ]
     },
     {
@@ -123,7 +136,7 @@ aws iam create-role \
       "Action": [
         "secretsmanager:GetSecretValue"
       ],
-      "Resource": "arn:aws:secretsmanager:ap-northeast-1:123456789012:secret:rss-reader-*"
+      "Resource": "arn:aws:secretsmanager:ap-northeast-1:{YOUR_AWS_ACCOUNT_ID}:secret:rss-reader-*"
     },
     {
       "Sid": "BedrockInvoke",
@@ -141,10 +154,16 @@ aws iam create-role \
 
 ```bash
 # OIDCプロバイダーを作成（初回のみ）
+# 注意: サムプリントは変更される可能性があります。最新の値はIAMコンソールで自動取得することを推奨します
 aws iam create-open-id-connect-provider \
   --url https://token.actions.githubusercontent.com \
   --client-id-list sts.amazonaws.com \
   --thumbprint-list 6938fd4d98bab03faadb97b34396831e3780aea1
+
+# サムプリントを手動で確認する場合:
+# 1. https://token.actions.githubusercontent.com/.well-known/openid-configuration にアクセス
+# 2. jwks_uri のドメインを確認
+# 3. OpenSSLでサムプリントを取得
 ```
 
 ### 4. GitHub Secretsの設定
@@ -155,11 +174,13 @@ aws iam create-open-id-connect-provider \
 
 | Secret名 | 値 | 説明 |
 |----------|-----|------|
-| `AWS_ROLE_ARN` | `arn:aws:iam::123456789012:role/GitHubActionsRole` | AWS IAMロールARN |
+| `AWS_ROLE_ARN` | `arn:aws:iam::{YOUR_AWS_ACCOUNT_ID}:role/GitHubActionsRole` | AWS IAMロールARN |
 | `RSS_READER_API_KEY_SECRET_ID` | `Secrets ManagerのID/ARN` | バックエンドAPI Keyの参照ID |
 | `VITE_API_KEY` | `Secrets ManagerのAPI Keyと同じ値` | フロントエンドAPI Key |
 | `VITE_API_BASE_URL` | `Lambda Function URL` | APIベースURL |
 | `CORS_ALLOWED_ORIGINS` | `CloudFront URL,localhost URL` | CORS許可オリジン |
+| `BEDROCK_REGION` | `us-east-1` | Bedrock使用リージョン |
+| `EMBEDDING_DIMENSION` | `1024` | 埋め込み次元数 |
 
 ## 環境別設定
 
