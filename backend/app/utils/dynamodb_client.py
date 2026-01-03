@@ -36,9 +36,17 @@ class DynamoDBClient:
         self.table_name = table_name or settings.get_table_name()
 
         # DynamoDBリソースを初期化
-        self.dynamodb = boto3.resource(
-            "dynamodb", region_name=settings.get_region()
-        )
+        endpoint_url = settings.get_dynamodb_endpoint_url()
+        if endpoint_url:
+            self.dynamodb = boto3.resource(
+                "dynamodb",
+                region_name=settings.get_region(),
+                endpoint_url=endpoint_url,
+            )
+        else:
+            self.dynamodb = boto3.resource(
+                "dynamodb", region_name=settings.get_region()
+            )
         self.table = self.dynamodb.Table(self.table_name)  # type: ignore[attr-defined]
 
         logger.info(

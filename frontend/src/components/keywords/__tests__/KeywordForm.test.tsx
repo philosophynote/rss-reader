@@ -165,9 +165,8 @@ describe("KeywordForm", () => {
 
     await user.type(keywordInput, "Python");
 
-    // NumberInputの場合は全選択してから入力
-    await user.tripleClick(weightInput);
-    await user.keyboard("0.05");
+    await user.clear(weightInput);
+    await user.type(weightInput, "0");
 
     const submitButton = screen.getByRole("button", {
       name: "キーワードを追加",
