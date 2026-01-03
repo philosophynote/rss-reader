@@ -7,6 +7,7 @@ DynamoDBのシングルテーブル設計に対応した
 
 import uuid
 from datetime import datetime, timedelta
+from decimal import Decimal
 from typing import Any
 
 from pydantic import BaseModel as PydanticBaseModel
@@ -101,16 +102,25 @@ class BaseModel(PydanticBaseModel):
         # Pydanticモデルを辞書に変換
         item = self.model_dump()
 
-        # datetime型をISO文字列に変換
-        for key, value in item.items():
+        def convert_value(value: Any) -> Any:
             if isinstance(value, datetime):
                 iso_str = value.isoformat()
-                # timezone-naiveな場合のみ"Z"を追加
                 if not iso_str.endswith(("+00:00", "-00:00", "Z")):
                     iso_str += "Z"
-                item[key] = iso_str
+                return iso_str
+            if isinstance(value, float):
+                return Decimal(str(value))
+            if isinstance(value, list):
+                return [convert_value(entry) for entry in value]
+            if isinstance(value, tuple):
+                return [convert_value(entry) for entry in value]
+            if isinstance(value, dict):
+                return {
+                    key: convert_value(entry) for key, entry in value.items()
+                }
+            return value
 
-        return item
+        return convert_value(item)
 
     def update_timestamp(self) -> None:
         """更新日時を現在時刻に設定"""

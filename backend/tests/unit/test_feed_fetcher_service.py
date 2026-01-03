@@ -4,6 +4,8 @@ RSSフィード取得サービスのユニットテスト。
 FeedFetcherServiceの取得処理が正しく動作することを検証します。
 """
 
+from decimal import Decimal
+
 import httpx
 import pytest
 
@@ -331,4 +333,4 @@ class TestFeedFetcherService:
             for item in fake_client.items.values()
             if item.get("EntityType") == "Article"
         ]
-        assert article_items[0]["importance_score"] == 0.7
+        assert article_items[0]["importance_score"] == Decimal("0.7")
