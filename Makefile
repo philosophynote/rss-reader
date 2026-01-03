@@ -1,7 +1,7 @@
 # RSS Reader Project Makefile
 # Python 3.14 + TypeScript 5系 + uv前提
 
-.PHONY: help install lint format type-check test test-coverage clean setup-dev dev backend-dev
+.PHONY: help install lint format type-check test test-coverage clean setup-dev dev backend-dev backend-dev-local dynamodb-local dynamodb-local-create-table
 
 # デフォルトターゲット
 help:
@@ -14,6 +14,11 @@ help:
 	@echo "開発サーバー:"
 	@echo "  dev           フロントエンド開発サーバーを起動 (http://localhost:5173)"
 	@echo "  backend-dev   バックエンド開発サーバーを起動 (http://localhost:8000)"
+	@echo "  backend-dev-local  .env.local を読み込んでバックエンドを起動 (http://localhost:8000)"
+	@echo ""
+	@echo "ローカルDynamoDB:"
+	@echo "  dynamodb-local             DynamoDB Local を起動 (http://localhost:8001)"
+	@echo "  dynamodb-local-create-table ローカルDynamoDB用テーブルを作成"
 	@echo ""
 	@echo "コード品質:"
 	@echo "  lint          全プロジェクトのlint実行"
@@ -66,6 +71,52 @@ backend-dev:
 	@echo "📚 API Docs: http://localhost:8000/docs"
 	@echo ""
 	@cd backend && uv run uvicorn app.main:app --reload
+
+backend-dev-local:
+	@echo "🚀 ローカル環境変数でバックエンドを起動中..."
+	@echo "📡 API: http://localhost:8000"
+	@echo "📚 API Docs: http://localhost:8000/docs"
+	@echo ""
+	@set -a; . ./.env.local; set +a; cd backend && uv run uvicorn app.main:app --reload
+
+# =========================
+# ローカルDynamoDB
+# =========================
+
+AWS_PAGER ?= ""
+DYNAMODB_ENDPOINT_URL ?= http://localhost:8001
+DYNAMODB_TABLE_NAME ?= rss-reader-local
+AWS_REGION ?= ap-northeast-1
+AWS_ACCESS_KEY_ID ?= local
+AWS_SECRET_ACCESS_KEY ?= local
+
+dynamodb-local:
+	@echo "🧪 DynamoDB Local を起動中..."
+	@echo "📦 http://localhost:8001"
+	@docker run --rm -p 8001:8000 amazon/dynamodb-local -jar DynamoDBLocal.jar -sharedDb
+
+dynamodb-local-create-table:
+	@echo "🧪 ローカルDynamoDBにテーブルを作成中..."
+	@AWS_PAGER=$(AWS_PAGER) AWS_ACCESS_KEY_ID=$(AWS_ACCESS_KEY_ID) AWS_SECRET_ACCESS_KEY=$(AWS_SECRET_ACCESS_KEY) AWS_REGION=$(AWS_REGION) \
+	aws dynamodb create-table \
+		--table-name $(DYNAMODB_TABLE_NAME) \
+		--attribute-definitions \
+			AttributeName=PK,AttributeType=S \
+			AttributeName=SK,AttributeType=S \
+			AttributeName=GSI1PK,AttributeType=S \
+			AttributeName=GSI1SK,AttributeType=S \
+			AttributeName=GSI2PK,AttributeType=S \
+			AttributeName=GSI2SK,AttributeType=S \
+			AttributeName=GSI3PK,AttributeType=S \
+			AttributeName=GSI3SK,AttributeType=S \
+			AttributeName=GSI4PK,AttributeType=S \
+			AttributeName=GSI4SK,AttributeType=S \
+			AttributeName=GSI5PK,AttributeType=S \
+			AttributeName=GSI5SK,AttributeType=S \
+		--key-schema AttributeName=PK,KeyType=HASH AttributeName=SK,KeyType=RANGE \
+		--billing-mode PAY_PER_REQUEST \
+		--global-secondary-indexes '[{"IndexName":"GSI1","KeySchema":[{"AttributeName":"GSI1PK","KeyType":"HASH"},{"AttributeName":"GSI1SK","KeyType":"RANGE"}],"Projection":{"ProjectionType":"ALL"}},{"IndexName":"GSI2","KeySchema":[{"AttributeName":"GSI2PK","KeyType":"HASH"},{"AttributeName":"GSI2SK","KeyType":"RANGE"}],"Projection":{"ProjectionType":"ALL"}},{"IndexName":"GSI3","KeySchema":[{"AttributeName":"GSI3PK","KeyType":"HASH"},{"AttributeName":"GSI3SK","KeyType":"RANGE"}],"Projection":{"ProjectionType":"ALL"}},{"IndexName":"GSI4","KeySchema":[{"AttributeName":"GSI4PK","KeyType":"HASH"},{"AttributeName":"GSI4SK","KeyType":"RANGE"}],"Projection":{"ProjectionType":"ALL"}},{"IndexName":"GSI5","KeySchema":[{"AttributeName":"GSI5PK","KeyType":"HASH"},{"AttributeName":"GSI5SK","KeyType":"RANGE"}],"Projection":{"ProjectionType":"ALL"}}]' \
+		--endpoint-url $(DYNAMODB_ENDPOINT_URL)
 
 # =========================
 # コード品質
