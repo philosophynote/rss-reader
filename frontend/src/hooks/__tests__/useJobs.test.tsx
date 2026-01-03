@@ -35,9 +35,11 @@ describe("useFetchFeeds", () => {
 
   it("should fetch feeds successfully", async () => {
     const mockResponse = {
-      message: "Feed fetch job started",
-      feeds_processed: 5,
-      articles_added: 10,
+      total_feeds: 5,
+      successful_feeds: 5,
+      failed_feeds: 0,
+      new_articles: 10,
+      errors: [],
     };
 
     mockedJobsApi.fetchFeeds.mockResolvedValue(mockResponse);
@@ -73,9 +75,11 @@ describe("useFetchFeeds", () => {
           setTimeout(
             () =>
               resolve({
-                message: "Success",
-                feeds_processed: 1,
+                total_feeds: 1,
+                successful_feeds: 1,
+                failed_feeds: 0,
                 new_articles: 1,
+                errors: [],
               }),
             100
           )
@@ -108,7 +112,6 @@ describe("useCleanupArticles", () => {
 
   it("should cleanup articles successfully", async () => {
     const mockResponse = {
-      message: "Cleanup job completed",
       deleted_articles: 15,
       deleted_reasons: 30,
     };
@@ -146,7 +149,6 @@ describe("useCleanupArticles", () => {
           setTimeout(
             () =>
               resolve({
-                message: "Success",
                 deleted_articles: 1,
                 deleted_reasons: 1,
               }),
@@ -175,7 +177,6 @@ describe("useCleanupArticles", () => {
 
   it("should handle successful response with zero deletions", async () => {
     const mockResponse = {
-      message: "No articles to cleanup",
       deleted_articles: 0,
       deleted_reasons: 0,
     };

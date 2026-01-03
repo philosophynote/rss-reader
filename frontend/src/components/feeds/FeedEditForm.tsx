@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
+import type { ChangeEvent, FormEvent } from "react";
 import {
   Box,
   Button,
@@ -65,7 +66,7 @@ export function FeedEditForm({ feed, onSuccess, onCancel }: FeedEditFormProps) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
 
     if (!validateForm()) {
@@ -112,7 +113,7 @@ export function FeedEditForm({ feed, onSuccess, onCancel }: FeedEditFormProps) {
 
   const handleInputChange =
     (field: keyof UpdateFeedRequest) =>
-    (e: React.ChangeEvent<HTMLInputElement>) => {
+    (e: ChangeEvent<HTMLInputElement>) => {
       setFormData((prev) => ({
         ...prev,
         [field]: e.target.value,
@@ -129,7 +130,7 @@ export function FeedEditForm({ feed, onSuccess, onCancel }: FeedEditFormProps) {
 
   return (
     <Box as="form" onSubmit={handleSubmit}>
-      <VStack spacing={4} align="stretch">
+      <VStack gap={4} align="stretch">
         {updateFeed.error && (
           <AlertRoot status="error">
             <AlertIndicator />
@@ -184,7 +185,7 @@ export function FeedEditForm({ feed, onSuccess, onCancel }: FeedEditFormProps) {
           </SwitchRoot>
         </FieldRoot>
 
-        <VStack spacing={2}>
+        <VStack gap={2}>
           <Button
             type="submit"
             colorPalette="blue"

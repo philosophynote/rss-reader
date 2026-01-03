@@ -24,7 +24,7 @@ describe("KeywordForm", () => {
       mutateAsync: mockMutateAsync,
       isPending: false,
       error: null,
-    } as ReturnType<typeof useCreateKeyword>);
+    } as unknown as ReturnType<typeof useCreateKeyword>);
   });
 
   it("should render form fields correctly", () => {
@@ -214,7 +214,7 @@ describe("KeywordForm", () => {
       mutateAsync: mockMutateAsync,
       isPending: true,
       error: null,
-    } as ReturnType<typeof useCreateKeyword>);
+    } as unknown as ReturnType<typeof useCreateKeyword>);
 
     render(<KeywordForm />);
 

@@ -1,4 +1,4 @@
-import React from "react";
+import type { MouseEvent } from "react";
 import {
   HStack,
   IconButton,
@@ -43,7 +43,7 @@ export function ArticleActionButtons({
   const toggleRead = useToggleArticleRead();
   const toggleSave = useToggleArticleSave();
 
-  const handleToggleRead = (e: React.MouseEvent) => {
+  const handleToggleRead = (e: MouseEvent) => {
     e.stopPropagation();
 
     void toggleRead
@@ -80,7 +80,7 @@ export function ArticleActionButtons({
       });
   };
 
-  const handleToggleSave = (e: React.MouseEvent) => {
+  const handleToggleSave = (e: MouseEvent) => {
     e.stopPropagation();
 
     void toggleSave

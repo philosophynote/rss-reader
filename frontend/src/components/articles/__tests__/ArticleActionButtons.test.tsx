@@ -40,12 +40,12 @@ describe("ArticleActionButtons", () => {
     mockedUseToggleArticleRead.mockReturnValue({
       mutateAsync: mockToggleReadMutateAsync,
       isPending: false,
-    } as ReturnType<typeof useToggleArticleRead>);
+    } as unknown as ReturnType<typeof useToggleArticleRead>);
 
     mockedUseToggleArticleSave.mockReturnValue({
       mutateAsync: mockToggleSaveMutateAsync,
       isPending: false,
-    } as ReturnType<typeof useToggleArticleSave>);
+    } as unknown as ReturnType<typeof useToggleArticleSave>);
 
     // window.openをモック
     vi.stubGlobal("open", vi.fn());
@@ -158,7 +158,7 @@ describe("ArticleActionButtons", () => {
     mockedUseToggleArticleRead.mockReturnValue({
       mutateAsync: mockToggleReadMutateAsync,
       isPending: true,
-    } as ReturnType<typeof useToggleArticleRead>);
+    } as unknown as ReturnType<typeof useToggleArticleRead>);
 
     render(<ArticleActionButtons article={mockArticle} />);
 
@@ -170,7 +170,7 @@ describe("ArticleActionButtons", () => {
     mockedUseToggleArticleSave.mockReturnValue({
       mutateAsync: mockToggleSaveMutateAsync,
       isPending: true,
-    } as ReturnType<typeof useToggleArticleSave>);
+    } as unknown as ReturnType<typeof useToggleArticleSave>);
 
     render(<ArticleActionButtons article={mockArticle} />);
 

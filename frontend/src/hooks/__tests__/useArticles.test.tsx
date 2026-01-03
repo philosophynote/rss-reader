@@ -1,5 +1,5 @@
-import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { ReactNode } from "react";
 import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -44,7 +44,7 @@ const createWrapper = () => {
     },
   });
 
-  return ({ children }: { children: React.ReactNode }) => (
+  return ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );
 };
@@ -57,7 +57,7 @@ describe("useArticles", () => {
   it("should fetch articles successfully", async () => {
     const mockResponse = {
       articles: [mockArticle],
-      last_evaluated_key: null,
+      last_evaluated_key: undefined,
     };
 
     mockedArticlesApi.getArticles.mockResolvedValue(mockResponse);
@@ -101,7 +101,7 @@ describe("useArticles", () => {
   it("should use default params when none provided", async () => {
     const mockResponse = {
       articles: [],
-      last_evaluated_key: null,
+      last_evaluated_key: undefined,
     };
 
     mockedArticlesApi.getArticles.mockResolvedValue(mockResponse);
@@ -131,7 +131,7 @@ describe("useArticles", () => {
 
     const mockResponse = {
       articles: [mockArticle],
-      last_evaluated_key: null,
+      last_evaluated_key: undefined,
     };
 
     mockedArticlesApi.getArticles.mockResolvedValue(mockResponse);

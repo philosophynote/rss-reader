@@ -1,4 +1,3 @@
-import React from "react";
 import { HStack, Text, Button, ButtonGroup, Icon } from "@chakra-ui/react";
 import { FiClock, FiTrendingUp } from "react-icons/fi";
 import type { ArticleListParams } from "../../api";
@@ -16,12 +15,12 @@ export function ArticleSortControls({
   onSortChange,
 }: ArticleSortControlsProps) {
   return (
-    <HStack spacing={4}>
+    <HStack gap={4}>
       <Text fontSize="sm" fontWeight="medium" color="gray.600">
         並び順:
       </Text>
 
-      <ButtonGroup size="sm" isAttached variant="outline">
+      <ButtonGroup size="sm" attached variant="outline">
         <Button
           colorScheme={sortBy === "published_at" ? "blue" : "gray"}
           variant={sortBy === "published_at" ? "solid" : "outline"}
