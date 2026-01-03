@@ -262,8 +262,14 @@ class TestCICDPipelineProperties:
                         assert "options" in env_input, (
                             f"{workflow_file}: 環境選択肢が設定されていません"
                         )
-                        assert environment in env_input["options"], (
-                            f"{workflow_file}: {environment}環境が選択肢にありません"
+                        options = env_input["options"]
+                        assert isinstance(options, list) and options, (
+                            f"{workflow_file}: 環境選択肢が空です"
+                        )
+                        assert {"development", "production"}.issubset(
+                            set(options)
+                        ), (
+                            f"{workflow_file}: 環境選択肢が不十分です: {options}"
                         )
 
             # 環境設定の確認

@@ -135,21 +135,27 @@ jobs:
           # 重要な出力値を環境変数として保存
           if [ -f outputs.json ]; then
             # Lambda Function URL
-            LAMBDA_URL=$(cat outputs.json | jq -r '.RssReaderLambdaStack.LambdaFunctionUrl // empty')
+            LAMBDA_URL=$(cat outputs.json | jq -r '.RssReaderStack.ApiUrl // empty' 2>/dev/null || echo "")
             if [ "$LAMBDA_URL" != "" ] && [ "$LAMBDA_URL" != "null" ]; then
               echo "LAMBDA_FUNCTION_URL=$LAMBDA_URL" >> $GITHUB_ENV
+            else
+              echo "⚠️ Lambda Function URL not found in outputs"
             fi
 
             # CloudFront URL
-            CLOUDFRONT_URL=$(cat outputs.json | jq -r '.RssReaderFrontendStack.CloudFrontUrl // empty')
+            CLOUDFRONT_URL=$(cat outputs.json | jq -r '.RssReaderStack.FrontendUrl // empty' 2>/dev/null || echo "")
             if [ "$CLOUDFRONT_URL" != "" ] && [ "$CLOUDFRONT_URL" != "null" ]; then
               echo "CLOUDFRONT_URL=$CLOUDFRONT_URL" >> $GITHUB_ENV
+            else
+              echo "⚠️ CloudFront URL not found in outputs"
             fi
 
             # DynamoDB Table Name
-            TABLE_NAME=$(cat outputs.json | jq -r '.RssReaderDynamoDBStack.TableName // empty')
+            TABLE_NAME=$(cat outputs.json | jq -r '.RssReaderStack.TableName // empty' 2>/dev/null || echo "")
             if [ "$TABLE_NAME" != "" ] && [ "$TABLE_NAME" != "null" ]; then
               echo "DYNAMODB_TABLE_NAME=$TABLE_NAME" >> $GITHUB_ENV
+            else
+              echo "⚠️ DynamoDB Table Name not found in outputs"
             fi
           fi
         fi
