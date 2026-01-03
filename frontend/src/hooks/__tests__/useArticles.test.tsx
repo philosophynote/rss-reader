@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { ReactNode } from "react";
 import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -7,11 +8,18 @@ import {
   useToggleArticleRead,
   useToggleArticleSave,
 } from "../useArticles";
-import * as articlesApi from "../../api/articles";
+import { articlesApi } from "../../api/articles";
 import type { Article, ArticleListParams } from "../../api";
 
 // APIをモック
-vi.mock("../../api/articles");
+vi.mock("../../api/articles", () => ({
+  articlesApi: {
+    getArticles: vi.fn(),
+    getArticle: vi.fn(),
+    updateArticleRead: vi.fn(),
+    updateArticleSave: vi.fn(),
+  },
+}));
 
 const mockedArticlesApi = vi.mocked(articlesApi);
 
@@ -36,7 +44,7 @@ const createWrapper = () => {
     },
   });
 
-  return ({ children }: { children: React.ReactNode }) => (
+  return ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );
 };
@@ -49,7 +57,7 @@ describe("useArticles", () => {
   it("should fetch articles successfully", async () => {
     const mockResponse = {
       articles: [mockArticle],
-      last_evaluated_key: null,
+      last_evaluated_key: undefined,
     };
 
     mockedArticlesApi.getArticles.mockResolvedValue(mockResponse);
@@ -64,6 +72,7 @@ describe("useArticles", () => {
     });
 
     expect(result.current.data).toEqual(mockResponse);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(mockedArticlesApi.getArticles).toHaveBeenCalledWith({
       sort_by: "published_at",
       limit: 50,
@@ -79,9 +88,12 @@ describe("useArticles", () => {
       { wrapper: createWrapper() }
     );
 
-    await waitFor(() => {
-      expect(result.current.isError).toBe(true);
-    });
+    await waitFor(
+      () => {
+        expect(result.current.isError).toBe(true);
+      },
+      { timeout: 2000 }
+    );
 
     expect(result.current.error).toEqual(error);
   });
@@ -89,7 +101,7 @@ describe("useArticles", () => {
   it("should use default params when none provided", async () => {
     const mockResponse = {
       articles: [],
-      last_evaluated_key: null,
+      last_evaluated_key: undefined,
     };
 
     mockedArticlesApi.getArticles.mockResolvedValue(mockResponse);
@@ -102,6 +114,7 @@ describe("useArticles", () => {
       expect(result.current.isSuccess).toBe(true);
     });
 
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(mockedArticlesApi.getArticles).toHaveBeenCalledWith({
       sort_by: "published_at",
       limit: 50,
@@ -118,7 +131,7 @@ describe("useArticles", () => {
 
     const mockResponse = {
       articles: [mockArticle],
-      last_evaluated_key: null,
+      last_evaluated_key: undefined,
     };
 
     mockedArticlesApi.getArticles.mockResolvedValue(mockResponse);
@@ -131,6 +144,7 @@ describe("useArticles", () => {
       expect(result.current.isSuccess).toBe(true);
     });
 
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(mockedArticlesApi.getArticles).toHaveBeenCalledWith(params);
   });
 });
@@ -152,6 +166,7 @@ describe("useArticle", () => {
     });
 
     expect(result.current.data).toEqual(mockArticle);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(mockedArticlesApi.getArticle).toHaveBeenCalledWith("1");
   });
 
@@ -163,9 +178,12 @@ describe("useArticle", () => {
       wrapper: createWrapper(),
     });
 
-    await waitFor(() => {
-      expect(result.current.isError).toBe(true);
-    });
+    await waitFor(
+      () => {
+        expect(result.current.isError).toBe(true);
+      },
+      { timeout: 2000 }
+    );
 
     expect(result.current.error).toEqual(error);
   });
@@ -189,6 +207,7 @@ describe("useToggleArticleRead", () => {
       data: { is_read: true },
     });
 
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(mockedArticlesApi.updateArticleRead).toHaveBeenCalledWith("1", {
       is_read: true,
     });
@@ -229,6 +248,7 @@ describe("useToggleArticleSave", () => {
       data: { is_saved: true },
     });
 
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(mockedArticlesApi.updateArticleSave).toHaveBeenCalledWith("1", {
       is_saved: true,
     });

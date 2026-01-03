@@ -80,6 +80,7 @@ When writing code in this repository, **always** reference the relevant conventi
   - TypeScript for all components
   - React Query for server state
   - Chakra UI for styling
+  - フロントエンドを修正する際は `docs/chakra_ui.md` を必ず参照すること
 
 ## Kiro Spec-Driven Development Workflow
 

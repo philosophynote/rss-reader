@@ -1,9 +1,9 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
 import { ChakraProvider } from "@chakra-ui/react";
 import Layout from "./Layout";
 import chakraSystem from "../theme";
+import type { ReactNode } from "react";
 
 /**
  * Layoutコンポーネントのテスト
@@ -11,7 +11,7 @@ import chakraSystem from "../theme";
  * Chakra UIコンポーネントのテスト例
  */
 describe("Layout", () => {
-  const renderLayout = (children: React.ReactNode) => {
+  const renderLayout = (children: ReactNode) => {
     return render(
       <ChakraProvider value={chakraSystem}>
         <Layout>{children}</Layout>

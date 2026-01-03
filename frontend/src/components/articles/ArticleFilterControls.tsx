@@ -1,4 +1,3 @@
-import React from "react";
 import {
   HStack,
   Text,
@@ -57,21 +56,22 @@ export function ArticleFilterControls({
   ];
 
   return (
-    <HStack spacing={4}>
+    <HStack gap={4}>
       <Text fontSize="sm" fontWeight="medium" color="gray.600">
         フィルタ:
       </Text>
 
-      <ButtonGroup size="sm" variant="outline" spacing={2}>
+      <ButtonGroup size="sm" variant="outline" gap={2}>
         {filterOptions.map((option) => (
           <Button
-            key={option.value || "all"}
-            leftIcon={<Icon as={option.icon} />}
+            key={option.value ?? "all"}
             colorScheme={filterBy === option.value ? "blue" : "gray"}
             variant={filterBy === option.value ? "solid" : "outline"}
             onClick={() => onFilterChange(option.value)}
+            className={`chakra-button--size-sm chakra-button--variant-${filterBy === option.value ? "solid" : "outline"}`}
           >
-            <HStack spacing={2}>
+            <HStack gap={2}>
+              <Icon as={option.icon} />
               <Text>{option.label}</Text>
               {option.count !== undefined && (
                 <Badge

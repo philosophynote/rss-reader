@@ -1,21 +1,21 @@
-import React, { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Box,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
+  TableRoot,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableColumnHeader,
+  TableCell,
   Text,
   Button,
   HStack,
   VStack,
   Skeleton,
-  Alert,
-  AlertIcon,
+  AlertRoot,
+  AlertIndicator,
+  AlertContent,
   Link,
-  useColorModeValue,
   Flex,
   Spacer,
 } from "@chakra-ui/react";
@@ -60,10 +60,6 @@ export function ArticleList({ onArticleClick }: ArticleListProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 
-  // テーブルの背景色
-  const tableBg = useColorModeValue("white", "gray.800");
-  const hoverBg = useColorModeValue("gray.50", "gray.700");
-
   const formatDate = (dateString: string) => {
     try {
       return format(new Date(dateString), "MM/dd HH:mm", { locale: ja });
@@ -72,9 +68,12 @@ export function ArticleList({ onArticleClick }: ArticleListProps) {
     }
   };
 
-  const handleRowClick = (article: Article) => {
-    onArticleClick?.(article);
-  };
+  const handleRowClick = useCallback(
+    (article: Article) => {
+      onArticleClick?.(article);
+    },
+    [onArticleClick]
+  );
 
   const handleSortChange = (sortBy: ArticleListParams["sort_by"]) => {
     setParams((prev) => ({ ...prev, sort_by: sortBy }));
@@ -114,21 +113,25 @@ export function ArticleList({ onArticleClick }: ArticleListProps) {
         cell: ({ getValue, row }) => {
           const article = row.original;
           return (
-            <VStack align="start" spacing={1}>
+            <VStack align="start" gap={1}>
               <Text
                 fontWeight={article.is_read ? "normal" : "bold"}
                 color={article.is_read ? "gray.600" : "inherit"}
                 cursor="pointer"
                 _hover={{ color: "blue.500" }}
                 onClick={() => handleRowClick(article)}
-                noOfLines={2}
+                lineClamp={2}
               >
                 {getValue()}
               </Text>
-              <HStack spacing={2} fontSize="sm" color="gray.500">
+              <HStack gap={2} fontSize="sm" color="gray.500">
                 <Text>フィード: {article.feed_id}</Text>
-                <Link href={article.link} isExternal>
-                  <HStack spacing={1}>
+                <Link
+                  href={article.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <HStack gap={1}>
                     <Text>元記事</Text>
                     <FiExternalLink size={12} />
                   </HStack>
@@ -161,11 +164,11 @@ export function ArticleList({ onArticleClick }: ArticleListProps) {
         size: 150,
       }),
     ],
-    [onArticleClick]
+    [handleRowClick]
   );
 
   const table = useReactTable({
-    data: articleData?.articles || [],
+    data: articleData?.articles ?? [],
     columns,
     state: {
       sorting,
@@ -180,9 +183,9 @@ export function ArticleList({ onArticleClick }: ArticleListProps) {
 
   if (isLoading) {
     return (
-      <VStack spacing={4} align="stretch">
-        {[...Array(5)].map((_, i) => (
-          <Skeleton key={i} height="60px" borderRadius="md" />
+      <VStack gap={4} align="stretch">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Skeleton key={i} height="60px" borderRadius="md" data-testid="skeleton" />
         ))}
       </VStack>
     );
@@ -190,19 +193,21 @@ export function ArticleList({ onArticleClick }: ArticleListProps) {
 
   if (error) {
     return (
-      <Alert status="error">
-        <AlertIcon />
-        {error instanceof ApiAuthError
-          ? "認証エラー: API Keyを確認してください"
-          : error instanceof ApiError
-          ? error.message
-          : "記事一覧の取得に失敗しました"}
-      </Alert>
+      <AlertRoot status="error">
+        <AlertIndicator />
+        <AlertContent>
+          {error instanceof ApiAuthError
+            ? "認証エラー: API Keyを確認してください"
+            : error instanceof ApiError
+            ? error.message
+            : "記事一覧の取得に失敗しました"}
+        </AlertContent>
+      </AlertRoot>
     );
   }
 
   return (
-    <VStack spacing={4} align="stretch">
+    <VStack gap={4} align="stretch">
       {/* コントロール */}
       <Flex wrap="wrap" gap={4}>
         <ArticleSortControls
@@ -229,12 +234,12 @@ export function ArticleList({ onArticleClick }: ArticleListProps) {
       ) : (
         <Box>
           <Box overflowX="auto">
-            <Table variant="simple" bg={tableBg}>
-              <Thead>
+            <TableRoot variant="outline" bg="white">
+              <TableHeader>
                 {table.getHeaderGroups().map((headerGroup) => (
-                  <Tr key={headerGroup.id}>
+                  <TableRow key={headerGroup.id}>
                     {headerGroup.headers.map((header) => (
-                      <Th
+                      <TableColumnHeader
                         key={header.id}
                         cursor={
                           header.column.getCanSort() ? "pointer" : "default"
@@ -242,7 +247,7 @@ export function ArticleList({ onArticleClick }: ArticleListProps) {
                         onClick={header.column.getToggleSortingHandler()}
                         width={header.getSize()}
                       >
-                        <HStack spacing={2}>
+                        <HStack gap={2}>
                           <Text>
                             {header.isPlaceholder
                               ? null
@@ -260,26 +265,26 @@ export function ArticleList({ onArticleClick }: ArticleListProps) {
                             </Text>
                           )}
                         </HStack>
-                      </Th>
+                      </TableColumnHeader>
                     ))}
-                  </Tr>
+                  </TableRow>
                 ))}
-              </Thead>
-              <Tbody>
+              </TableHeader>
+              <TableBody>
                 {table.getRowModel().rows.map((row) => (
-                  <Tr key={row.id} _hover={{ bg: hoverBg }} cursor="pointer">
+                  <TableRow key={row.id} _hover={{ bg: "gray.50" }} cursor="pointer">
                     {row.getVisibleCells().map((cell) => (
-                      <Td key={cell.id} py={3}>
+                      <TableCell key={cell.id} py={3}>
                         {flexRender(
                           cell.column.columnDef.cell,
                           cell.getContext()
                         )}
-                      </Td>
+                      </TableCell>
                     ))}
-                  </Tr>
+                  </TableRow>
                 ))}
-              </Tbody>
-            </Table>
+              </TableBody>
+            </TableRoot>
           </Box>
 
           {articleData.last_evaluated_key && (

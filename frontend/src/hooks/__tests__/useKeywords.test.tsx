@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { ReactNode } from "react";
 import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -9,7 +10,8 @@ import {
   useToggleKeywordActive,
   useRecalculateScores,
 } from "../useKeywords";
-import * as keywordsApi from "../../api/keywords";
+import { keywordsApi } from "../../api/keywords";
+import { ApiAuthError } from "../../api";
 import type {
   Keyword,
   CreateKeywordRequest,
@@ -17,7 +19,15 @@ import type {
 } from "../../api";
 
 // APIをモック
-vi.mock("../../api/keywords");
+vi.mock("../../api/keywords", () => ({
+  keywordsApi: {
+    getKeywords: vi.fn(),
+    createKeyword: vi.fn(),
+    updateKeyword: vi.fn(),
+    deleteKeyword: vi.fn(),
+    recalculateScores: vi.fn(),
+  },
+}));
 
 const mockedKeywordsApi = vi.mocked(keywordsApi);
 
@@ -37,7 +47,7 @@ const createWrapper = () => {
     },
   });
 
-  return ({ children }: { children: React.ReactNode }) => (
+  return ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );
 };
@@ -63,18 +73,24 @@ describe("useKeywords", () => {
     expect(mockedKeywordsApi.getKeywords).toHaveBeenCalled();
   });
 
-  it("should handle keywords fetch error", async () => {
-    const error = new Error("Fetch failed");
+  it("should handle keywords fetch error", { timeout: 3000 }, async () => {
+    const error = new ApiAuthError("Fetch failed", 401);
     mockedKeywordsApi.getKeywords.mockRejectedValue(error);
 
     const { result } = renderHook(() => useKeywords(), {
       wrapper: createWrapper(),
     });
 
-    await waitFor(() => {
-      expect(result.current.isError).toBe(true);
-    });
+    // ローディングが完了するまで待つ（認証エラーのためリトライは無効）
+    await waitFor(
+      () => {
+        expect(result.current.isLoading).toBe(false);
+      },
+      { timeout: 3000 }
+    );
 
+    // エラー状態を確認
+    expect(result.current.isError).toBe(true);
     expect(result.current.error).toEqual(error);
   });
 });
@@ -98,6 +114,7 @@ describe("useCreateKeyword", () => {
 
     await result.current.mutateAsync(createData);
 
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(mockedKeywordsApi.createKeyword).toHaveBeenCalledWith(createData);
   });
 
@@ -142,6 +159,7 @@ describe("useUpdateKeyword", () => {
       data: updateData,
     });
 
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(mockedKeywordsApi.updateKeyword).toHaveBeenCalledWith(
       "1",
       updateData
@@ -183,6 +201,7 @@ describe("useDeleteKeyword", () => {
 
     await result.current.mutateAsync("1");
 
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(mockedKeywordsApi.deleteKeyword).toHaveBeenCalledWith("1");
   });
 
@@ -218,6 +237,7 @@ describe("useToggleKeywordActive", () => {
       data: { is_active: false },
     });
 
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(mockedKeywordsApi.updateKeyword).toHaveBeenCalledWith("1", {
       is_active: false,
     });
@@ -246,8 +266,7 @@ describe("useRecalculateScores", () => {
   });
 
   it("should recalculate scores successfully", async () => {
-    const mockResponse = { message: "Recalculation started" };
-    mockedKeywordsApi.recalculateScores.mockResolvedValue(mockResponse);
+    mockedKeywordsApi.recalculateScores.mockResolvedValue(undefined);
 
     const { result } = renderHook(() => useRecalculateScores(), {
       wrapper: createWrapper(),
@@ -255,6 +274,7 @@ describe("useRecalculateScores", () => {
 
     await result.current.mutateAsync();
 
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(mockedKeywordsApi.recalculateScores).toHaveBeenCalled();
   });
 

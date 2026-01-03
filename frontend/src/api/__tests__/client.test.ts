@@ -1,11 +1,28 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import axios, { AxiosInstance } from "axios";
 
-// axiosをモック（モジュールインポート前に実行）
-vi.mock("axios", () => {
+type MockAxiosInstance = {
+  get: ReturnType<typeof vi.fn>;
+  post: ReturnType<typeof vi.fn>;
+  put: ReturnType<typeof vi.fn>;
+  delete: ReturnType<typeof vi.fn>;
+  interceptors: {
+    request: {
+      use: ReturnType<typeof vi.fn>;
+      eject: ReturnType<typeof vi.fn>;
+      clear: ReturnType<typeof vi.fn>;
+    };
+    response: {
+      use: ReturnType<typeof vi.fn>;
+      eject: ReturnType<typeof vi.fn>;
+      clear: ReturnType<typeof vi.fn>;
+    };
+  };
+};
+
+const { mockAxiosInstance } = vi.hoisted(() => {
   const mockInterceptors = {
-    request: { use: vi.fn(), eject: vi.fn() },
-    response: { use: vi.fn(), eject: vi.fn() },
+    request: { use: vi.fn(), eject: vi.fn(), clear: vi.fn() },
+    response: { use: vi.fn(), eject: vi.fn(), clear: vi.fn() },
   };
 
   const mockAxiosInstance = {
@@ -14,17 +31,18 @@ vi.mock("axios", () => {
     put: vi.fn(),
     delete: vi.fn(),
     interceptors: mockInterceptors,
-  };
+  } satisfies MockAxiosInstance;
 
-  return {
-    default: {
-      create: vi.fn(() => mockAxiosInstance),
-      isAxiosError: vi.fn(),
-    },
-  };
+  return { mockAxiosInstance };
 });
 
-const mockedAxios = vi.mocked(axios);
+// axiosをモック（モジュールインポート前に実行）
+vi.mock("axios", () => ({
+  default: {
+    create: vi.fn(() => mockAxiosInstance),
+    isAxiosError: vi.fn(),
+  },
+}));
 
 // 環境変数をモック（apiClientのモジュールレベル初期化用）
 vi.stubGlobal("import.meta", {
@@ -40,7 +58,6 @@ import { ApiClient, ApiAuthError, ApiError } from "../client";
 
 describe("ApiClient", () => {
   let apiClient: ApiClient;
-  let mockAxiosInstance: any;
 
   const mockConfig = {
     baseURL: "https://api.example.com",
@@ -52,10 +69,6 @@ describe("ApiClient", () => {
     // axios.createから返されるモックインスタンスを取得
     vi.clearAllMocks();
     apiClient = new ApiClient(mockConfig);
-    // axios.createの最後の呼び出しで返されたインスタンスを取得
-    mockAxiosInstance = mockedAxios.create.mock.results[
-      mockedAxios.create.mock.results.length - 1
-    ]?.value;
   });
 
   afterEach(() => {

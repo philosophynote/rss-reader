@@ -15,7 +15,7 @@ export const feedsApi = {
    */
   async getFeeds(): Promise<Feed[]> {
     const response = await apiClient.get<ApiResponse<Feed[]>>("/api/feeds");
-    return response.data || [];
+    return response.data ?? [];
   },
 
   /**

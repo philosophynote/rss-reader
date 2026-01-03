@@ -24,7 +24,7 @@ describe("FeedForm", () => {
       mutateAsync: mockMutateAsync,
       isPending: false,
       error: null,
-    } as any);
+    } as unknown as ReturnType<typeof useCreateFeed>);
   });
 
   it("should render form fields correctly", () => {
@@ -128,7 +128,7 @@ describe("FeedForm", () => {
       mutateAsync: mockMutateAsync,
       isPending: true,
       error: null,
-    } as any);
+    } as unknown as ReturnType<typeof useCreateFeed>);
 
     render(<FeedForm />);
 

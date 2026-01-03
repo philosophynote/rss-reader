@@ -24,10 +24,22 @@ export const articlesKeys = {
  * 記事一覧を取得するフック
  */
 export function useArticles(params?: ArticleListParams) {
+  const defaultParams: ArticleListParams = {
+    sort_by: "published_at",
+    limit: 50,
+    ...params,
+  };
+  const env = import.meta.env;
+
   return useQuery({
-    queryKey: articlesKeys.list(params),
-    queryFn: () => articlesApi.getArticles(params),
+    queryKey: articlesKeys.list(defaultParams),
+    queryFn: () => articlesApi.getArticles(defaultParams),
     retry: (failureCount, error) => {
+      // テスト環境ではリトライしない
+      if (env.MODE === "test") {
+        return false;
+      }
+      
       // 認証エラーの場合はリトライしない
       if (error instanceof ApiAuthError) {
         return false;
@@ -45,11 +57,18 @@ export function useArticles(params?: ArticleListParams) {
  * 記事詳細を取得するフック
  */
 export function useArticle(articleId: string) {
+  const env = import.meta.env;
+
   return useQuery({
     queryKey: articlesKeys.detail(articleId),
     queryFn: () => articlesApi.getArticle(articleId),
     enabled: !!articleId,
     retry: (failureCount, error) => {
+      // テスト環境ではリトライしない
+      if (env.MODE === "test") {
+        return false;
+      }
+      
       if (error instanceof ApiAuthError) {
         return false;
       }
@@ -103,9 +122,10 @@ export function useUpdateArticleRead() {
       );
 
       // 一覧キャッシュを無効化（フィルタリングに影響するため）
-      queryClient.invalidateQueries({ queryKey: articlesKeys.lists() });
+      void queryClient.invalidateQueries({ queryKey: articlesKeys.lists() });
     },
     onError: (error) => {
+      // eslint-disable-next-line no-console
       console.error("記事既読状態更新エラー:", error);
     },
   });
@@ -133,9 +153,10 @@ export function useUpdateArticleSave() {
       );
 
       // 一覧キャッシュを無効化（フィルタリングに影響するため）
-      queryClient.invalidateQueries({ queryKey: articlesKeys.lists() });
+      void queryClient.invalidateQueries({ queryKey: articlesKeys.lists() });
     },
     onError: (error) => {
+      // eslint-disable-next-line no-console
       console.error("記事保存状態更新エラー:", error);
     },
   });

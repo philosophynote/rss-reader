@@ -1,5 +1,5 @@
-import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { ReactNode } from "react";
 import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { feedsApi, ApiAuthError, ApiError } from "../../api";
@@ -40,7 +40,7 @@ function createWrapper() {
     },
   });
 
-  return ({ children }: { children: React.ReactNode }) => (
+  return ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );
 }
@@ -74,6 +74,7 @@ describe("useFeeds", () => {
     });
 
     expect(result.current.data).toEqual(mockFeeds);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(mockedFeedsApi.getFeeds).toHaveBeenCalledTimes(1);
   });
 
@@ -91,6 +92,7 @@ describe("useFeeds", () => {
 
     expect(result.current.error).toEqual(authError);
     // 認証エラーの場合はリトライしない
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(mockedFeedsApi.getFeeds).toHaveBeenCalledTimes(1);
   });
 
@@ -111,6 +113,7 @@ describe("useFeeds", () => {
 
     expect(result.current.error).toEqual(apiError);
     // API エラーの場合は最大3回リトライする（初回 + 3回リトライ = 4回）
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(mockedFeedsApi.getFeeds).toHaveBeenCalledTimes(4);
   });
 });
@@ -144,6 +147,7 @@ describe("useCreateFeed", () => {
     });
 
     expect(result.current.data).toEqual(newFeed);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(mockedFeedsApi.createFeed).toHaveBeenCalledWith(createRequest);
   });
 
@@ -199,6 +203,7 @@ describe("useUpdateFeed", () => {
     });
 
     expect(result.current.data).toEqual(updatedFeed);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(mockedFeedsApi.updateFeed).toHaveBeenCalledWith("1", updateRequest);
   });
 });
@@ -217,6 +222,7 @@ describe("useDeleteFeed", () => {
       expect(result.current.isSuccess).toBe(true);
     });
 
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(mockedFeedsApi.deleteFeed).toHaveBeenCalledWith("1");
   });
 

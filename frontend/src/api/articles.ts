@@ -21,7 +21,7 @@ export const articlesApi = {
       "/api/articles",
       params
     );
-    return response.data || { articles: [] };
+    return response.data ?? { articles: [] };
   },
 
   /**
@@ -78,6 +78,6 @@ export const articlesApi = {
     const response = await apiClient.get<ApiResponse<ImportanceReason[]>>(
       `/api/articles/${articleId}/reasons`
     );
-    return response.data || [];
+    return response.data ?? [];
   },
 };

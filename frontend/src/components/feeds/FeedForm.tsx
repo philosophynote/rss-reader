@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import { useState } from "react";
+import type { ChangeEvent, FormEvent } from "react";
 import {
   Box,
   Button,
@@ -53,17 +54,20 @@ export function FeedForm({ onSuccess, onCancel }: FeedFormProps) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
     if (!validateForm()) {
       return;
     }
 
+    const trimmedFolder = formData.folder?.trim();
+
     try {
       await createFeed.mutateAsync({
         url: formData.url.trim(),
-        folder: formData.folder.trim() || undefined,
+        folder:
+          trimmedFolder && trimmedFolder.length > 0 ? trimmedFolder : undefined,
       });
 
       toaster.create({
@@ -78,6 +82,7 @@ export function FeedForm({ onSuccess, onCancel }: FeedFormProps) {
 
       onSuccess?.();
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error("フィード作成エラー:", error);
 
       let errorMessage = "フィードの追加に失敗しました";
@@ -98,7 +103,7 @@ export function FeedForm({ onSuccess, onCancel }: FeedFormProps) {
 
   const handleInputChange =
     (field: keyof CreateFeedRequest) =>
-    (e: React.ChangeEvent<HTMLInputElement>) => {
+    (e: ChangeEvent<HTMLInputElement>) => {
       setFormData((prev) => ({
         ...prev,
         [field]: e.target.value,
@@ -114,7 +119,12 @@ export function FeedForm({ onSuccess, onCancel }: FeedFormProps) {
     };
 
   return (
-    <Box as="form" onSubmit={handleSubmit}>
+    <Box
+      as="form"
+      onSubmit={(e) => {
+        void handleSubmit(e);
+      }}
+    >
       <VStack gap={4} align="stretch">
         {createFeed.error && (
           <Alert.Root status="error">
@@ -147,7 +157,7 @@ export function FeedForm({ onSuccess, onCancel }: FeedFormProps) {
         <Field.Root invalid={!!errors.folder}>
           <Field.Label>フォルダ（任意）</Field.Label>
           <Input
-            value={formData.folder || ""}
+            value={formData.folder ?? ""}
             onChange={handleInputChange("folder")}
             placeholder="例: テクノロジー"
             disabled={createFeed.isPending}

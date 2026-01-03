@@ -1,4 +1,3 @@
-import React from "react";
 import {
   Box,
   VStack,
@@ -6,23 +5,22 @@ import {
   Text,
   Heading,
   Link,
-  Divider,
-  Card,
+  Separator,
+  CardRoot,
   CardBody,
   Skeleton,
-  Alert,
-  AlertIcon,
+  AlertRoot,
+  AlertIndicator,
+  AlertContent,
   Badge,
   Flex,
   Spacer,
-  useColorModeValue,
 } from "@chakra-ui/react";
 import { FiExternalLink, FiCalendar, FiTrendingUp } from "react-icons/fi";
-import { format } from "date-fns";
+import { formatInTimeZone } from "date-fns-tz";
 import { ja } from "date-fns/locale";
 import { useArticle, useArticleReasons } from "../../hooks";
 import { ApiAuthError, ApiError } from "../../api";
-import type { Article } from "../../api";
 import { ArticleStatusBadge } from "./ArticleStatusBadge";
 import { ArticleActionButtons } from "./ArticleActionButtons";
 
@@ -34,7 +32,7 @@ interface ArticleDetailProps {
 /**
  * 記事詳細コンポーネント
  */
-export function ArticleDetail({ articleId, onClose }: ArticleDetailProps) {
+export function ArticleDetail({ articleId }: ArticleDetailProps) {
   const {
     data: article,
     isLoading: articleLoading,
@@ -45,15 +43,17 @@ export function ArticleDetail({ articleId, onClose }: ArticleDetailProps) {
     isLoading: reasonsLoading,
     error: reasonsError,
   } = useArticleReasons(articleId);
-
-  const contentBg = useColorModeValue("white", "gray.800");
-  const borderColor = useColorModeValue("gray.200", "gray.600");
+  const hasReasons = (reasons?.length ?? 0) > 0;
+  const shouldShowReasons = hasReasons || reasonsLoading || reasonsError;
 
   const formatDate = (dateString: string) => {
     try {
-      return format(new Date(dateString), "yyyy年MM月dd日 HH:mm", {
-        locale: ja,
-      });
+      return formatInTimeZone(
+        dateString,
+        "UTC",
+        "yyyy年MM月dd日 HH:mm",
+        { locale: ja }
+      );
     } catch {
       return "不明";
     }
@@ -65,31 +65,33 @@ export function ArticleDetail({ articleId, onClose }: ArticleDetailProps) {
 
   if (articleLoading) {
     return (
-      <VStack spacing={4} align="stretch" p={6}>
-        <Skeleton height="40px" />
-        <Skeleton height="20px" />
-        <Skeleton height="200px" />
-        <Skeleton height="100px" />
+      <VStack gap={4} align="stretch" p={6}>
+        <Skeleton height="40px" data-testid="skeleton" />
+        <Skeleton height="20px" data-testid="skeleton" />
+        <Skeleton height="200px" data-testid="skeleton" />
+        <Skeleton height="100px" data-testid="skeleton" />
       </VStack>
     );
   }
 
   if (articleError || !article) {
     return (
-      <Alert status="error" m={6}>
-        <AlertIcon />
-        {articleError instanceof ApiAuthError
-          ? "認証エラー: API Keyを確認してください"
-          : articleError instanceof ApiError
-          ? articleError.message
-          : "記事の取得に失敗しました"}
-      </Alert>
+      <AlertRoot status="error" m={6}>
+        <AlertIndicator />
+        <AlertContent>
+          {articleError instanceof ApiAuthError
+            ? "認証エラー: API Keyを確認してください"
+            : articleError instanceof ApiError
+            ? articleError.message
+            : "記事の取得に失敗しました"}
+        </AlertContent>
+      </AlertRoot>
     );
   }
 
   return (
     <Box maxW="4xl" mx="auto" p={6}>
-      <VStack spacing={6} align="stretch">
+      <VStack gap={6} align="stretch">
         {/* ヘッダー */}
         <Box>
           <Flex mb={4}>
@@ -106,7 +108,7 @@ export function ArticleDetail({ articleId, onClose }: ArticleDetailProps) {
             {article.title}
           </Heading>
 
-          <HStack spacing={4} fontSize="sm" color="gray.500" mb={4}>
+          <HStack gap={4} fontSize="sm" color="gray.500" mb={4}>
             <HStack>
               <FiCalendar />
               <Text>公開: {formatDate(article.published_at)}</Text>
@@ -119,7 +121,8 @@ export function ArticleDetail({ articleId, onClose }: ArticleDetailProps) {
 
           <Link
             href={article.link}
-            isExternal
+            target="_blank"
+            rel="noopener noreferrer"
             color="blue.500"
             fontSize="sm"
             display="inline-flex"
@@ -131,21 +134,21 @@ export function ArticleDetail({ articleId, onClose }: ArticleDetailProps) {
           </Link>
         </Box>
 
-        <Divider />
+        <Separator />
 
         {/* 記事内容 */}
-        <Card variant="outline">
+        <CardRoot variant="outline">
           <CardBody>
             <Box
-              bg={contentBg}
+              bg="white"
               p={4}
               borderRadius="md"
               border="1px"
-              borderColor={borderColor}
+              borderColor="gray.200"
               fontSize="md"
               lineHeight="1.7"
               whiteSpace="pre-wrap"
-              sx={{
+              css={{
                 "& p": {
                   mb: 4,
                 },
@@ -184,41 +187,43 @@ export function ArticleDetail({ articleId, onClose }: ArticleDetailProps) {
                 },
               }}
             >
-              {article.content || "記事の内容がありません。"}
+              {article.content?.trim()
+                ? article.content
+                : "記事の内容がありません。"}
             </Box>
           </CardBody>
-        </Card>
+        </CardRoot>
 
         {/* 重要度理由 */}
-        {reasons && reasons.length > 0 && (
-          <Card variant="outline">
+        {shouldShowReasons && (
+          <CardRoot variant="outline">
             <CardBody>
               <Heading size="md" mb={4}>
                 重要度の理由
               </Heading>
 
               {reasonsLoading ? (
-                <VStack spacing={2}>
-                  {[...Array(3)].map((_, i) => (
+                <VStack gap={2}>
+                  {Array.from({ length: 3 }).map((_, i) => (
                     <Skeleton key={i} height="40px" />
                   ))}
                 </VStack>
               ) : reasonsError ? (
-                <Alert status="warning" size="sm">
-                  <AlertIcon />
-                  重要度理由の取得に失敗しました
-                </Alert>
+                <AlertRoot status="warning" size="sm">
+                  <AlertIndicator />
+                  <AlertContent>重要度理由の取得に失敗しました</AlertContent>
+                </AlertRoot>
               ) : (
-                <VStack spacing={3} align="stretch">
-                  {reasons.map((reason, index) => (
+                <VStack gap={3} align="stretch">
+                  {reasons?.map((reason, index) => (
                     <Box
                       key={index}
                       p={3}
-                      bg={useColorModeValue("gray.50", "gray.700")}
+                      bg="gray.50"
                       borderRadius="md"
                     >
                       <HStack justify="space-between" mb={2}>
-                        <Badge colorScheme="blue" variant="subtle">
+                        <Badge colorPalette="blue" variant="subtle">
                           {reason.keyword_text}
                         </Badge>
                         <Text fontSize="sm" fontWeight="bold" color="green.500">
@@ -242,16 +247,16 @@ export function ArticleDetail({ articleId, onClose }: ArticleDetailProps) {
                 </VStack>
               )}
             </CardBody>
-          </Card>
+          </CardRoot>
         )}
 
         {/* メタデータ */}
-        <Card variant="outline">
+        <CardRoot variant="outline">
           <CardBody>
             <Heading size="sm" mb={3}>
               記事情報
             </Heading>
-            <VStack spacing={2} align="stretch" fontSize="sm">
+            <VStack gap={2} align="stretch" fontSize="sm">
               <HStack justify="space-between">
                 <Text color="gray.600">記事ID:</Text>
                 <Text fontFamily="mono">{article.article_id}</Text>
@@ -272,7 +277,7 @@ export function ArticleDetail({ articleId, onClose }: ArticleDetailProps) {
               )}
             </VStack>
           </CardBody>
-        </Card>
+        </CardRoot>
       </VStack>
     </Box>
   );

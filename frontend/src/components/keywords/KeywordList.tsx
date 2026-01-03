@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   Box,
   VStack,
@@ -8,19 +8,11 @@ import {
   Button,
   IconButton,
   Card,
-  CardBody,
   Skeleton,
   Alert,
-  AlertIcon,
   useDisclosure,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalCloseButton,
-  useToast,
-  Tooltip,
+  Dialog,
+  createToaster,
   Flex,
   Spacer,
   Switch,
@@ -39,6 +31,12 @@ import type { Keyword } from "../../api";
 import { KeywordForm } from "./KeywordForm";
 import { KeywordEditForm } from "./KeywordEditForm";
 
+// toasterを作成
+const toaster = createToaster({
+  placement: "top",
+  duration: 3000,
+});
+
 /**
  * キーワード一覧コンポーネント
  */
@@ -47,16 +45,15 @@ export function KeywordList() {
   const deleteKeyword = useDeleteKeyword();
   const toggleActive = useToggleKeywordActive();
   const recalculateScores = useRecalculateScores();
-  const toast = useToast();
 
   const [selectedKeyword, setSelectedKeyword] = useState<Keyword | null>(null);
   const {
-    isOpen: isAddOpen,
+    open: isAddOpen,
     onOpen: onAddOpen,
     onClose: onAddClose,
   } = useDisclosure();
   const {
-    isOpen: isEditOpen,
+    open: isEditOpen,
     onOpen: onEditOpen,
     onClose: onEditClose,
   } = useDisclosure();
@@ -66,76 +63,76 @@ export function KeywordList() {
     onEditOpen();
   };
 
-  const handleDelete = async (keyword: Keyword) => {
+  const handleDelete = (keyword: Keyword) => {
     if (!confirm(`キーワード「${keyword.text}」を削除しますか？`)) {
       return;
     }
 
-    try {
-      await deleteKeyword.mutateAsync(keyword.keyword_id);
+    void deleteKeyword
+      .mutateAsync(keyword.keyword_id)
+      .then(() => {
+        toaster.create({
+          title: "キーワードを削除しました",
+          type: "success",
+          duration: 3000,
+        });
+      })
+      .catch((error) => {
+        // eslint-disable-next-line no-console
+        console.error("キーワード削除エラー:", error);
 
-      toast({
-        title: "キーワードを削除しました",
-        status: "success",
-        duration: 3000,
-        isClosable: true,
+        let errorMessage = "キーワードの削除に失敗しました";
+        if (error instanceof ApiAuthError) {
+          errorMessage = "認証エラー: API Keyを確認してください";
+        } else if (error instanceof ApiError) {
+          errorMessage = error.message;
+        }
+
+        toaster.create({
+          title: "エラー",
+          description: errorMessage,
+          type: "error",
+          duration: 5000,
+        });
       });
-    } catch (error) {
-      console.error("キーワード削除エラー:", error);
-
-      let errorMessage = "キーワードの削除に失敗しました";
-      if (error instanceof ApiAuthError) {
-        errorMessage = "認証エラー: API Keyを確認してください";
-      } else if (error instanceof ApiError) {
-        errorMessage = error.message;
-      }
-
-      toast({
-        title: "エラー",
-        description: errorMessage,
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
-    }
   };
 
-  const handleToggleActive = async (keyword: Keyword) => {
-    try {
-      await toggleActive.mutateAsync({
+  const handleToggleActive = (keyword: Keyword) => {
+    void toggleActive
+      .mutateAsync({
         keywordId: keyword.keyword_id,
         data: { is_active: !keyword.is_active },
-      });
+      })
+      .then(() => {
+        toaster.create({
+          title: keyword.is_active
+            ? "キーワードを無効にしました"
+            : "キーワードを有効にしました",
+          type: "success",
+          duration: 2000,
+        });
+      })
+      .catch((error) => {
+        // eslint-disable-next-line no-console
+        console.error("キーワード状態更新エラー:", error);
 
-      toast({
-        title: keyword.is_active
-          ? "キーワードを無効にしました"
-          : "キーワードを有効にしました",
-        status: "success",
-        duration: 2000,
-        isClosable: true,
-      });
-    } catch (error) {
-      console.error("キーワード状態更新エラー:", error);
+        let errorMessage = "キーワードの状態更新に失敗しました";
+        if (error instanceof ApiAuthError) {
+          errorMessage = "認証エラー: API Keyを確認してください";
+        } else if (error instanceof ApiError) {
+          errorMessage = error.message;
+        }
 
-      let errorMessage = "キーワードの状態更新に失敗しました";
-      if (error instanceof ApiAuthError) {
-        errorMessage = "認証エラー: API Keyを確認してください";
-      } else if (error instanceof ApiError) {
-        errorMessage = error.message;
-      }
-
-      toast({
-        title: "エラー",
-        description: errorMessage,
-        status: "error",
-        duration: 5000,
-        isClosable: true,
+        toaster.create({
+          title: "エラー",
+          description: errorMessage,
+          type: "error",
+          duration: 5000,
+        });
       });
-    }
   };
 
-  const handleRecalculate = async () => {
+  const handleRecalculate = () => {
     if (
       !confirm(
         "すべての記事の重要度スコアを再計算しますか？\nこの処理には時間がかかる場合があります。"
@@ -144,45 +141,45 @@ export function KeywordList() {
       return;
     }
 
-    try {
-      await recalculateScores.mutateAsync();
+    void recalculateScores
+      .mutateAsync()
+      .then(() => {
+        toaster.create({
+          title: "重要度スコアの再計算を開始しました",
+          description: "処理が完了するまでしばらくお待ちください",
+          type: "info",
+          duration: 5000,
+        });
+      })
+      .catch((error) => {
+        // eslint-disable-next-line no-console
+        console.error("重要度スコア再計算エラー:", error);
 
-      toast({
-        title: "重要度スコアの再計算を開始しました",
-        description: "処理が完了するまでしばらくお待ちください",
-        status: "info",
-        duration: 5000,
-        isClosable: true,
+        let errorMessage = "重要度スコアの再計算に失敗しました";
+        if (error instanceof ApiAuthError) {
+          errorMessage = "認証エラー: API Keyを確認してください";
+        } else if (error instanceof ApiError) {
+          errorMessage = error.message;
+        }
+
+        toaster.create({
+          title: "エラー",
+          description: errorMessage,
+          type: "error",
+          duration: 5000,
+        });
       });
-    } catch (error) {
-      console.error("重要度スコア再計算エラー:", error);
-
-      let errorMessage = "重要度スコアの再計算に失敗しました";
-      if (error instanceof ApiAuthError) {
-        errorMessage = "認証エラー: API Keyを確認してください";
-      } else if (error instanceof ApiError) {
-        errorMessage = error.message;
-      }
-
-      toast({
-        title: "エラー",
-        description: errorMessage,
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
-    }
   };
 
   const handleAddSuccess = () => {
     onAddClose();
-    refetch();
+    void refetch();
   };
 
   const handleEditSuccess = () => {
     onEditClose();
     setSelectedKeyword(null);
-    refetch();
+    void refetch();
   };
 
   const formatDate = (dateString: string) => {
@@ -199,9 +196,9 @@ export function KeywordList() {
 
   if (isLoading) {
     return (
-      <VStack spacing={4} align="stretch">
-        {[...Array(3)].map((_, i) => (
-          <Skeleton key={i} height="100px" borderRadius="md" />
+      <VStack gap={4} align="stretch">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Skeleton key={i} height="100px" borderRadius="md" data-testid="skeleton" />
         ))}
       </VStack>
     );
@@ -209,37 +206,40 @@ export function KeywordList() {
 
   if (error) {
     return (
-      <Alert status="error">
-        <AlertIcon />
-        {error instanceof ApiAuthError
-          ? "認証エラー: API Keyを確認してください"
-          : error instanceof ApiError
-          ? error.message
-          : "キーワード一覧の取得に失敗しました"}
-      </Alert>
+      <Alert.Root status="error">
+        <Alert.Indicator />
+        <Alert.Content>
+          {error instanceof ApiAuthError
+            ? "認証エラー: API Keyを確認してください"
+            : error instanceof ApiError
+            ? error.message
+            : "キーワード一覧の取得に失敗しました"}
+        </Alert.Content>
+      </Alert.Root>
     );
   }
 
   if (!keywords || keywords.length === 0) {
     return (
-      <VStack spacing={6} py={8}>
+      <VStack gap={6} py={8}>
         <Text color="gray.500" textAlign="center">
           登録されているキーワードがありません
         </Text>
-        <Button leftIcon={<FiPlus />} colorScheme="blue" onClick={onAddOpen}>
+        <Button colorPalette="blue" onClick={onAddOpen}>
+          <FiPlus />
           最初のキーワードを追加
         </Button>
 
-        <Modal isOpen={isAddOpen} onClose={onAddClose}>
-          <ModalOverlay />
-          <ModalContent>
-            <ModalHeader>キーワードを追加</ModalHeader>
-            <ModalCloseButton />
-            <ModalBody pb={6}>
+        <Dialog.Root open={isAddOpen} onOpenChange={({ open }) => !open && onAddClose()}>
+          <Dialog.Backdrop />
+          <Dialog.Content>
+            <Dialog.Header>キーワードを追加</Dialog.Header>
+            <Dialog.CloseTrigger />
+            <Dialog.Body pb={6}>
               <KeywordForm onSuccess={handleAddSuccess} onCancel={onAddClose} />
-            </ModalBody>
-          </ModalContent>
-        </Modal>
+            </Dialog.Body>
+          </Dialog.Content>
+        </Dialog.Root>
       </VStack>
     );
   }
@@ -248,21 +248,22 @@ export function KeywordList() {
   const inactiveKeywords = keywords.filter((k) => !k.is_active);
 
   return (
-    <VStack spacing={6} align="stretch">
+    <VStack gap={6} align="stretch">
       <Flex>
         <Spacer />
-        <HStack spacing={2}>
+        <HStack gap={2}>
           <Button
-            leftIcon={<FiRefreshCw />}
             variant="outline"
             size="sm"
             onClick={handleRecalculate}
-            isLoading={recalculateScores.isPending}
+            loading={recalculateScores.isPending}
             loadingText="再計算中..."
           >
+            <FiRefreshCw />
             重要度を再計算
           </Button>
-          <Button leftIcon={<FiPlus />} colorScheme="blue" onClick={onAddOpen}>
+          <Button colorPalette="blue" onClick={onAddOpen}>
+            <FiPlus />
             キーワードを追加
           </Button>
         </HStack>
@@ -275,18 +276,18 @@ export function KeywordList() {
             有効なキーワード ({activeKeywords.length})
           </Text>
 
-          <VStack spacing={3} align="stretch">
+          <VStack gap={3} align="stretch">
             {activeKeywords.map((keyword) => (
-              <Card key={keyword.keyword_id} variant="outline">
-                <CardBody>
-                  <VStack spacing={3} align="stretch">
+              <Card.Root key={keyword.keyword_id} variant="outline">
+                <Card.Body>
+                  <VStack gap={3} align="stretch">
                     <HStack>
-                      <VStack align="start" spacing={1} flex={1}>
+                      <VStack align="start" gap={1} flex={1}>
                         <HStack>
                           <Text fontWeight="bold" fontSize="md">
                             {keyword.text}
                           </Text>
-                          <Badge colorScheme="green" variant="solid">
+                          <Badge colorPalette="green" variant="solid">
                             重み: {formatWeight(keyword.weight)}
                           </Badge>
                         </HStack>
@@ -296,41 +297,42 @@ export function KeywordList() {
                         </Text>
                       </VStack>
 
-                      <HStack spacing={2}>
-                        <Tooltip label="有効/無効切り替え">
-                          <Switch
-                            isChecked={keyword.is_active}
-                            onChange={() => handleToggleActive(keyword)}
-                            isDisabled={toggleActive.isPending}
-                          />
-                        </Tooltip>
+                      <HStack gap={2}>
+                        <Switch.Root
+                          checked={keyword.is_active}
+                          onCheckedChange={() => handleToggleActive(keyword)}
+                          disabled={toggleActive.isPending}
+                        >
+                          <Switch.HiddenInput />
+                          <Switch.Control>
+                            <Switch.Thumb />
+                          </Switch.Control>
+                        </Switch.Root>
 
-                        <Tooltip label="編集">
-                          <IconButton
-                            aria-label="キーワードを編集"
-                            icon={<FiEdit2 />}
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleEdit(keyword)}
-                          />
-                        </Tooltip>
+                        <IconButton
+                          aria-label="キーワードを編集"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleEdit(keyword)}
+                        >
+                          <FiEdit2 />
+                        </IconButton>
 
-                        <Tooltip label="削除">
-                          <IconButton
-                            aria-label="キーワードを削除"
-                            icon={<FiTrash2 />}
-                            size="sm"
-                            variant="ghost"
-                            colorScheme="red"
-                            onClick={() => handleDelete(keyword)}
-                            isLoading={deleteKeyword.isPending}
-                          />
-                        </Tooltip>
+                        <IconButton
+                          aria-label="キーワードを削除"
+                          size="sm"
+                          variant="ghost"
+                          colorPalette="red"
+                          onClick={() => handleDelete(keyword)}
+                          loading={deleteKeyword.isPending}
+                        >
+                          <FiTrash2 />
+                        </IconButton>
                       </HStack>
                     </HStack>
                   </VStack>
-                </CardBody>
-              </Card>
+                </Card.Body>
+              </Card.Root>
             ))}
           </VStack>
         </Box>
@@ -343,13 +345,13 @@ export function KeywordList() {
             無効なキーワード ({inactiveKeywords.length})
           </Text>
 
-          <VStack spacing={3} align="stretch">
+          <VStack gap={3} align="stretch">
             {inactiveKeywords.map((keyword) => (
-              <Card key={keyword.keyword_id} variant="outline" opacity={0.6}>
-                <CardBody>
-                  <VStack spacing={3} align="stretch">
+              <Card.Root key={keyword.keyword_id} variant="outline" opacity={0.6}>
+                <Card.Body>
+                  <VStack gap={3} align="stretch">
                     <HStack>
-                      <VStack align="start" spacing={1} flex={1}>
+                      <VStack align="start" gap={1} flex={1}>
                         <HStack>
                           <Text
                             fontWeight="bold"
@@ -358,7 +360,7 @@ export function KeywordList() {
                           >
                             {keyword.text}
                           </Text>
-                          <Badge colorScheme="gray" variant="outline">
+                          <Badge colorPalette="gray" variant="outline">
                             重み: {formatWeight(keyword.weight)}
                           </Badge>
                         </HStack>
@@ -368,65 +370,66 @@ export function KeywordList() {
                         </Text>
                       </VStack>
 
-                      <HStack spacing={2}>
-                        <Tooltip label="有効/無効切り替え">
-                          <Switch
-                            isChecked={keyword.is_active}
-                            onChange={() => handleToggleActive(keyword)}
-                            isDisabled={toggleActive.isPending}
-                          />
-                        </Tooltip>
+                      <HStack gap={2}>
+                        <Switch.Root
+                          checked={keyword.is_active}
+                          onCheckedChange={() => handleToggleActive(keyword)}
+                          disabled={toggleActive.isPending}
+                        >
+                          <Switch.HiddenInput />
+                          <Switch.Control>
+                            <Switch.Thumb />
+                          </Switch.Control>
+                        </Switch.Root>
 
-                        <Tooltip label="編集">
-                          <IconButton
-                            aria-label="キーワードを編集"
-                            icon={<FiEdit2 />}
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleEdit(keyword)}
-                          />
-                        </Tooltip>
+                        <IconButton
+                          aria-label="キーワードを編集"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleEdit(keyword)}
+                        >
+                          <FiEdit2 />
+                        </IconButton>
 
-                        <Tooltip label="削除">
-                          <IconButton
-                            aria-label="キーワードを削除"
-                            icon={<FiTrash2 />}
-                            size="sm"
-                            variant="ghost"
-                            colorScheme="red"
-                            onClick={() => handleDelete(keyword)}
-                            isLoading={deleteKeyword.isPending}
-                          />
-                        </Tooltip>
+                        <IconButton
+                          aria-label="キーワードを削除"
+                          size="sm"
+                          variant="ghost"
+                          colorPalette="red"
+                          onClick={() => handleDelete(keyword)}
+                          loading={deleteKeyword.isPending}
+                        >
+                          <FiTrash2 />
+                        </IconButton>
                       </HStack>
                     </HStack>
                   </VStack>
-                </CardBody>
-              </Card>
+                </Card.Body>
+              </Card.Root>
             ))}
           </VStack>
         </Box>
       )}
 
       {/* キーワード追加モーダル */}
-      <Modal isOpen={isAddOpen} onClose={onAddClose}>
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>キーワードを追加</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody pb={6}>
+      <Dialog.Root open={isAddOpen} onOpenChange={({ open }) => !open && onAddClose()}>
+        <Dialog.Backdrop />
+        <Dialog.Content>
+          <Dialog.Header>キーワードを追加</Dialog.Header>
+          <Dialog.CloseTrigger />
+          <Dialog.Body pb={6}>
             <KeywordForm onSuccess={handleAddSuccess} onCancel={onAddClose} />
-          </ModalBody>
-        </ModalContent>
-      </Modal>
+          </Dialog.Body>
+        </Dialog.Content>
+      </Dialog.Root>
 
       {/* キーワード編集モーダル */}
-      <Modal isOpen={isEditOpen} onClose={onEditClose}>
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>キーワードを編集</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody pb={6}>
+      <Dialog.Root open={isEditOpen} onOpenChange={({ open }) => !open && onEditClose()}>
+        <Dialog.Backdrop />
+        <Dialog.Content>
+          <Dialog.Header>キーワードを編集</Dialog.Header>
+          <Dialog.CloseTrigger />
+          <Dialog.Body pb={6}>
             {selectedKeyword && (
               <KeywordEditForm
                 keyword={selectedKeyword}
@@ -434,9 +437,9 @@ export function KeywordList() {
                 onCancel={onEditClose}
               />
             )}
-          </ModalBody>
-        </ModalContent>
-      </Modal>
+          </Dialog.Body>
+        </Dialog.Content>
+      </Dialog.Root>
     </VStack>
   );
 }

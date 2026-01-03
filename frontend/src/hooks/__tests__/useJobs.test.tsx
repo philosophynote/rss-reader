@@ -1,11 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { ReactNode } from "react";
 import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useFetchFeeds, useCleanupArticles } from "../useJobs";
-import * as jobsApi from "../../api/jobs";
+import { jobsApi } from "../../api/jobs";
 
 // APIをモック
-vi.mock("../../api/jobs");
+vi.mock("../../api/jobs", () => ({
+  jobsApi: {
+    fetchFeeds: vi.fn(),
+    cleanupArticles: vi.fn(),
+  },
+}));
 
 const mockedJobsApi = vi.mocked(jobsApi);
 
@@ -17,7 +23,7 @@ const createWrapper = () => {
     },
   });
 
-  return ({ children }: { children: React.ReactNode }) => (
+  return ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );
 };
@@ -29,9 +35,11 @@ describe("useFetchFeeds", () => {
 
   it("should fetch feeds successfully", async () => {
     const mockResponse = {
-      message: "Feed fetch job started",
-      feeds_processed: 5,
-      articles_added: 10,
+      total_feeds: 5,
+      successful_feeds: 5,
+      failed_feeds: 0,
+      new_articles: 10,
+      errors: [],
     };
 
     mockedJobsApi.fetchFeeds.mockResolvedValue(mockResponse);
@@ -42,6 +50,7 @@ describe("useFetchFeeds", () => {
 
     await result.current.mutateAsync();
 
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(mockedJobsApi.fetchFeeds).toHaveBeenCalled();
   });
 
@@ -61,7 +70,20 @@ describe("useFetchFeeds", () => {
   it("should be in pending state during execution", async () => {
     // 長時間かかるPromiseをモック
     mockedJobsApi.fetchFeeds.mockImplementation(
-      () => new Promise((resolve) => setTimeout(resolve, 1000))
+      () =>
+        new Promise((resolve) =>
+          setTimeout(
+            () =>
+              resolve({
+                total_feeds: 1,
+                successful_feeds: 1,
+                failed_feeds: 0,
+                new_articles: 1,
+                errors: [],
+              }),
+            100
+          )
+        )
     );
 
     const { result } = renderHook(() => useFetchFeeds(), {
@@ -71,13 +93,8 @@ describe("useFetchFeeds", () => {
     const promise = result.current.mutateAsync();
 
     // 実行中はpendingになる
-    expect(result.current.isPending).toBe(true);
-
-    // Promiseを解決
-    mockedJobsApi.fetchFeeds.mockResolvedValue({
-      message: "Success",
-      feeds_processed: 1,
-      articles_added: 1,
+    await waitFor(() => {
+      expect(result.current.isPending).toBe(true);
     });
 
     await promise;
@@ -95,7 +112,6 @@ describe("useCleanupArticles", () => {
 
   it("should cleanup articles successfully", async () => {
     const mockResponse = {
-      message: "Cleanup job completed",
       deleted_articles: 15,
       deleted_reasons: 30,
     };
@@ -108,6 +124,7 @@ describe("useCleanupArticles", () => {
 
     await result.current.mutateAsync();
 
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(mockedJobsApi.cleanupArticles).toHaveBeenCalled();
   });
 
@@ -127,7 +144,17 @@ describe("useCleanupArticles", () => {
   it("should be in pending state during execution", async () => {
     // 長時間かかるPromiseをモック
     mockedJobsApi.cleanupArticles.mockImplementation(
-      () => new Promise((resolve) => setTimeout(resolve, 1000))
+      () =>
+        new Promise((resolve) =>
+          setTimeout(
+            () =>
+              resolve({
+                deleted_articles: 1,
+                deleted_reasons: 1,
+              }),
+            100
+          )
+        )
     );
 
     const { result } = renderHook(() => useCleanupArticles(), {
@@ -137,13 +164,8 @@ describe("useCleanupArticles", () => {
     const promise = result.current.mutateAsync();
 
     // 実行中はpendingになる
-    expect(result.current.isPending).toBe(true);
-
-    // Promiseを解決
-    mockedJobsApi.cleanupArticles.mockResolvedValue({
-      message: "Success",
-      deleted_articles: 1,
-      deleted_reasons: 1,
+    await waitFor(() => {
+      expect(result.current.isPending).toBe(true);
     });
 
     await promise;
@@ -155,7 +177,6 @@ describe("useCleanupArticles", () => {
 
   it("should handle successful response with zero deletions", async () => {
     const mockResponse = {
-      message: "No articles to cleanup",
       deleted_articles: 0,
       deleted_reasons: 0,
     };
@@ -169,6 +190,7 @@ describe("useCleanupArticles", () => {
     const response = await result.current.mutateAsync();
 
     expect(response).toEqual(mockResponse);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(mockedJobsApi.cleanupArticles).toHaveBeenCalled();
   });
 });

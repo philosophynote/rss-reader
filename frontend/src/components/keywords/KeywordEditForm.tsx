@@ -1,26 +1,33 @@
-import React, { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import type { ChangeEvent, FormEvent } from "react";
 import {
   Box,
   Button,
-  FormControl,
-  FormLabel,
-  FormErrorMessage,
-  FormHelperText,
+  FieldRoot,
+  FieldLabel,
+  FieldErrorText,
+  FieldHelperText,
   Input,
   NumberInput,
-  NumberInputField,
-  NumberInputStepper,
-  NumberIncrementStepper,
-  NumberDecrementStepper,
-  Switch,
+  SwitchRoot,
+  SwitchHiddenInput,
+  SwitchControl,
+  SwitchThumb,
   VStack,
-  useToast,
-  Alert,
-  AlertIcon,
+  createToaster,
+  AlertRoot,
+  AlertIndicator,
+  AlertContent,
 } from "@chakra-ui/react";
 import { useUpdateKeyword } from "../../hooks";
 import { ApiAuthError, ApiError } from "../../api";
 import type { Keyword, UpdateKeywordRequest } from "../../api";
+
+// toasterを作成
+const toaster = createToaster({
+  placement: "top",
+  duration: 3000,
+});
 
 interface KeywordEditFormProps {
   keyword: Keyword;
@@ -43,7 +50,6 @@ export function KeywordEditForm({
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const toast = useToast();
   const updateKeyword = useUpdateKeyword();
 
   // キーワードが変更された場合にフォームデータを更新
@@ -68,64 +74,64 @@ export function KeywordEditForm({
     }
 
     // 重み値チェック
-    if (formData.weight !== undefined) {
-      if (formData.weight < 0.1) {
-        newErrors.weight = "重みは0.1以上で入力してください";
-      } else if (formData.weight > 10.0) {
-        newErrors.weight = "重みは10.0以下で入力してください";
-      }
+    if (formData.weight === undefined || formData.weight === null) {
+      newErrors.weight = "重みは0.1以上で入力してください";
+    } else if (formData.weight < 0.1) {
+      newErrors.weight = "重みは0.1以上で入力してください";
+    } else if (formData.weight > 10.0) {
+      newErrors.weight = "重みは10.0以下で入力してください";
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
 
     if (!validateForm()) {
       return;
     }
 
-    try {
-      await updateKeyword.mutateAsync({
+    void updateKeyword
+      .mutateAsync({
         keywordId: keyword.keyword_id,
         data: {
           text: formData.text?.trim(),
           weight: formData.weight,
           is_active: formData.is_active,
         },
+      })
+      .then(() => {
+        toaster.create({
+          title: "キーワードを更新しました",
+          type: "success",
+          duration: 3000,
+        });
+
+        onSuccess?.();
+      })
+      .catch((error) => {
+        // eslint-disable-next-line no-console
+        console.error("キーワード更新エラー:", error);
+
+        let errorMessage = "キーワードの更新に失敗しました";
+        if (error instanceof ApiAuthError) {
+          errorMessage = "認証エラー: API Keyを確認してください";
+        } else if (error instanceof ApiError) {
+          errorMessage = error.message;
+        }
+
+        toaster.create({
+          title: "エラー",
+          description: errorMessage,
+          type: "error",
+          duration: 5000,
+        });
       });
-
-      toast({
-        title: "キーワードを更新しました",
-        status: "success",
-        duration: 3000,
-        isClosable: true,
-      });
-
-      onSuccess?.();
-    } catch (error) {
-      console.error("キーワード更新エラー:", error);
-
-      let errorMessage = "キーワードの更新に失敗しました";
-      if (error instanceof ApiAuthError) {
-        errorMessage = "認証エラー: API Keyを確認してください";
-      } else if (error instanceof ApiError) {
-        errorMessage = error.message;
-      }
-
-      toast({
-        title: "エラー",
-        description: errorMessage,
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
-    }
   };
 
-  const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleTextChange = (e: ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({
       ...prev,
       text: e.target.value,
@@ -140,97 +146,97 @@ export function KeywordEditForm({
     }
   };
 
-  const handleWeightChange = (valueString: string, valueNumber: number) => {
-    setFormData((prev) => ({
-      ...prev,
-      weight: valueNumber,
-    }));
-
-    // エラーをクリア
-    if (errors.weight) {
-      setErrors((prev) => ({
-        ...prev,
-        weight: "",
-      }));
-    }
-  };
-
-  const handleActiveChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData((prev) => ({
-      ...prev,
-      is_active: e.target.checked,
-    }));
-  };
-
   return (
     <Box as="form" onSubmit={handleSubmit}>
-      <VStack spacing={4} align="stretch">
+      <VStack gap={4} align="stretch">
         {updateKeyword.error && (
-          <Alert status="error">
-            <AlertIcon />
-            {updateKeyword.error instanceof ApiAuthError
-              ? "認証エラー: API Keyを確認してください"
-              : updateKeyword.error instanceof ApiError
-              ? updateKeyword.error.message
-              : "キーワードの更新に失敗しました"}
-          </Alert>
+          <AlertRoot status="error">
+            <AlertIndicator />
+            <AlertContent>
+              {updateKeyword.error instanceof ApiAuthError
+                ? "認証エラー: API Keyを確認してください"
+                : updateKeyword.error instanceof ApiError
+                ? updateKeyword.error.message
+                : "キーワードの更新に失敗しました"}
+            </AlertContent>
+          </AlertRoot>
         )}
 
-        <FormControl isInvalid={!!errors.text} isRequired>
-          <FormLabel>キーワード</FormLabel>
+        <FieldRoot invalid={!!errors.text} required>
+          <FieldLabel>キーワード</FieldLabel>
           <Input
-            value={formData.text || ""}
+            value={formData.text ?? ""}
             onChange={handleTextChange}
             placeholder="例: Python, 機械学習, React"
             disabled={updateKeyword.isPending}
           />
-          <FormErrorMessage>{errors.text}</FormErrorMessage>
-        </FormControl>
+          <FieldErrorText>{errors.text}</FieldErrorText>
+        </FieldRoot>
 
-        <FormControl isInvalid={!!errors.weight}>
-          <FormLabel>重み</FormLabel>
-          <NumberInput
-            value={formData.weight}
-            onChange={handleWeightChange}
+        <FieldRoot invalid={!!errors.weight}>
+          <FieldLabel>重み</FieldLabel>
+          <NumberInput.Root
+            value={formData.weight?.toString()}
+            onValueChange={(details) => {
+              const nextWeight = Number.isNaN(details.valueAsNumber)
+                ? undefined
+                : details.valueAsNumber;
+              setFormData((prev) => ({
+                ...prev,
+                weight: nextWeight,
+              }));
+              // エラーをクリア
+              if (errors.weight) {
+                setErrors((prev) => ({
+                  ...prev,
+                  weight: "",
+                }));
+              }
+            }}
             min={0.1}
             max={10.0}
             step={0.1}
-            precision={1}
             disabled={updateKeyword.isPending}
           >
-            <NumberInputField />
-            <NumberInputStepper>
-              <NumberIncrementStepper />
-              <NumberDecrementStepper />
-            </NumberInputStepper>
-          </NumberInput>
-          <FormHelperText>
+            <NumberInput.Control />
+            <NumberInput.Input />
+          </NumberInput.Root>
+          <FieldHelperText>
             キーワードの重要度を調整できます（0.1〜10.0）
-          </FormHelperText>
-          <FormErrorMessage>{errors.weight}</FormErrorMessage>
-        </FormControl>
+          </FieldHelperText>
+          <FieldErrorText>{errors.weight}</FieldErrorText>
+        </FieldRoot>
 
-        <FormControl display="flex" alignItems="center">
-          <FormLabel htmlFor="is-active" mb="0">
+        <FieldRoot display="flex" alignItems="center">
+          <FieldLabel htmlFor="is-active" mb="0">
             有効
-          </FormLabel>
-          <Switch
-            id="is-active"
-            isChecked={formData.is_active}
-            onChange={handleActiveChange}
+          </FieldLabel>
+          <SwitchRoot
+            checked={formData.is_active}
+            onCheckedChange={(e) => {
+              setFormData((prev) => ({
+                ...prev,
+                is_active: e.checked,
+              }));
+            }}
             disabled={updateKeyword.isPending}
-          />
-          <FormHelperText ml={3}>
+          >
+            <SwitchHiddenInput id="is-active" />
+            <SwitchControl>
+              <SwitchThumb />
+            </SwitchControl>
+          </SwitchRoot>
+          <FieldHelperText ml={3}>
             無効にすると重要度計算から除外されます
-          </FormHelperText>
-        </FormControl>
+          </FieldHelperText>
+        </FieldRoot>
 
-        <VStack spacing={2}>
+        <VStack gap={2}>
           <Button
             type="submit"
-            colorScheme="blue"
+            colorPalette="blue"
             width="full"
-            isLoading={updateKeyword.isPending}
+            loading={updateKeyword.isPending}
             loadingText="更新中..."
           >
             キーワードを更新
