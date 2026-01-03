@@ -65,6 +65,9 @@ class TestDynamoDBClient:
         ):
             mock_settings.get_table_name.return_value = "env-table"
             mock_settings.get_region.return_value = "us-west-2"
+            mock_settings.get_dynamodb_endpoint_url.return_value = (
+                "http://localhost:8001"
+            )
             mock_dynamodb = MagicMock()
             mock_table = MagicMock()
             mock_dynamodb.Table.return_value = mock_table
@@ -74,7 +77,9 @@ class TestDynamoDBClient:
 
             assert client.table_name == "env-table"
             mock_resource.assert_called_once_with(
-                "dynamodb", region_name="us-west-2"
+                "dynamodb",
+                region_name="us-west-2",
+                endpoint_url="http://localhost:8001",
             )
 
     def test_put_item_success(self, client, mock_table):

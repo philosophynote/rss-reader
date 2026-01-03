@@ -21,6 +21,7 @@ class Settings:
     # DynamoDB設定
     DYNAMODB_TABLE_NAME: str = os.getenv("DYNAMODB_TABLE_NAME", "rss-reader")
     DYNAMODB_REGION: str = os.getenv("AWS_REGION", "ap-northeast-1")
+    DYNAMODB_ENDPOINT_URL: str | None = os.getenv("DYNAMODB_ENDPOINT_URL")
 
     # AWS Bedrock設定
     # Nova 2 multimodal embeddings is only available in us-east-1
@@ -106,6 +107,11 @@ class Settings:
             or parsed.get("RSS_READER_API_KEY")
             or secret_value
         )
+
+    @classmethod
+    def get_dynamodb_endpoint_url(cls) -> str | None:
+        """DynamoDBエンドポイントURLを取得（ローカル用）"""
+        return cls.DYNAMODB_ENDPOINT_URL
 
 
 # グローバル設定インスタンス

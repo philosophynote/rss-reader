@@ -3,8 +3,11 @@ import type {
   Keyword,
   CreateKeywordRequest,
   UpdateKeywordRequest,
-  ApiResponse,
 } from "./types";
+
+interface KeywordListApiResponse {
+  items: Keyword[];
+}
 
 /**
  * キーワード管理API
@@ -14,24 +17,17 @@ export const keywordsApi = {
    * キーワード一覧を取得
    */
   async getKeywords(this: void): Promise<Keyword[]> {
-    const response = await apiClient.get<ApiResponse<Keyword[]>>(
+    const response = await apiClient.get<KeywordListApiResponse>(
       "/api/keywords"
     );
-    return response.data ?? [];
+    return response.items ?? [];
   },
 
   /**
    * キーワードを作成
    */
   async createKeyword(data: CreateKeywordRequest): Promise<Keyword> {
-    const response = await apiClient.post<ApiResponse<Keyword>>(
-      "/api/keywords",
-      data
-    );
-    if (!response.data) {
-      throw new Error("キーワードの作成に失敗しました");
-    }
-    return response.data;
+    return apiClient.post<Keyword>("/api/keywords", data);
   },
 
   /**
@@ -41,14 +37,7 @@ export const keywordsApi = {
     keywordId: string,
     data: UpdateKeywordRequest
   ): Promise<Keyword> {
-    const response = await apiClient.put<ApiResponse<Keyword>>(
-      `/api/keywords/${keywordId}`,
-      data
-    );
-    if (!response.data) {
-      throw new Error("キーワードの更新に失敗しました");
-    }
-    return response.data;
+    return apiClient.put<Keyword>(`/api/keywords/${keywordId}`, data);
   },
 
   /**
