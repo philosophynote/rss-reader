@@ -117,7 +117,7 @@ export function ArticleActionButtons({
       });
   };
 
-  const handleOpenExternal = (e: React.MouseEvent) => {
+  const handleOpenExternal = (e: MouseEvent) => {
     e.stopPropagation();
     window.open(article.link, "_blank", "noopener,noreferrer");
   };

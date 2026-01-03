@@ -61,10 +61,13 @@ export function FeedForm({ onSuccess, onCancel }: FeedFormProps) {
       return;
     }
 
+    const trimmedFolder = formData.folder?.trim();
+
     void createFeed
       .mutateAsync({
         url: formData.url.trim(),
-        folder: formData.folder?.trim() || undefined,
+        folder:
+          trimmedFolder && trimmedFolder.length > 0 ? trimmedFolder : undefined,
       })
       .then(() => {
         toaster.create({

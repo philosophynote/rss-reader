@@ -79,7 +79,6 @@ describe("ApiClient", () => {
 
         const result = await apiClient.get("/test", { param: "value" });
         expect(result).toEqual(mockResponse.data);
-        // eslint-disable-next-line @typescript-eslint/unbound-method
         expect(mockAxiosInstance.get).toHaveBeenCalledWith("/test", {
           params: { param: "value" },
         });
@@ -101,7 +100,6 @@ describe("ApiClient", () => {
 
         const result = await apiClient.post("/test", postData);
         expect(result).toEqual(mockResponse.data);
-        // eslint-disable-next-line @typescript-eslint/unbound-method
         expect(mockAxiosInstance.post).toHaveBeenCalledWith("/test", postData);
       });
     });
@@ -114,7 +112,6 @@ describe("ApiClient", () => {
 
         const result = await apiClient.put("/test/1", putData);
         expect(result).toEqual(mockResponse.data);
-        // eslint-disable-next-line @typescript-eslint/unbound-method
         expect(mockAxiosInstance.put).toHaveBeenCalledWith("/test/1", putData);
       });
     });
@@ -126,7 +123,6 @@ describe("ApiClient", () => {
 
         const result = await apiClient.delete("/test/1");
         expect(result).toEqual(mockResponse.data);
-        // eslint-disable-next-line @typescript-eslint/unbound-method
         expect(mockAxiosInstance.delete).toHaveBeenCalledWith("/test/1");
       });
     });
