@@ -1,0 +1,209 @@
+name: Deploy Infrastructure
+
+permissions:
+  contents: read
+  id-token: write
+
+"on":
+  push:
+    branches: [ main ]
+    paths:
+      - 'infrastructure/**'
+      - '.github/workflows/deploy-infra.yml'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'development'
+        type: choice
+        options:
+          - development
+          - production
+      destroy:
+        description: 'Destroy infrastructure instead of deploying'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  NODE_VERSION: '22'
+  AWS_REGION: 'ap-northeast-1'
+
+jobs:
+  deploy-infrastructure:
+    name: Deploy Infrastructure with CDK
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'development' }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Setup Node.js ${{ env.NODE_VERSION }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: 'infrastructure/package-lock.json'
+
+    - name: Install CDK dependencies
+      working-directory: ./infrastructure
+      run: npm ci
+
+    - name: Install AWS CDK CLI
+      run: npm install -g aws-cdk
+
+    - name: Type check
+      working-directory: ./infrastructure
+      run: npx tsc --noEmit
+
+    - name: CDK Bootstrap (if needed)
+      working-directory: ./infrastructure
+      env:
+        ENVIRONMENT: ${{ github.event.inputs.environment || 'development' }}
+        RSS_READER_API_KEY: ${{ secrets.RSS_READER_API_KEY }}
+      run: |
+        # Bootstrap only if not already done
+        if ! aws cloudformation describe-stacks --stack-name CDKToolkit --region ${{ env.AWS_REGION }} 2>/dev/null; then
+          echo "Bootstrapping CDK..."
+          npx cdk bootstrap aws://$(aws sts get-caller-identity --query Account --output text)/${{ env.AWS_REGION }}
+        else
+          echo "CDK already bootstrapped"
+        fi
+
+    - name: CDK Synth
+      working-directory: ./infrastructure
+      env:
+        ENVIRONMENT: ${{ github.event.inputs.environment || 'development' }}
+        RSS_READER_API_KEY: ${{ secrets.RSS_READER_API_KEY }}
+      run: npx cdk synth
+
+    - name: CDK Diff
+      working-directory: ./infrastructure
+      env:
+        ENVIRONMENT: ${{ github.event.inputs.environment || 'development' }}
+        RSS_READER_API_KEY: ${{ secrets.RSS_READER_API_KEY }}
+      run: |
+        echo "=== CDK Diff ==="
+        npx cdk diff || true
+
+    - name: CDK Deploy
+      if: github.event.inputs.destroy != 'true'
+      working-directory: ./infrastructure
+      env:
+        ENVIRONMENT: ${{ github.event.inputs.environment || 'development' }}
+        RSS_READER_API_KEY: ${{ secrets.RSS_READER_API_KEY }}
+      run: |
+        echo "Deploying infrastructure to $ENVIRONMENT environment..."
+        npx cdk deploy --all --require-approval never --outputs-file outputs.json
+
+    - name: CDK Destroy
+      if: github.event.inputs.destroy == 'true'
+      working-directory: ./infrastructure
+      env:
+        ENVIRONMENT: ${{ github.event.inputs.environment || 'development' }}
+        RSS_READER_API_KEY: ${{ secrets.RSS_READER_API_KEY }}
+      run: |
+        echo "⚠️ DESTROYING infrastructure in $ENVIRONMENT environment..."
+        npx cdk destroy --all --force
+
+    - name: Save deployment outputs
+      if: github.event.inputs.destroy != 'true'
+      working-directory: ./infrastructure
+      run: |
+        if [ -f outputs.json ]; then
+          echo "=== Deployment Outputs ==="
+          cat outputs.json | jq '.'
+
+          # 重要な出力値を環境変数として保存
+          if [ -f outputs.json ]; then
+            # Lambda Function URL
+            LAMBDA_URL=$(cat outputs.json | jq -r '.RssReaderLambdaStack.LambdaFunctionUrl // empty')
+            if [ "$LAMBDA_URL" != "" ] && [ "$LAMBDA_URL" != "null" ]; then
+              echo "LAMBDA_FUNCTION_URL=$LAMBDA_URL" >> $GITHUB_ENV
+            fi
+
+            # CloudFront URL
+            CLOUDFRONT_URL=$(cat outputs.json | jq -r '.RssReaderFrontendStack.CloudFrontUrl // empty')
+            if [ "$CLOUDFRONT_URL" != "" ] && [ "$CLOUDFRONT_URL" != "null" ]; then
+              echo "CLOUDFRONT_URL=$CLOUDFRONT_URL" >> $GITHUB_ENV
+            fi
+
+            # DynamoDB Table Name
+            TABLE_NAME=$(cat outputs.json | jq -r '.RssReaderDynamoDBStack.TableName // empty')
+            if [ "$TABLE_NAME" != "" ] && [ "$TABLE_NAME" != "null" ]; then
+              echo "DYNAMODB_TABLE_NAME=$TABLE_NAME" >> $GITHUB_ENV
+            fi
+          fi
+        fi
+
+    - name: Infrastructure health check
+      if: github.event.inputs.destroy != 'true'
+      run: |
+        echo "=== Infrastructure Health Check ==="
+
+        # DynamoDB テーブルの存在確認
+        if [ "$DYNAMODB_TABLE_NAME" != "" ]; then
+          echo "Checking DynamoDB table: $DYNAMODB_TABLE_NAME"
+          aws dynamodb describe-table --table-name $DYNAMODB_TABLE_NAME --region ${{ env.AWS_REGION }}
+        fi
+
+        # Lambda 関数の存在確認
+        FUNCTION_NAME="rss-reader-${{ github.event.inputs.environment || 'development' }}-api"
+        echo "Checking Lambda function: $FUNCTION_NAME"
+        aws lambda get-function --function-name $FUNCTION_NAME --region ${{ env.AWS_REGION }}
+
+        # Lambda Function URL の確認
+        if [ "$LAMBDA_FUNCTION_URL" != "" ]; then
+          echo "Lambda Function URL: $LAMBDA_FUNCTION_URL"
+        fi
+
+    - name: Update GitHub environment variables
+      if: github.event.inputs.destroy != 'true' && env.LAMBDA_FUNCTION_URL != ''
+      run: |
+        echo "Updating GitHub environment variables..."
+        # GitHub CLI を使用して環境変数を更新（必要に応じて）
+        echo "VITE_API_BASE_URL=$LAMBDA_FUNCTION_URL" >> deployment-vars.txt
+        echo "Deployment variables saved to deployment-vars.txt"
+
+    - name: Deployment success notification
+      if: success() && github.event.inputs.destroy != 'true'
+      run: |
+        echo "✅ Infrastructure deployment successful!"
+        echo "Environment: ${{ github.event.inputs.environment || 'development' }}"
+        if [ "$LAMBDA_FUNCTION_URL" != "" ]; then
+          echo "API URL: $LAMBDA_FUNCTION_URL"
+        fi
+        if [ "$CLOUDFRONT_URL" != "" ]; then
+          echo "Frontend URL: $CLOUDFRONT_URL"
+        fi
+
+    - name: Destroy success notification
+      if: success() && github.event.inputs.destroy == 'true'
+      run: |
+        echo "✅ Infrastructure destruction successful!"
+        echo "Environment: ${{ github.event.inputs.environment || 'development' }}"
+
+    - name: Deployment failure notification
+      if: failure()
+      run: |
+        echo "❌ Infrastructure deployment failed!"
+        echo "Please check the logs for details."
+        exit 1
+
+    - name: Upload deployment artifacts
+      if: always() && github.event.inputs.destroy != 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: cdk-outputs-${{ github.event.inputs.environment || 'development' }}
+        path: |
+          infrastructure/outputs.json
+          infrastructure/cdk.out/
+        retention-days: 30

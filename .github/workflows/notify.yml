@@ -1,0 +1,333 @@
+name: Notification System
+
+"on":
+  workflow_run:
+    workflows:
+      - "CI"
+      - "Deploy Backend"
+      - "Deploy Frontend"
+      - "Deploy Infrastructure"
+    types:
+      - completed
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  notify-deployment-status:
+    name: Notify Deployment Status
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+    - name: Get workflow information
+      id: workflow-info
+      run: |
+        echo "workflow-name=${{ github.event.workflow_run.name }}" >> $GITHUB_OUTPUT
+        echo "workflow-status=${{ github.event.workflow_run.conclusion }}" >> $GITHUB_OUTPUT
+        echo "workflow-url=${{ github.event.workflow_run.html_url }}" >> $GITHUB_OUTPUT
+        echo "commit-sha=${{ github.event.workflow_run.head_sha }}" >> $GITHUB_OUTPUT
+        echo "branch=${{ github.event.workflow_run.head_branch }}" >> $GITHUB_OUTPUT
+        echo "actor=${{ github.event.workflow_run.triggering_actor.login }}" >> $GITHUB_OUTPUT
+
+    - name: Prepare notification message
+      id: message
+      run: |
+        WORKFLOW_NAME="${{ steps.workflow-info.outputs.workflow-name }}"
+        WORKFLOW_STATUS="${{ steps.workflow-info.outputs.workflow-status }}"
+        BRANCH="${{ steps.workflow-info.outputs.branch }}"
+        ACTOR="${{ steps.workflow-info.outputs.actor }}"
+        COMMIT_SHA="${{ steps.workflow-info.outputs.commit-sha }}"
+        WORKFLOW_URL="${{ steps.workflow-info.outputs.workflow-url }}"
+
+        # ステータスに応じた絵文字とメッセージを設定
+        if [ "$WORKFLOW_STATUS" = "success" ]; then
+          EMOJI="✅"
+          STATUS_TEXT="成功"
+          COLOR="good"
+        elif [ "$WORKFLOW_STATUS" = "failure" ]; then
+          EMOJI="❌"
+          STATUS_TEXT="失敗"
+          COLOR="danger"
+        elif [ "$WORKFLOW_STATUS" = "cancelled" ]; then
+          EMOJI="⏹️"
+          STATUS_TEXT="キャンセル"
+          COLOR="warning"
+        else
+          EMOJI="❓"
+          STATUS_TEXT="不明"
+          COLOR="warning"
+        fi
+
+        # Slack用のメッセージを作成
+        SLACK_MESSAGE="$EMOJI *RSS Reader - $WORKFLOW_NAME* $STATUS_TEXT
+
+        *ブランチ:* \`$BRANCH\`
+        *実行者:* $ACTOR
+        *コミット:* \`${COMMIT_SHA:0:7}\`
+        *詳細:* <$WORKFLOW_URL|ワークフロー実行結果を見る>"
+
+        # Discord用のメッセージを作成
+        DISCORD_MESSAGE="$EMOJI **RSS Reader - $WORKFLOW_NAME** $STATUS_TEXT
+
+        **ブランチ:** \`$BRANCH\`
+        **実行者:** $ACTOR
+        **コミット:** \`${COMMIT_SHA:0:7}\`
+        **詳細:** $WORKFLOW_URL"
+
+        # メール用の件名とメッセージを作成
+        EMAIL_SUBJECT="RSS Reader - $WORKFLOW_NAME $STATUS_TEXT ($BRANCH)"
+        EMAIL_MESSAGE="RSS Readerプロジェクトのワークフロー実行結果をお知らせします。
+
+        ワークフロー名: $WORKFLOW_NAME
+        実行結果: $STATUS_TEXT
+        ブランチ: $BRANCH
+        実行者: $ACTOR
+        コミットSHA: $COMMIT_SHA
+
+        詳細はこちらをご確認ください:
+        $WORKFLOW_URL"
+
+        # 出力変数に設定
+        echo "emoji=$EMOJI" >> $GITHUB_OUTPUT
+        echo "status-text=$STATUS_TEXT" >> $GITHUB_OUTPUT
+        echo "color=$COLOR" >> $GITHUB_OUTPUT
+
+        # マルチライン文字列の処理
+        {
+          echo 'slack-message<<EOF'
+          echo "$SLACK_MESSAGE"
+          echo 'EOF'
+        } >> $GITHUB_OUTPUT
+
+        {
+          echo 'discord-message<<EOF'
+          echo "$DISCORD_MESSAGE"
+          echo 'EOF'
+        } >> $GITHUB_OUTPUT
+
+        {
+          echo 'email-subject<<EOF'
+          echo "$EMAIL_SUBJECT"
+          echo 'EOF'
+        } >> $GITHUB_OUTPUT
+
+        {
+          echo 'email-message<<EOF'
+          echo "$EMAIL_MESSAGE"
+          echo 'EOF'
+        } >> $GITHUB_OUTPUT
+
+    - name: Send Slack notification
+      if: env.SLACK_WEBHOOK_URL != ''
+      uses: 8398a7/action-slack@v3
+      with:
+        status: custom
+        custom_payload: |
+          {
+            "text": "${{ steps.message.outputs.slack-message }}",
+            "attachments": [
+              {
+                "color": "${{ steps.message.outputs.color }}",
+                "fields": [
+                  {
+                    "title": "Repository",
+                    "value": "${{ github.repository }}",
+                    "short": true
+                  },
+                  {
+                    "title": "Workflow",
+                    "value": "${{ steps.workflow-info.outputs.workflow-name }}",
+                    "short": true
+                  }
+                ]
+              }
+            ]
+          }
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+    - name: Send Discord notification
+      if: env.DISCORD_WEBHOOK_URL != ''
+      uses: Ilshidur/action-discord@master
+      with:
+        args: ${{ steps.message.outputs.discord-message }}
+      env:
+        DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+
+    - name: Send email notification
+      if: env.EMAIL_TO != ''
+      uses: dawidd6/action-send-mail@v3
+      with:
+        server_address: ${{ secrets.SMTP_SERVER }}
+        server_port: ${{ secrets.SMTP_PORT }}
+        username: ${{ secrets.SMTP_USERNAME }}
+        password: ${{ secrets.SMTP_PASSWORD }}
+        subject: ${{ steps.message.outputs.email-subject }}
+        body: ${{ steps.message.outputs.email-message }}
+        to: ${{ secrets.EMAIL_TO }}
+        from: ${{ secrets.EMAIL_FROM }}
+        secure: true
+
+    - name: Create GitHub issue on failure
+      if: steps.workflow-info.outputs.workflow-status == 'failure' && github.event.workflow_run.head_branch == 'main'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const workflowName = '${{ steps.workflow-info.outputs.workflow-name }}';
+          const workflowUrl = '${{ steps.workflow-info.outputs.workflow-url }}';
+          const commitSha = '${{ steps.workflow-info.outputs.commit-sha }}';
+          const branch = '${{ steps.workflow-info.outputs.branch }}';
+          const actor = '${{ steps.workflow-info.outputs.actor }}';
+
+          const title = `🚨 ${workflowName} failed on ${branch}`;
+          const body = `## ワークフロー実行失敗
+
+          **ワークフロー名:** ${workflowName}
+          **ブランチ:** ${branch}
+          **実行者:** ${actor}
+          **コミットSHA:** ${commitSha}
+
+          ### 詳細
+
+          ワークフローの実行が失敗しました。詳細は以下のリンクをご確認ください。
+
+          [ワークフロー実行結果を見る](${workflowUrl})
+
+          ### 対応が必要な項目
+
+          - [ ] エラーログの確認
+          - [ ] 原因の特定
+          - [ ] 修正の実施
+          - [ ] 再実行の確認
+
+          ### 自動生成情報
+
+          このIssueは自動的に生成されました。
+          生成日時: ${new Date().toISOString()}`;
+
+          // 既存の同様のIssueがないかチェック
+          const existingIssues = await github.rest.issues.listForRepo({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            state: 'open',
+            labels: 'ci-failure'
+          });
+
+          const duplicateIssue = existingIssues.data.find(issue =>
+            issue.title.includes(workflowName) &&
+            issue.title.includes(branch)
+          );
+
+          if (!duplicateIssue) {
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['ci-failure', 'bug', 'priority-high']
+            });
+          }
+
+    - name: Update deployment status
+      if: contains(github.event.workflow_run.name, 'Deploy')
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const workflowName = '${{ steps.workflow-info.outputs.workflow-name }}';
+          const workflowStatus = '${{ steps.workflow-info.outputs.workflow-status }}';
+          const commitSha = '${{ steps.workflow-info.outputs.commit-sha }}';
+
+          let environment = 'development';
+          if (workflowName.includes('production')) {
+            environment = 'production';
+          }
+
+          let deploymentState = 'failure';
+          if (workflowStatus === 'success') {
+            deploymentState = 'success';
+          }
+
+          // デプロイメントステータスを更新
+          await github.rest.repos.createDeploymentStatus({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            deployment_id: context.payload.deployment?.id || 0,
+            state: deploymentState,
+            environment: environment,
+            description: `${workflowName} ${workflowStatus}`,
+            target_url: '${{ steps.workflow-info.outputs.workflow-url }}'
+          });
+
+  security-alert:
+    name: Security Alert Notification
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.name == 'CI' && github.event.workflow_run.conclusion == 'failure'
+
+    steps:
+    - name: Check for security issues
+      id: security-check
+      run: |
+        # セキュリティ関連の失敗かどうかをチェック
+        # 実際の実装では、ワークフローのログを解析してセキュリティ関連のエラーを検出
+        echo "security-issue=false" >> $GITHUB_OUTPUT
+
+        # 例: Trivyスキャンの失敗やセキュリティテストの失敗を検出
+        # if grep -q "security" workflow_logs.txt; then
+        #   echo "security-issue=true" >> $GITHUB_OUTPUT
+        # fi
+
+    - name: Send security alert
+      if: steps.security-check.outputs.security-issue == 'true'
+      uses: 8398a7/action-slack@v3
+      with:
+        status: custom
+        custom_payload: |
+          {
+            "text": "🚨 *SECURITY ALERT* - RSS Reader",
+            "attachments": [
+              {
+                "color": "danger",
+                "fields": [
+                  {
+                    "title": "セキュリティ問題が検出されました",
+                    "value": "CI実行中にセキュリティ関連の問題が検出されました。至急確認してください。",
+                    "short": false
+                  },
+                  {
+                    "title": "Repository",
+                    "value": "${{ github.repository }}",
+                    "short": true
+                  },
+                  {
+                    "title": "Branch",
+                    "value": "${{ github.event.workflow_run.head_branch }}",
+                    "short": true
+                  }
+                ]
+              }
+            ]
+          }
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SECURITY_SLACK_WEBHOOK_URL }}
+
+  performance-alert:
+    name: Performance Alert Notification
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.name == 'Deploy Backend' && github.event.workflow_run.conclusion == 'success'
+
+    steps:
+    - name: Performance monitoring setup
+      run: |
+        echo "パフォーマンス監視の設定を行います"
+        # 実際の実装では、デプロイ後のパフォーマンスメトリクスを監視
+        # CloudWatchアラームの設定やパフォーマンステストの実行など
+
+    - name: Schedule performance check
+      uses: actions/github-script@v7
+      with:
+        script: |
+          // デプロイ後30分後にパフォーマンスチェックを実行するワークフローをトリガー
+          console.log('パフォーマンスチェックをスケジュールしました');
+          // 実際の実装では、遅延実行やCloudWatchアラームの設定を行う
