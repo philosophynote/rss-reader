@@ -24,7 +24,7 @@ export const keywordsKeys = {
 export function useKeywords() {
   return useQuery({
     queryKey: keywordsKeys.list(),
-    queryFn: () => keywordsApi.getKeywords(),
+    queryFn: keywordsApi.getKeywords,
     retry: (failureCount, error) => {
       // 認証エラーの場合はリトライしない
       if (error instanceof ApiAuthError) {

@@ -54,7 +54,7 @@ export function FeedForm({ onSuccess, onCancel }: FeedFormProps) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
     if (!validateForm()) {
@@ -63,43 +63,42 @@ export function FeedForm({ onSuccess, onCancel }: FeedFormProps) {
 
     const trimmedFolder = formData.folder?.trim();
 
-    void createFeed
-      .mutateAsync({
+    try {
+      await createFeed.mutateAsync({
         url: formData.url.trim(),
         folder:
           trimmedFolder && trimmedFolder.length > 0 ? trimmedFolder : undefined,
-      })
-      .then(() => {
-        toaster.create({
-          title: "フィードを追加しました",
-          type: "success",
-          duration: 3000,
-        });
-
-        // フォームをリセット
-        setFormData({ url: "", folder: "" });
-        setErrors({});
-
-        onSuccess?.();
-      })
-      .catch((error) => {
-        // eslint-disable-next-line no-console
-        console.error("フィード作成エラー:", error);
-
-        let errorMessage = "フィードの追加に失敗しました";
-        if (error instanceof ApiAuthError) {
-          errorMessage = "認証エラー: API Keyを確認してください";
-        } else if (error instanceof ApiError) {
-          errorMessage = error.message;
-        }
-
-        toaster.create({
-          title: "エラー",
-          description: errorMessage,
-          type: "error",
-          duration: 5000,
-        });
       });
+
+      toaster.create({
+        title: "フィードを追加しました",
+        type: "success",
+        duration: 3000,
+      });
+
+      // フォームをリセット
+      setFormData({ url: "", folder: "" });
+      setErrors({});
+
+      onSuccess?.();
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error("フィード作成エラー:", error);
+
+      let errorMessage = "フィードの追加に失敗しました";
+      if (error instanceof ApiAuthError) {
+        errorMessage = "認証エラー: API Keyを確認してください";
+      } else if (error instanceof ApiError) {
+        errorMessage = error.message;
+      }
+
+      toaster.create({
+        title: "エラー",
+        description: errorMessage,
+        type: "error",
+        duration: 5000,
+      });
+    }
   };
 
   const handleInputChange =

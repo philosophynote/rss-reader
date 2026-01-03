@@ -74,12 +74,12 @@ export function KeywordEditForm({
     }
 
     // 重み値チェック
-    if (formData.weight !== undefined) {
-      if (formData.weight < 0.1) {
-        newErrors.weight = "重みは0.1以上で入力してください";
-      } else if (formData.weight > 10.0) {
-        newErrors.weight = "重みは10.0以下で入力してください";
-      }
+    if (formData.weight === undefined || formData.weight === null) {
+      newErrors.weight = "重みは0.1以上で入力してください";
+    } else if (formData.weight < 0.1) {
+      newErrors.weight = "重みは0.1以上で入力してください";
+    } else if (formData.weight > 10.0) {
+      newErrors.weight = "重みは10.0以下で入力してください";
     }
 
     setErrors(newErrors);
@@ -178,9 +178,12 @@ export function KeywordEditForm({
           <NumberInput.Root
             value={formData.weight?.toString()}
             onValueChange={(details) => {
+              const nextWeight = Number.isNaN(details.valueAsNumber)
+                ? undefined
+                : details.valueAsNumber;
               setFormData((prev) => ({
                 ...prev,
-                weight: details.valueAsNumber,
+                weight: nextWeight,
               }));
               // エラーをクリア
               if (errors.weight) {

@@ -43,7 +43,7 @@ export function ArticleActionButtons({
   const toggleRead = useToggleArticleRead();
   const toggleSave = useToggleArticleSave();
 
-  const handleToggleRead = (e: MouseEvent) => {
+  const handleToggleRead = (e: MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
 
     void toggleRead
@@ -80,7 +80,7 @@ export function ArticleActionButtons({
       });
   };
 
-  const handleToggleSave = (e: MouseEvent) => {
+  const handleToggleSave = (e: MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
 
     void toggleSave
@@ -117,7 +117,7 @@ export function ArticleActionButtons({
       });
   };
 
-  const handleOpenExternal = (e: MouseEvent) => {
+  const handleOpenExternal = (e: MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     window.open(article.link, "_blank", "noopener,noreferrer");
   };
