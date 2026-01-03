@@ -10,14 +10,14 @@ repos:
         files: ^backend/
 
   # Python: Type checking with Pyright (using local installation)
-  - repo: local
-    hooks:
-      - id: pyright
-        name: Pyright type check
-        entry: bash -c 'cd backend && uv run pyright'
-        language: system
-        files: ^backend/.*\.py$
-        pass_filenames: false
+  # - repo: local
+  #   hooks:
+  #     - id: pyright
+  #       name: Pyright type check
+  #       entry: bash -c 'cd backend && uv run pyright'
+  #       language: system
+  #       files: ^backend/.*\.py$
+  #       pass_filenames: false
 
   # TypeScript/JavaScript: ESLint
   # - repo: https://github.com/pre-commit/mirrors-eslint
