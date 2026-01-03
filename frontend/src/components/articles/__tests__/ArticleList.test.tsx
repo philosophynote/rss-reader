@@ -58,11 +58,11 @@ describe("ArticleList", () => {
     mockedUseArticles.mockReturnValue({
       data: {
         articles: mockArticles,
-        last_evaluated_key: null,
+        last_evaluated_key: undefined,
       },
       isLoading: false,
       error: null,
-    } as UseQueryResult<ArticleListResponse, Error>);
+    } as unknown as UseQueryResult<ArticleListResponse, Error>);
   });
 
   it("should render article list correctly", () => {
@@ -77,7 +77,7 @@ describe("ArticleList", () => {
       data: null,
       isLoading: true,
       error: null,
-    } as UseQueryResult<ArticleListResponse, Error>);
+    } as unknown as UseQueryResult<ArticleListResponse, Error>);
 
     render(<ArticleList />);
 
@@ -91,7 +91,7 @@ describe("ArticleList", () => {
       data: null,
       isLoading: false,
       error: new Error("Test error"),
-    } as UseQueryResult<ArticleListResponse, Error>);
+    } as unknown as UseQueryResult<ArticleListResponse, Error>);
 
     render(<ArticleList />);
 
@@ -104,11 +104,11 @@ describe("ArticleList", () => {
     mockedUseArticles.mockReturnValue({
       data: {
         articles: [],
-        last_evaluated_key: null,
+        last_evaluated_key: undefined,
       },
       isLoading: false,
       error: null,
-    } as UseQueryResult<ArticleListResponse, Error>);
+    } as unknown as UseQueryResult<ArticleListResponse, Error>);
 
     render(<ArticleList />);
 
@@ -198,7 +198,7 @@ describe("ArticleList", () => {
       },
       isLoading: false,
       error: null,
-    } as UseQueryResult<ArticleListResponse, Error>);
+    } as unknown as UseQueryResult<ArticleListResponse, Error>);
 
     render(<ArticleList />);
 

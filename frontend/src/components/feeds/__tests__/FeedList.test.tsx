@@ -40,14 +40,14 @@ const mockFeeds: Feed[] = [
     title: "Science Updates",
     folder: "Science",
     created_at: "2024-01-01T11:00:00Z",
-    last_fetched_at: null,
+    last_fetched_at: undefined,
     is_active: false,
   },
   {
     feed_id: "3",
     url: "https://example.com/feed3.xml",
     title: "General News",
-    folder: null,
+    folder: undefined,
     created_at: "2024-01-01T09:00:00Z",
     last_fetched_at: "2024-01-01T13:00:00Z",
     is_active: true,
@@ -66,12 +66,12 @@ describe("FeedList", () => {
       isLoading: false,
       error: null,
       refetch: mockRefetch,
-    } as UseQueryResult<Feed[], Error>);
+    } as unknown as UseQueryResult<Feed[], Error>);
 
     mockedUseDeleteFeed.mockReturnValue({
       mutateAsync: mockDeleteMutateAsync,
       isPending: false,
-    } as ReturnType<typeof useDeleteFeed>);
+    } as unknown as ReturnType<typeof useDeleteFeed>);
 
     // window.confirmをモック
     vi.stubGlobal(
@@ -94,7 +94,7 @@ describe("FeedList", () => {
       isLoading: true,
       error: null,
       refetch: mockRefetch,
-    } as UseQueryResult<Feed[], Error>);
+    } as unknown as UseQueryResult<Feed[], Error>);
 
     render(<FeedList />);
 
@@ -109,7 +109,7 @@ describe("FeedList", () => {
       isLoading: false,
       error: new Error("Test error"),
       refetch: mockRefetch,
-    } as UseQueryResult<Feed[], Error>);
+    } as unknown as UseQueryResult<Feed[], Error>);
 
     render(<FeedList />);
 
@@ -124,7 +124,7 @@ describe("FeedList", () => {
       isLoading: false,
       error: null,
       refetch: mockRefetch,
-    } as UseQueryResult<Feed[], Error>);
+    } as unknown as UseQueryResult<Feed[], Error>);
 
     render(<FeedList />);
 
@@ -280,7 +280,7 @@ describe("FeedList", () => {
     mockedUseDeleteFeed.mockReturnValue({
       mutateAsync: mockDeleteMutateAsync,
       isPending: true,
-    } as ReturnType<typeof useDeleteFeed>);
+    } as unknown as ReturnType<typeof useDeleteFeed>);
 
     render(<FeedList />);
 

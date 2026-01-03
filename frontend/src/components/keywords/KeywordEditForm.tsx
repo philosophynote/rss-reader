@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import type { ChangeEvent, FormEvent } from "react";
 import {
   Box,
   Button,
@@ -85,7 +86,7 @@ export function KeywordEditForm({
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
 
     if (!validateForm()) {
@@ -130,7 +131,7 @@ export function KeywordEditForm({
       });
   };
 
-  const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleTextChange = (e: ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({
       ...prev,
       text: e.target.value,
@@ -147,7 +148,7 @@ export function KeywordEditForm({
 
   return (
     <Box as="form" onSubmit={handleSubmit}>
-      <VStack spacing={4} align="stretch">
+      <VStack gap={4} align="stretch">
         {updateKeyword.error && (
           <AlertRoot status="error">
             <AlertIndicator />
@@ -227,7 +228,7 @@ export function KeywordEditForm({
           </FieldHelperText>
         </FieldRoot>
 
-        <VStack spacing={2}>
+        <VStack gap={2}>
           <Button
             type="submit"
             colorPalette="blue"

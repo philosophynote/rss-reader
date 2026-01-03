@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import { useState } from "react";
+import type { ChangeEvent, FormEvent } from "react";
 import {
   Box,
   Button,
@@ -60,7 +61,7 @@ export function KeywordForm({ onSuccess, onCancel }: KeywordFormProps) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
 
     if (!validateForm()) {
@@ -105,7 +106,7 @@ export function KeywordForm({ onSuccess, onCancel }: KeywordFormProps) {
       });
   };
 
-  const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleTextChange = (e: ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({
       ...prev,
       text: e.target.value,
@@ -140,8 +141,8 @@ export function KeywordForm({ onSuccess, onCancel }: KeywordFormProps) {
     }
   };
 
-  const weightValue = Number.isFinite(formData.weight)
-    ? formData.weight.toString()
+  const weightValue = Number.isFinite(formData.weight ?? Number.NaN)
+    ? (formData.weight?.toString() ?? "1.0")
     : "1.0";
 
   return (

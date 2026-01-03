@@ -29,7 +29,7 @@ export function useArticles(params?: ArticleListParams) {
     limit: 50,
     ...params,
   };
-  const env = import.meta.env as Record<string, unknown>;
+  const env = import.meta.env;
 
   return useQuery({
     queryKey: articlesKeys.list(defaultParams),
@@ -57,7 +57,7 @@ export function useArticles(params?: ArticleListParams) {
  * 記事詳細を取得するフック
  */
 export function useArticle(articleId: string) {
-  const env = import.meta.env as Record<string, unknown>;
+  const env = import.meta.env;
 
   return useQuery({
     queryKey: articlesKeys.detail(articleId),

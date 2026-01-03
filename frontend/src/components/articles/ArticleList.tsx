@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Box,
   TableRoot,
@@ -113,21 +113,21 @@ export function ArticleList({ onArticleClick }: ArticleListProps) {
         cell: ({ getValue, row }) => {
           const article = row.original;
           return (
-            <VStack align="start" spacing={1}>
+            <VStack align="start" gap={1}>
               <Text
                 fontWeight={article.is_read ? "normal" : "bold"}
                 color={article.is_read ? "gray.600" : "inherit"}
                 cursor="pointer"
                 _hover={{ color: "blue.500" }}
                 onClick={() => handleRowClick(article)}
-                noOfLines={2}
+                lineClamp={2}
               >
                 {getValue()}
               </Text>
-              <HStack spacing={2} fontSize="sm" color="gray.500">
+              <HStack gap={2} fontSize="sm" color="gray.500">
                 <Text>フィード: {article.feed_id}</Text>
-                <Link href={article.link} isExternal>
-                  <HStack spacing={1}>
+                <Link href={article.link} external>
+                  <HStack gap={1}>
                     <Text>元記事</Text>
                     <FiExternalLink size={12} />
                   </HStack>
@@ -179,7 +179,7 @@ export function ArticleList({ onArticleClick }: ArticleListProps) {
 
   if (isLoading) {
     return (
-      <VStack spacing={4} align="stretch">
+      <VStack gap={4} align="stretch">
         {Array.from({ length: 5 }).map((_, i) => (
           <Skeleton key={i} height="60px" borderRadius="md" data-testid="skeleton" />
         ))}
@@ -203,7 +203,7 @@ export function ArticleList({ onArticleClick }: ArticleListProps) {
   }
 
   return (
-    <VStack spacing={4} align="stretch">
+    <VStack gap={4} align="stretch">
       {/* コントロール */}
       <Flex wrap="wrap" gap={4}>
         <ArticleSortControls
@@ -230,7 +230,7 @@ export function ArticleList({ onArticleClick }: ArticleListProps) {
       ) : (
         <Box>
           <Box overflowX="auto">
-            <TableRoot variant="simple" bg="white">
+            <TableRoot variant="outline" bg="white">
               <TableHeader>
                 {table.getHeaderGroups().map((headerGroup) => (
                   <TableRow key={headerGroup.id}>
@@ -243,7 +243,7 @@ export function ArticleList({ onArticleClick }: ArticleListProps) {
                         onClick={header.column.getToggleSortingHandler()}
                         width={header.getSize()}
                       >
-                        <HStack spacing={2}>
+                        <HStack gap={2}>
                           <Text>
                             {header.isPlaceholder
                               ? null

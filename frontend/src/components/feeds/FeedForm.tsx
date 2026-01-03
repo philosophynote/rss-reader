@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import { useState } from "react";
+import type { ChangeEvent, FormEvent } from "react";
 import {
   Box,
   Button,
@@ -53,7 +54,7 @@ export function FeedForm({ onSuccess, onCancel }: FeedFormProps) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
 
     if (!validateForm()) {
@@ -63,7 +64,7 @@ export function FeedForm({ onSuccess, onCancel }: FeedFormProps) {
     void createFeed
       .mutateAsync({
         url: formData.url.trim(),
-        folder: formData.folder.trim() || undefined,
+        folder: formData.folder?.trim() || undefined,
       })
       .then(() => {
         toaster.create({
@@ -100,7 +101,7 @@ export function FeedForm({ onSuccess, onCancel }: FeedFormProps) {
 
   const handleInputChange =
     (field: keyof CreateFeedRequest) =>
-    (e: React.ChangeEvent<HTMLInputElement>) => {
+    (e: ChangeEvent<HTMLInputElement>) => {
       setFormData((prev) => ({
         ...prev,
         [field]: e.target.value,
