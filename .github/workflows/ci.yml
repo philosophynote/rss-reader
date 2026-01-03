@@ -12,7 +12,6 @@ permissions:
 
 env:
   PYTHON_VERSION: '3.14'
-  NODE_VERSION: '22'
 
 jobs:
   # Python Backend CI
@@ -72,10 +71,10 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Setup Node.js ${{ env.NODE_VERSION }}
+    - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: ${{ env.NODE_VERSION }}
+        node-version-file: '.nvmrc'
         cache: 'npm'
         cache-dependency-path: 'package-lock.json'
 
@@ -116,10 +115,10 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Setup Node.js ${{ env.NODE_VERSION }}
+    - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: ${{ env.NODE_VERSION }}
+        node-version-file: '.nvmrc'
         cache: 'npm'
         cache-dependency-path: 'package-lock.json'
 

@@ -27,7 +27,6 @@ permissions:
         type: boolean
 
 env:
-  NODE_VERSION: '22'
   AWS_REGION: 'ap-northeast-1'
 
 jobs:
@@ -46,10 +45,10 @@ jobs:
         role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
         aws-region: ${{ env.AWS_REGION }}
 
-    - name: Setup Node.js ${{ env.NODE_VERSION }}
+    - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: ${{ env.NODE_VERSION }}
+        node-version-file: '.nvmrc'
         cache: 'npm'
         cache-dependency-path: 'infrastructure/package-lock.json'
 

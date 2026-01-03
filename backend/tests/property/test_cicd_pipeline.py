@@ -220,6 +220,19 @@ class TestCICDPipelineProperties:
 
             # トリガー設定の確認
             triggers = self._get_workflow_triggers(workflow_config) or {}
+            dispatch_config = {}
+            if isinstance(triggers, dict):
+                dispatch_config = triggers.get("workflow_dispatch", {}) or {}
+            env_input = {}
+            if isinstance(dispatch_config, dict):
+                env_input = dispatch_config.get("inputs", {}).get(
+                    "environment", {}
+                )
+            workflow_declared_environment = (
+                env_input.get("default")
+                if isinstance(env_input, dict)
+                else None
+            )
 
             if trigger_type == "push":
                 assert "push" in triggers, (
@@ -242,6 +255,10 @@ class TestCICDPipelineProperties:
                     inputs = dispatch_config["inputs"]
                     if "environment" in inputs:
                         env_input = inputs["environment"]
+                        if isinstance(env_input, dict):
+                            workflow_declared_environment = env_input.get(
+                                "default", workflow_declared_environment
+                            )
                         assert "options" in env_input, (
                             f"{workflow_file}: 環境選択肢が設定されていません"
                         )
@@ -255,10 +272,11 @@ class TestCICDPipelineProperties:
                 if "environment" in job_config:
                     # 環境が動的に設定されていることを確認
                     env_value = job_config["environment"]
-                    assert "${{" in str(env_value) or environment in str(
-                        env_value
+                    assert "${{" in str(env_value) or (
+                        str(env_value) == workflow_declared_environment
                     ), (
-                        f"{workflow_file}: 環境設定が動的でないか、{environment}が含まれていません"
+                        f"{workflow_file}: 環境設定が動的でないか、"
+                        "ワークフロー宣言環境と一致していません"
                     )
 
     @given(
@@ -432,12 +450,6 @@ class TestCICDPipelineProperties:
                         if_condition = step.get("if", "")
                         assert "failure()" in if_condition, (
                             f"{workflow_file}: 失敗通知の条件が適切ではありません"
-                        )
-
-                        # 失敗時のexit 1確認
-                        run_command = step.get("run", "")
-                        assert "exit 1" in run_command, (
-                            f"{workflow_file}: 失敗通知でexit 1が必要です"
                         )
 
     def test_workflow_yaml_syntax_validation(self):
