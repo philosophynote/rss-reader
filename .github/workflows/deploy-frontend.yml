@@ -1,0 +1,160 @@
+name: Deploy Frontend
+
+permissions:
+  contents: read
+  id-token: write
+
+"on":
+  push:
+    branches: [ main ]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/deploy-frontend.yml'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'development'
+        type: choice
+        options:
+          - development
+          - production
+
+env:
+  AWS_REGION: 'ap-northeast-1'
+
+jobs:
+  deploy-frontend:
+    name: Deploy Frontend to S3 + CloudFront
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'development' }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version-file: '.nvmrc'
+        cache: 'npm'
+        cache-dependency-path: 'frontend/package-lock.json'
+
+    - name: Install dependencies
+      working-directory: ./frontend
+      run: npm ci
+
+    - name: Type check
+      working-directory: ./frontend
+      run: npm run type-check
+
+    - name: Lint
+      working-directory: ./frontend
+      run: npm run lint
+
+    - name: Run tests
+      working-directory: ./frontend
+      run: npm run test:coverage
+
+    - name: Build application
+      working-directory: ./frontend
+      env:
+        VITE_API_KEY: ${{ secrets.VITE_API_KEY }}
+        VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+        VITE_ENVIRONMENT: ${{ github.event.inputs.environment || 'development' }}
+      run: npm run build
+
+    - name: Resolve frontend bucket name
+      env:
+        ENVIRONMENT: ${{ github.event.inputs.environment || 'development' }}
+      run: |
+        ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+        echo "S3_BUCKET=rss-reader-frontend-${ENVIRONMENT}-${ACCOUNT_ID}-${{ env.AWS_REGION }}" >> $GITHUB_ENV
+
+    - name: Deploy to S3
+      run: |
+        aws s3 sync ./frontend/dist s3://$S3_BUCKET --delete --exact-timestamps
+
+    - name: Get CloudFront distribution ID
+      id: get-distribution
+      run: |
+        DISTRIBUTION_ID=$(aws cloudfront list-distributions \
+          --query "DistributionList.Items[?Origins.Items[0].DomainName=='$S3_BUCKET.s3.${{ env.AWS_REGION }}.amazonaws.com'].Id" \
+          --output text)
+        echo "distribution-id=$DISTRIBUTION_ID" >> $GITHUB_OUTPUT
+
+    - name: Invalidate CloudFront cache
+      if: steps.get-distribution.outputs.distribution-id != ''
+      env:
+        DISTRIBUTION_ID: ${{ steps.get-distribution.outputs.distribution-id }}
+      run: |
+        aws cloudfront create-invalidation \
+          --distribution-id $DISTRIBUTION_ID \
+          --paths "/*"
+
+    - name: Get CloudFront URL
+      if: steps.get-distribution.outputs.distribution-id != ''
+      env:
+        DISTRIBUTION_ID: ${{ steps.get-distribution.outputs.distribution-id }}
+      run: |
+        CLOUDFRONT_URL=$(aws cloudfront get-distribution \
+          --id $DISTRIBUTION_ID \
+          --query 'Distribution.DomainName' \
+          --output text)
+        echo "CloudFront URL: https://$CLOUDFRONT_URL"
+
+    - name: Health check
+      if: steps.get-distribution.outputs.distribution-id != ''
+      env:
+        DISTRIBUTION_ID: ${{ steps.get-distribution.outputs.distribution-id }}
+      run: |
+        CLOUDFRONT_URL=$(aws cloudfront get-distribution \
+          --id $DISTRIBUTION_ID \
+          --query 'Distribution.DomainName' \
+          --output text)
+
+        # フロントエンドのヘルスチェック
+        echo "Checking frontend health at https://$CLOUDFRONT_URL"
+
+        # 最大5回リトライ
+        for i in {1..5}; do
+          if curl -f -s "https://$CLOUDFRONT_URL" > /dev/null; then
+            echo "✅ Frontend is accessible"
+            break
+          else
+            echo "⏳ Attempt $i/5: Frontend not yet accessible, waiting..."
+            sleep 30
+          fi
+
+          if [ $i -eq 5 ]; then
+            echo "❌ Frontend health check failed after 5 attempts"
+            exit 1
+          fi
+        done
+
+    - name: Deployment success notification
+      if: success()
+      run: |
+        echo "✅ Frontend deployment successful!"
+        echo "Environment: ${{ github.event.inputs.environment || 'development' }}"
+        if [ "${{ steps.get-distribution.outputs.distribution-id }}" != "" ]; then
+          CLOUDFRONT_URL=$(aws cloudfront get-distribution \
+            --id ${{ steps.get-distribution.outputs.distribution-id }} \
+            --query 'Distribution.DomainName' \
+            --output text)
+          echo "URL: https://$CLOUDFRONT_URL"
+        fi
+
+    - name: Deployment failure notification
+      if: failure()
+      run: |
+        echo "❌ Frontend deployment failed!"
+        echo "Please check the logs for details."
+        exit 1

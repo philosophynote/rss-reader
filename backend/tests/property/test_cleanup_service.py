@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
+import pytest
 from hypothesis import given, settings
 from hypothesis.strategies import integers, lists
 
@@ -20,6 +21,8 @@ from ..support.cleanup_fakes import (
     create_reason,
     seed_items,
 )
+
+pytestmark = pytest.mark.property
 
 
 class TestCleanupServiceProperty:

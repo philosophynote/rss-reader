@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
+import pytest
 from hypothesis import given, settings
 from hypothesis.strategies import (
     booleans,
@@ -20,6 +21,8 @@ from hypothesis.strategies import (
 )
 
 from app.services.keyword_service import KeywordService
+
+pytestmark = pytest.mark.property
 
 
 class FakeDynamoDBClient:

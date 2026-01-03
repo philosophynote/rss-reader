@@ -40,8 +40,10 @@ export function useCleanupArticlesJob() {
       // eslint-disable-next-line no-console
       console.log("記事削除ジョブ完了:", result);
 
-      // 件数が返らないため成功時は記事キャッシュを無効化
-      void queryClient.invalidateQueries({ queryKey: ["articles"] });
+      // 記事が削除された場合は記事キャッシュを無効化
+      if (result.deleted_articles > 0) {
+        void queryClient.invalidateQueries({ queryKey: ["articles"] });
+      }
     },
     onError: (error) => {
       // eslint-disable-next-line no-console

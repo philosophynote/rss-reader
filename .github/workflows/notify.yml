@@ -1,0 +1,112 @@
+name: Notification System
+
+"on":
+  workflow_run:
+    workflows:
+      - "CI"
+      - "Deploy Backend"
+      - "Deploy Frontend"
+      - "Deploy Infrastructure"
+    types:
+      - completed
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+  deployments: write
+
+jobs:
+  notify-deployment-status:
+    name: Notify Deployment Status
+    runs-on: ubuntu-latest
+    if: always()
+    env:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+    steps:
+    - name: Get workflow information
+      id: workflow-info
+      run: |
+        echo "workflow-name=${{ github.event.workflow_run.name }}" >> $GITHUB_OUTPUT
+        echo "workflow-status=${{ github.event.workflow_run.conclusion }}" >> $GITHUB_OUTPUT
+        echo "workflow-url=${{ github.event.workflow_run.html_url }}" >> $GITHUB_OUTPUT
+        echo "commit-sha=${{ github.event.workflow_run.head_sha }}" >> $GITHUB_OUTPUT
+        echo "branch=${{ github.event.workflow_run.head_branch }}" >> $GITHUB_OUTPUT
+        echo "actor=${{ github.event.workflow_run.triggering_actor.login }}" >> $GITHUB_OUTPUT
+
+    - name: Prepare notification message
+      id: message
+      run: |
+        WORKFLOW_NAME="${{ steps.workflow-info.outputs.workflow-name }}"
+        WORKFLOW_STATUS="${{ steps.workflow-info.outputs.workflow-status }}"
+        BRANCH="${{ steps.workflow-info.outputs.branch }}"
+        ACTOR="${{ steps.workflow-info.outputs.actor }}"
+        COMMIT_SHA="${{ steps.workflow-info.outputs.commit-sha }}"
+        WORKFLOW_URL="${{ steps.workflow-info.outputs.workflow-url }}"
+
+        # ステータスに応じた絵文字とメッセージを設定
+        if [ "$WORKFLOW_STATUS" = "success" ]; then
+          EMOJI="✅"
+          STATUS_TEXT="成功"
+          COLOR="good"
+        elif [ "$WORKFLOW_STATUS" = "failure" ]; then
+          EMOJI="❌"
+          STATUS_TEXT="失敗"
+          COLOR="danger"
+        elif [ "$WORKFLOW_STATUS" = "cancelled" ]; then
+          EMOJI="⏹️"
+          STATUS_TEXT="キャンセル"
+          COLOR="warning"
+        else
+          EMOJI="❓"
+          STATUS_TEXT="不明"
+          COLOR="warning"
+        fi
+
+        # Slack用のメッセージを作成
+        SLACK_MESSAGE="$EMOJI *RSS Reader - $WORKFLOW_NAME* $STATUS_TEXT
+
+        *ブランチ:* \`$BRANCH\`
+        *実行者:* $ACTOR
+        *コミット:* \`${COMMIT_SHA:0:7}\`
+        *詳細:* <$WORKFLOW_URL|ワークフロー実行結果を見る>"
+
+        # 出力変数に設定
+        echo "emoji=$EMOJI" >> $GITHUB_OUTPUT
+        echo "status-text=$STATUS_TEXT" >> $GITHUB_OUTPUT
+        echo "color=$COLOR" >> $GITHUB_OUTPUT
+
+        # マルチライン文字列の処理
+        {
+          echo 'slack-message<<EOF'
+          echo "$SLACK_MESSAGE"
+          echo 'EOF'
+        } >> $GITHUB_OUTPUT
+
+    - name: Send Slack notification
+      if: env.SLACK_WEBHOOK_URL != ''
+      uses: 8398a7/action-slack@v3
+      with:
+        status: custom
+        custom_payload: |
+          {
+            "text": ${{ toJSON(steps.message.outputs.slack-message) }},
+            "attachments": [
+              {
+                "color": ${{ toJSON(steps.message.outputs.color) }},
+                "fields": [
+                  {
+                    "title": "Repository",
+                    "value": "${{ github.repository }}",
+                    "short": true
+                  },
+                  {
+                    "title": "Workflow",
+                    "value": "${{ steps.workflow-info.outputs.workflow-name }}",
+                    "short": true
+                  }
+                ]
+              }
+            ]
+          }

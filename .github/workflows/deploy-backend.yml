@@ -1,0 +1,180 @@
+name: Deploy Backend
+
+permissions:
+  contents: read
+  id-token: write
+
+"on":
+  push:
+    branches: [ main ]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/deploy-backend.yml'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'development'
+        type: choice
+        options:
+          - development
+          - production
+
+env:
+  PYTHON_VERSION: '3.14'
+  AWS_REGION: 'ap-northeast-1'
+
+jobs:
+  deploy-backend:
+    name: Deploy Backend to AWS Lambda
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'development' }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        version: "latest"
+
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      run: uv python install ${{ env.PYTHON_VERSION }}
+
+    - name: Install dependencies
+      working-directory: ./backend
+      run: uv sync --dev
+
+    - name: Run tests
+      working-directory: ./backend
+      run: |
+        uv run pytest --cov=app --cov-report=term-missing --cov-fail-under=80
+
+    - name: Build Docker image
+      working-directory: ./backend
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REPOSITORY: rss-reader-backend
+        IMAGE_TAG: ${{ github.sha }}
+        ENVIRONMENT: ${{ github.event.inputs.environment || 'development' }}
+      run: |
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        if [ "$ENVIRONMENT" != "production" ]; then
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
+        fi
+
+    - name: Push Docker image to ECR
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REPOSITORY: rss-reader-backend
+        IMAGE_TAG: ${{ github.sha }}
+        ENVIRONMENT: ${{ github.event.inputs.environment || 'development' }}
+      run: |
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        if [ "$ENVIRONMENT" != "production" ]; then
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+        fi
+
+    - name: Update Lambda function
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REPOSITORY: rss-reader-backend
+        IMAGE_TAG: ${{ github.sha }}
+        FUNCTION_NAME: rss-reader-${{ github.event.inputs.environment || 'development' }}-api
+      run: |
+        aws lambda update-function-code \
+          --function-name $FUNCTION_NAME \
+          --image-uri $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+    - name: Wait for function update to complete
+      env:
+        FUNCTION_NAME: rss-reader-${{ github.event.inputs.environment || 'development' }}-api
+      run: |
+        aws lambda wait function-updated \
+          --function-name $FUNCTION_NAME
+
+    - name: Validate CORS allowed origins
+      env:
+        CORS_ALLOWED_ORIGINS: ${{ secrets.CORS_ALLOWED_ORIGINS }}
+      run: |
+        if [ -z "$CORS_ALLOWED_ORIGINS" ]; then
+          echo "CORS_ALLOWED_ORIGINSが設定されていません"
+          exit 1
+        fi
+
+        IFS=',' read -r -a ORIGINS <<< "$CORS_ALLOWED_ORIGINS"
+        for origin in "${ORIGINS[@]}"; do
+          trimmed_origin=$(echo "$origin" | xargs)
+          if [[ "$trimmed_origin" != http://* && "$trimmed_origin" != https://* ]]; then
+            echo "無効なCORSオリジンが含まれています: $origin"
+            exit 1
+          fi
+        done
+
+        echo "CORS_ALLOWED_ORIGINSの形式が正常です"
+
+    - name: Update environment variables
+      env:
+        FUNCTION_NAME: rss-reader-${{ github.event.inputs.environment || 'development' }}-api
+        RSS_READER_API_KEY_SECRET_ID: ${{ secrets.RSS_READER_API_KEY_SECRET_ID }}
+        ENVIRONMENT: ${{ github.event.inputs.environment || 'development' }}
+      run: |
+        if [ -z "$RSS_READER_API_KEY_SECRET_ID" ]; then
+          echo "RSS_READER_API_KEY_SECRET_IDが設定されていません"
+          exit 1
+        fi
+
+        aws lambda update-function-configuration \
+          --function-name $FUNCTION_NAME \
+          --environment Variables="{
+            \"RSS_READER_API_KEY_SECRET_ID\":\"$RSS_READER_API_KEY_SECRET_ID\",
+            \"ENVIRONMENT\":\"$ENVIRONMENT\",
+            \"AWS_REGION\":\"${{ env.AWS_REGION }}\",
+            \"DYNAMODB_TABLE_NAME\":\"rss-reader-$ENVIRONMENT\",
+            \"CORS_ALLOWED_ORIGINS\":\"${{ secrets.CORS_ALLOWED_ORIGINS }}\"
+          }"
+
+    - name: Health check
+      env:
+        FUNCTION_NAME: rss-reader-${{ github.event.inputs.environment || 'development' }}-api
+      run: |
+        # Lambda関数URLを取得
+        FUNCTION_URL=$(aws lambda get-function-url-config \
+          --function-name $FUNCTION_NAME \
+          --query 'FunctionUrl' \
+          --output text)
+
+        # ヘルスチェック（認証なしのエンドポイントがあれば使用）
+        echo "Function URL: $FUNCTION_URL"
+
+        # 関数が正常に更新されたことを確認
+        aws lambda get-function \
+          --function-name $FUNCTION_NAME \
+          --query 'Configuration.State' \
+          --output text
+
+    - name: Deployment success notification
+      if: success()
+      run: |
+        echo "✅ Backend deployment successful!"
+        echo "Environment: ${{ github.event.inputs.environment || 'development' }}"
+        echo "Image: ${{ steps.login-ecr.outputs.registry }}/rss-reader-backend:${{ github.sha }}"
+
+    - name: Deployment failure notification
+      if: failure()
+      run: |
+        echo "❌ Backend deployment failed!"
+        echo "Please check the logs for details."
+        exit 1

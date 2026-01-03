@@ -26,6 +26,8 @@ from app.services.feed_fetcher_service import (
     FeedFetcherService,
 )
 
+pytestmark = pytest.mark.property
+
 
 @dataclass
 class FakeHttpResponse:

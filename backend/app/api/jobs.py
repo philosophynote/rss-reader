@@ -83,8 +83,7 @@ async def run_cleanup_job() -> JobCleanupResponse:
 
     try:
         cleanup_service = cleanup_service_class()
-        await asyncio.to_thread(cleanup_service.cleanup_old_articles)
-        await asyncio.to_thread(cleanup_service.delete_read_articles)
+        result = await asyncio.to_thread(cleanup_service.cleanup_old_articles)
     except TypeError as exc:
         logger.exception("CleanupService instantiation failed")
         raise HTTPException(
@@ -97,4 +96,14 @@ async def run_cleanup_job() -> JobCleanupResponse:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error during cleanup",
         ) from exc
-    return JobCleanupResponse(message="Cleanup completed")
+    deleted_articles = (
+        result["deleted_articles_by_age"] + result["deleted_read_articles"]
+    )
+    deleted_reasons = (
+        result["deleted_reasons_by_age"] + result["deleted_reasons_read"]
+    )
+    return JobCleanupResponse(
+        message="Cleanup completed",
+        deleted_articles=deleted_articles,
+        deleted_reasons=deleted_reasons,
+    )

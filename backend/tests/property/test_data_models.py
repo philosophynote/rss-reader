@@ -17,6 +17,8 @@ from pydantic import ValidationError
 
 from app.models import Article, Feed, ImportanceReason, Keyword, LinkIndex
 
+pytestmark = pytest.mark.property
+
 # カスタム戦略の定義
 
 

@@ -19,6 +19,8 @@ interface FetchFeedsJobResponse {
 
 interface CleanupJobResponse {
   message: string;
+  deleted_articles: number;
+  deleted_reasons: number;
 }
 
 /**
@@ -55,10 +57,12 @@ export const jobsApi = {
    * 記事削除ジョブを手動実行
    */
   async cleanupArticles(): Promise<CleanupJobResult> {
-    await apiClient.post<CleanupJobResponse>("/api/jobs/cleanup-articles");
+    const response = await apiClient.post<CleanupJobResponse>(
+      "/api/jobs/cleanup-articles"
+    );
     return {
-      deleted_articles: 0,
-      deleted_reasons: 0,
+      deleted_articles: response.deleted_articles ?? 0,
+      deleted_reasons: response.deleted_reasons ?? 0,
     };
   },
 };
