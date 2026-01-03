@@ -328,7 +328,7 @@ curl -H "Authorization: token $GITHUB_TOKEN" \
 
 ### 3. 対応フローの明確化
 
-```
+```text
 1. アラート受信
 2. 影響範囲の確認
 3. 緊急度の判定

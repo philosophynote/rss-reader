@@ -25,6 +25,10 @@ class JobCleanupResponse(BaseModel):
 
     Attributes:
         message: 結果メッセージ
+        deleted_articles: 削除した記事数
+        deleted_reasons: 削除した重要度理由数
     """
 
     message: str
+    deleted_articles: int
+    deleted_reasons: int
