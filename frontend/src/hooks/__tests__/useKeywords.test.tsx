@@ -266,8 +266,7 @@ describe("useRecalculateScores", () => {
   });
 
   it("should recalculate scores successfully", async () => {
-    const mockResponse = { message: "Recalculation started" };
-    mockedKeywordsApi.recalculateScores.mockResolvedValue(mockResponse);
+    mockedKeywordsApi.recalculateScores.mockResolvedValue(undefined);
 
     const { result } = renderHook(() => useRecalculateScores(), {
       wrapper: createWrapper(),

@@ -126,7 +126,11 @@ export function ArticleList({ onArticleClick }: ArticleListProps) {
               </Text>
               <HStack gap={2} fontSize="sm" color="gray.500">
                 <Text>フィード: {article.feed_id}</Text>
-                <Link href={article.link} external>
+                <Link
+                  href={article.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
                   <HStack gap={1}>
                     <Text>元記事</Text>
                     <FiExternalLink size={12} />
