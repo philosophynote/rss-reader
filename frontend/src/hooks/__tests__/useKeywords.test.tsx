@@ -11,6 +11,7 @@ import {
   useRecalculateScores,
 } from "../useKeywords";
 import { keywordsApi } from "../../api/keywords";
+import { ApiAuthError } from "../../api";
 import type {
   Keyword,
   CreateKeywordRequest,
@@ -69,19 +70,18 @@ describe("useKeywords", () => {
     });
 
     expect(result.current.data).toEqual(mockKeywords);
-    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(mockedKeywordsApi.getKeywords).toHaveBeenCalled();
   });
 
   it("should handle keywords fetch error", { timeout: 3000 }, async () => {
-    const error = new Error("Fetch failed");
+    const error = new ApiAuthError("Fetch failed", 401);
     mockedKeywordsApi.getKeywords.mockRejectedValue(error);
 
     const { result } = renderHook(() => useKeywords(), {
       wrapper: createWrapper(),
     });
 
-    // ローディングが完了するまで待つ（リトライは無効）
+    // ローディングが完了するまで待つ（認証エラーのためリトライは無効）
     await waitFor(
       () => {
         expect(result.current.isLoading).toBe(false);

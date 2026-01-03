@@ -119,7 +119,12 @@ export function FeedForm({ onSuccess, onCancel }: FeedFormProps) {
     };
 
   return (
-    <Box as="form" onSubmit={handleSubmit}>
+    <Box
+      as="form"
+      onSubmit={(e) => {
+        void handleSubmit(e);
+      }}
+    >
       <VStack gap={4} align="stretch">
         {createFeed.error && (
           <Alert.Root status="error">

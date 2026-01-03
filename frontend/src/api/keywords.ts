@@ -13,7 +13,7 @@ export const keywordsApi = {
   /**
    * キーワード一覧を取得
    */
-  async getKeywords(): Promise<Keyword[]> {
+  async getKeywords(this: void): Promise<Keyword[]> {
     const response = await apiClient.get<ApiResponse<Keyword[]>>(
       "/api/keywords"
     );
