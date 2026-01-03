@@ -166,7 +166,7 @@ jobs:
         fi
 
         # Lambda 関数の存在確認
-        FUNCTION_NAME="rss-reader-${{ github.event.inputs.environment || 'development' }}-api"
+        FUNCTION_NAME="rss-reader-api-${{ github.event.inputs.environment || 'development' }}"
         echo "Checking Lambda function: $FUNCTION_NAME"
         aws lambda get-function --function-name $FUNCTION_NAME --region ${{ env.AWS_REGION }}
 
@@ -178,10 +178,8 @@ jobs:
     - name: Update GitHub environment variables
       if: github.event.inputs.destroy != 'true' && env.LAMBDA_FUNCTION_URL != ''
       run: |
-        echo "Updating GitHub environment variables..."
-        # GitHub CLI を使用して環境変数を更新（必要に応じて）
-        echo "VITE_API_BASE_URL=$LAMBDA_FUNCTION_URL" >> deployment-vars.txt
-        echo "Deployment variables saved to deployment-vars.txt"
+        echo "Setting workflow environment variables..."
+        echo "VITE_API_BASE_URL=$LAMBDA_FUNCTION_URL" >> $GITHUB_ENV
 
     - name: Deployment success notification
       if: success() && github.event.inputs.destroy != 'true'

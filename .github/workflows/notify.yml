@@ -91,10 +91,10 @@ jobs:
         status: custom
         custom_payload: |
           {
-            "text": "${{ steps.message.outputs.slack-message }}",
+            "text": ${{ toJSON(steps.message.outputs.slack-message) }},
             "attachments": [
               {
-                "color": "${{ steps.message.outputs.color }}",
+                "color": ${{ toJSON(steps.message.outputs.color) }},
                 "fields": [
                   {
                     "title": "Repository",

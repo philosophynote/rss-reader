@@ -476,8 +476,8 @@ class TestCICDPipelineProperties:
                 except yaml.YAMLError as e:
                     pytest.fail(f"{workflow_file.name}: YAML構文エラー - {e}")
 
-    def test_required_secrets_documentation(self):
-        """必要なシークレットがドキュメント化されていることを確認"""
+    def test_required_secrets_usage_in_workflows(self):
+        """必要なシークレットがワークフローで使用されていることを確認"""
         workflows_dir = (
             Path(__file__).parent.parent.parent.parent
             / ".github"
@@ -510,5 +510,5 @@ class TestCICDPipelineProperties:
 
         missing_secrets = expected_secrets - required_secrets
         assert len(missing_secrets) == 0, (
-            f"必要なシークレットが定義されていません: {missing_secrets}"
+            f"必要なシークレットがワークフローで使用されていません: {missing_secrets}"
         )
