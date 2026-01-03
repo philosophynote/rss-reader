@@ -50,11 +50,10 @@ jobs:
       with:
         node-version-file: '.nvmrc'
         cache: 'npm'
-        cache-dependency-path: 'infrastructure/package-lock.json'
+        cache-dependency-path: 'package-lock.json'
 
     - name: Install CDK dependencies
-      working-directory: ./infrastructure
-      run: npm ci
+      run: npm ci --workspace infrastructure
 
     - name: Install AWS CDK CLI
       run: npm install -g aws-cdk
