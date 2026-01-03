@@ -13,9 +13,20 @@ import yaml
 from hypothesis import given
 from hypothesis import strategies as st
 
+pytestmark = pytest.mark.property
+
 
 class TestCICDPipelineProperties:
     """CI/CDパイプラインのプロパティテスト"""
+
+    @staticmethod
+    def _get_workflow_triggers(
+        workflow_config: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        for key in ("on", True, '"on"'):
+            if key in workflow_config:
+                return workflow_config[key]
+        return None
 
     @given(
         workflow_files=st.lists(
@@ -65,11 +76,7 @@ class TestCICDPipelineProperties:
                 f"{workflow_file}: nameフィールドが必要です"
             )
             # YAMLの'on'は予約語なので、文字列キーまたはTrueキーとして解析される場合がある
-            triggers = (
-                workflow_config.get("on")
-                or workflow_config.get(True)
-                or workflow_config.get('"on"')
-            )
+            triggers = self._get_workflow_triggers(workflow_config)
             assert triggers is not None, (
                 f"{workflow_file}: onフィールドが必要です"
             )
@@ -218,12 +225,7 @@ class TestCICDPipelineProperties:
                 workflow_config = yaml.safe_load(f)
 
             # トリガー設定の確認
-            triggers = (
-                workflow_config.get("on")
-                or workflow_config.get(True)
-                or workflow_config.get('"on"')
-                or {}
-            )
+            triggers = self._get_workflow_triggers(workflow_config) or {}
 
             if trigger_type == "push":
                 assert "push" in triggers, (
@@ -255,7 +257,7 @@ class TestCICDPipelineProperties:
 
             # 環境設定の確認
             jobs = workflow_config.get("jobs", {})
-            for job_name, job_config in jobs.items():
+            for _job_name, job_config in jobs.items():
                 if "environment" in job_config:
                     # 環境が動的に設定されていることを確認
                     env_value = job_config["environment"]
@@ -393,7 +395,7 @@ class TestCICDPipelineProperties:
 
             jobs = workflow_config.get("jobs", {})
 
-            for job_name, job_config in jobs.items():
+            for _job_name, job_config in jobs.items():
                 steps = job_config.get("steps", [])
 
                 # 成功通知ステップの確認
@@ -494,7 +496,7 @@ class TestCICDPipelineProperties:
         # 必要なシークレットが適切に定義されていることを確認
         expected_secrets = {
             "AWS_ROLE_ARN",
-            "RSS_READER_API_KEY",
+            "RSS_READER_API_KEY_SECRET_ID",
             "VITE_API_KEY",
             "VITE_API_BASE_URL",
             "CORS_ALLOWED_ORIGINS",

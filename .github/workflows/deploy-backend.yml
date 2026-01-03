@@ -68,18 +68,24 @@ jobs:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         ECR_REPOSITORY: rss-reader-backend
         IMAGE_TAG: ${{ github.sha }}
+        ENVIRONMENT: ${{ github.event.inputs.environment || 'development' }}
       run: |
         docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
+        if [ "$ENVIRONMENT" != "production" ]; then
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
+        fi
 
     - name: Push Docker image to ECR
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         ECR_REPOSITORY: rss-reader-backend
         IMAGE_TAG: ${{ github.sha }}
+        ENVIRONMENT: ${{ github.event.inputs.environment || 'development' }}
       run: |
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+        if [ "$ENVIRONMENT" != "production" ]; then
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+        fi
 
     - name: Update Lambda function
       env:
@@ -99,16 +105,41 @@ jobs:
         aws lambda wait function-updated \
           --function-name $FUNCTION_NAME
 
+    - name: Validate CORS allowed origins
+      env:
+        CORS_ALLOWED_ORIGINS: ${{ secrets.CORS_ALLOWED_ORIGINS }}
+      run: |
+        if [ -z "$CORS_ALLOWED_ORIGINS" ]; then
+          echo "CORS_ALLOWED_ORIGINSが設定されていません"
+          exit 1
+        fi
+
+        IFS=',' read -r -a ORIGINS <<< "$CORS_ALLOWED_ORIGINS"
+        for origin in "${ORIGINS[@]}"; do
+          trimmed_origin=$(echo "$origin" | xargs)
+          if [[ "$trimmed_origin" != http://* && "$trimmed_origin" != https://* ]]; then
+            echo "無効なCORSオリジンが含まれています: $origin"
+            exit 1
+          fi
+        done
+
+        echo "CORS_ALLOWED_ORIGINSの形式が正常です"
+
     - name: Update environment variables
       env:
         FUNCTION_NAME: rss-reader-${{ github.event.inputs.environment || 'development' }}-api
-        RSS_READER_API_KEY: ${{ secrets.RSS_READER_API_KEY }}
+        RSS_READER_API_KEY_SECRET_ID: ${{ secrets.RSS_READER_API_KEY_SECRET_ID }}
         ENVIRONMENT: ${{ github.event.inputs.environment || 'development' }}
       run: |
+        if [ -z "$RSS_READER_API_KEY_SECRET_ID" ]; then
+          echo "RSS_READER_API_KEY_SECRET_IDが設定されていません"
+          exit 1
+        fi
+
         aws lambda update-function-configuration \
           --function-name $FUNCTION_NAME \
           --environment Variables="{
-            \"RSS_READER_API_KEY\":\"$RSS_READER_API_KEY\",
+            \"RSS_READER_API_KEY_SECRET_ID\":\"$RSS_READER_API_KEY_SECRET_ID\",
             \"ENVIRONMENT\":\"$ENVIRONMENT\",
             \"AWS_REGION\":\"${{ env.AWS_REGION }}\",
             \"DYNAMODB_TABLE_NAME\":\"rss-reader-$ENVIRONMENT\",

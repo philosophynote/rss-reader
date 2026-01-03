@@ -17,10 +17,11 @@
 
 ### API Key関連
 
-#### `RSS_READER_API_KEY`
-- **説明**: バックエンドAPIの認証に使用するAPI Key
-- **形式**: 32文字以上のランダム文字列
-- **生成方法**:
+#### `RSS_READER_API_KEY_SECRET_ID`
+- **説明**: Secrets Managerに保存したAPI KeyのシークレットIDまたはARN
+- **形式**: `rss-reader/production/api-key` または `arn:aws:secretsmanager:ap-northeast-1:123456789012:secret:rss-reader/production/api-key`
+- **設定方法**: AWS Secrets Managerでシークレットを作成し、そのID/ARNをGitHub Secretsに登録
+- **API Keyの生成方法**:
 ```bash
 # 強力なAPI Keyを生成
 openssl rand -hex 32
@@ -30,7 +31,7 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
 
 #### `VITE_API_KEY`
 - **説明**: フロントエンドからAPIアクセスに使用するAPI Key
-- **形式**: `RSS_READER_API_KEY`と同じ値
+- **形式**: Secrets Managerに保存したAPI Keyと同じ値
 - **注意**: フロントエンドビルド時に環境変数として使用
 
 #### `VITE_API_BASE_URL`
@@ -85,6 +86,7 @@ aws iam create-role \
   "Version": "2012-10-17",
   "Statement": [
     {
+      "Sid": "RssReaderCoreResources",
       "Effect": "Allow",
       "Action": [
         "dynamodb:*",
@@ -94,12 +96,37 @@ aws iam create-role \
         "cloudfront:*",
         "events:*",
         "iam:PassRole",
-        "sts:GetCallerIdentity",
         "cloudformation:*"
       ],
+      "Resource": [
+        "arn:aws:dynamodb:ap-northeast-1:123456789012:table/rss-reader-*",
+        "arn:aws:dynamodb:ap-northeast-1:123456789012:table/rss-reader-*/index/*",
+        "arn:aws:lambda:ap-northeast-1:123456789012:function:rss-reader-*",
+        "arn:aws:ecr:ap-northeast-1:123456789012:repository/rss-reader-*",
+        "arn:aws:s3:::rss-reader-*",
+        "arn:aws:s3:::rss-reader-*/*",
+        "arn:aws:cloudfront::123456789012:distribution/*",
+        "arn:aws:events:ap-northeast-1:123456789012:rule/rss-reader-*",
+        "arn:aws:cloudformation:ap-northeast-1:123456789012:stack/rss-reader-*/*",
+        "arn:aws:iam::123456789012:role/rss-reader-*"
+      ]
+    },
+    {
+      "Sid": "StsCallerIdentity",
+      "Effect": "Allow",
+      "Action": "sts:GetCallerIdentity",
       "Resource": "*"
     },
     {
+      "Sid": "SecretsManagerRead",
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:GetSecretValue"
+      ],
+      "Resource": "arn:aws:secretsmanager:ap-northeast-1:123456789012:secret:rss-reader-*"
+    },
+    {
+      "Sid": "BedrockInvoke",
       "Effect": "Allow",
       "Action": [
         "bedrock:InvokeModel"
@@ -129,8 +156,8 @@ aws iam create-open-id-connect-provider \
 | Secret名 | 値 | 説明 |
 |----------|-----|------|
 | `AWS_ROLE_ARN` | `arn:aws:iam::123456789012:role/GitHubActionsRole` | AWS IAMロールARN |
-| `RSS_READER_API_KEY` | `生成した32文字のランダム文字列` | バックエンドAPI Key |
-| `VITE_API_KEY` | `RSS_READER_API_KEYと同じ値` | フロントエンドAPI Key |
+| `RSS_READER_API_KEY_SECRET_ID` | `Secrets ManagerのID/ARN` | バックエンドAPI Keyの参照ID |
+| `VITE_API_KEY` | `Secrets ManagerのAPI Keyと同じ値` | フロントエンドAPI Key |
 | `VITE_API_BASE_URL` | `Lambda Function URL` | APIベースURL |
 | `CORS_ALLOWED_ORIGINS` | `CloudFront URL,localhost URL` | CORS許可オリジン |
 
@@ -193,12 +220,15 @@ echo "Production API Key: $PRODUCTION_API_KEY"
 ### 3. 機密情報の暗号化
 
 ```bash
-# AWS Parameter Storeを使用した機密情報の暗号化
-aws ssm put-parameter \
-  --name "/rss-reader/development/api-key" \
-  --value "$RSS_READER_API_KEY" \
-  --type "SecureString" \
-  --key-id "alias/aws/ssm"
+# AWS Secrets Managerを使用した機密情報の暗号化
+aws secretsmanager create-secret \
+  --name "rss-reader/development/api-key" \
+  --secret-string "$RSS_READER_API_KEY"
+
+# 既存シークレットの更新
+aws secretsmanager put-secret-value \
+  --secret-id "rss-reader/development/api-key" \
+  --secret-string "$RSS_READER_API_KEY"
 ```
 
 ### 4. 監視とアラート

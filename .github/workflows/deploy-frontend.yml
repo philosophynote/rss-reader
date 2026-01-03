@@ -97,23 +97,6 @@ jobs:
           --distribution-id $DISTRIBUTION_ID \
           --paths "/*"
 
-    - name: Wait for invalidation to complete
-      if: steps.get-distribution.outputs.distribution-id != ''
-      env:
-        DISTRIBUTION_ID: ${{ steps.get-distribution.outputs.distribution-id }}
-      run: |
-        INVALIDATION_ID=$(aws cloudfront list-invalidations \
-          --distribution-id $DISTRIBUTION_ID \
-          --query 'InvalidationList.Items[0].Id' \
-          --output text)
-
-        if [ "$INVALIDATION_ID" != "None" ]; then
-          echo "Waiting for invalidation $INVALIDATION_ID to complete..."
-          aws cloudfront wait invalidation-completed \
-            --distribution-id $DISTRIBUTION_ID \
-            --id $INVALIDATION_ID
-        fi
-
     - name: Get CloudFront URL
       if: steps.get-distribution.outputs.distribution-id != ''
       env:

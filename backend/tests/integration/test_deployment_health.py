@@ -7,6 +7,7 @@
 
 import asyncio
 import os
+import secrets
 import time
 
 import httpx
@@ -18,11 +19,15 @@ from hypothesis import strategies as st
 class DeploymentHealthChecker:
     """デプロイメント後のヘルスチェッククラス"""
 
+    REQUEST_TIMEOUT_SECONDS = 30.0
+    MAX_RESPONSE_TIME_SECONDS = 5.0
+    MIN_SUCCESS_RATE = 0.8
+
     def __init__(self, base_url: str, api_key: str):
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
         self.client = httpx.AsyncClient(
-            timeout=30.0,
+            timeout=self.REQUEST_TIMEOUT_SECONDS,
             headers={
                 "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json",
@@ -46,28 +51,28 @@ class DeploymentHealthChecker:
                 200,
                 404,
             ]  # 404も正常（ルートが定義されていない場合）
-        except Exception:
+        except (TimeoutError, httpx.HTTPError):
             results["basic_connectivity"] = False
 
         try:
             # フィード一覧取得テスト
             response = await self.client.get(f"{self.base_url}/api/feeds")
             results["feeds_endpoint"] = response.status_code == 200
-        except Exception:
+        except (TimeoutError, httpx.HTTPError):
             results["feeds_endpoint"] = False
 
         try:
             # 記事一覧取得テスト
             response = await self.client.get(f"{self.base_url}/api/articles")
             results["articles_endpoint"] = response.status_code == 200
-        except Exception:
+        except (TimeoutError, httpx.HTTPError):
             results["articles_endpoint"] = False
 
         try:
             # キーワード一覧取得テスト
             response = await self.client.get(f"{self.base_url}/api/keywords")
             results["keywords_endpoint"] = response.status_code == 200
-        except Exception:
+        except (TimeoutError, httpx.HTTPError):
             results["keywords_endpoint"] = False
 
         return results
@@ -80,31 +85,36 @@ class DeploymentHealthChecker:
         try:
             response = await self.client.get(f"{self.base_url}/api/feeds")
             results["valid_auth"] = response.status_code == 200
-        except Exception:
+        except (TimeoutError, httpx.HTTPError):
             results["valid_auth"] = False
 
         # 無効なAPI Keyでのアクセステスト
         try:
-            invalid_client = httpx.AsyncClient(
-                timeout=30.0,
+            invalid_api_key = secrets.token_urlsafe(32)
+            async with httpx.AsyncClient(
+                timeout=self.REQUEST_TIMEOUT_SECONDS,
                 headers={
-                    "Authorization": "Bearer invalid-api-key",
+                    "Authorization": f"Bearer {invalid_api_key}",
                     "Content-Type": "application/json",
                 },
-            )
-            response = await invalid_client.get(f"{self.base_url}/api/feeds")
-            results["invalid_auth_rejected"] = response.status_code == 401
-            await invalid_client.aclose()
-        except Exception:
+            ) as invalid_client:
+                response = await invalid_client.get(
+                    f"{self.base_url}/api/feeds"
+                )
+                results["invalid_auth_rejected"] = response.status_code == 401
+        except (TimeoutError, httpx.HTTPError):
             results["invalid_auth_rejected"] = False
 
         # API Key なしでのアクセステスト
         try:
-            no_auth_client = httpx.AsyncClient(timeout=30.0)
-            response = await no_auth_client.get(f"{self.base_url}/api/feeds")
-            results["no_auth_rejected"] = response.status_code == 401
-            await no_auth_client.aclose()
-        except Exception:
+            async with httpx.AsyncClient(
+                timeout=self.REQUEST_TIMEOUT_SECONDS
+            ) as no_auth_client:
+                response = await no_auth_client.get(
+                    f"{self.base_url}/api/feeds"
+                )
+                results["no_auth_rejected"] = response.status_code == 401
+        except (TimeoutError, httpx.HTTPError):
             results["no_auth_rejected"] = False
 
         return results
@@ -153,7 +163,7 @@ class DeploymentHealthChecker:
                 results["feed_retrieval"] = False
                 results["feed_deletion"] = False
 
-        except Exception:
+        except (TimeoutError, httpx.HTTPError, ValueError):
             results["feed_creation"] = False
             results["feed_retrieval"] = False
             results["feed_deletion"] = False
@@ -179,7 +189,7 @@ class DeploymentHealthChecker:
                     )
                 else:
                     results[f"{endpoint}_response_time"] = float("inf")
-            except Exception:
+            except (TimeoutError, httpx.HTTPError):
                 results[f"{endpoint}_response_time"] = float("inf")
 
         return results
@@ -263,13 +273,19 @@ class TestDeploymentHealth:
 
             # レスポンス時間が許容範囲内であることを確認
             for endpoint, response_time in perf_results.items():
-                assert response_time < 5.0, (
-                    f"{endpoint}のレスポンス時間が5秒を超えています: {response_time}秒"
+                assert (
+                    response_time
+                    < DeploymentHealthChecker.MAX_RESPONSE_TIME_SECONDS
+                ), (
+                    f"{endpoint}のレスポンス時間が"
+                    f"{DeploymentHealthChecker.MAX_RESPONSE_TIME_SECONDS}秒を超えています: "
+                    f"{response_time}秒"
                 )
                 assert response_time != float("inf"), (
                     f"{endpoint}でエラーが発生しました"
                 )
 
+    @pytest.mark.property
     @given(concurrent_requests=st.integers(min_value=1, max_value=10))
     async def test_concurrent_access(self, api_config, concurrent_requests):
         """同時アクセステスト"""
@@ -291,7 +307,7 @@ class TestDeploymentHealth:
         success_count = sum(1 for result in results if result is True)
         success_rate = success_count / len(results)
 
-        assert success_rate >= 0.8, (
+        assert success_rate >= DeploymentHealthChecker.MIN_SUCCESS_RATE, (
             f"同時アクセステストの成功率が低すぎます: {success_rate:.2%}"
         )
 
@@ -331,13 +347,17 @@ class HealthCheckScript:
                 for check_category, check_results in results["checks"].items():
                     if check_category == "performance":
                         # パフォーマンスチェックは時間が5秒以内であることを確認
-                        for metric, value in check_results.items():
-                            if value >= 5.0 or value == float("inf"):
+                        for _metric, value in check_results.items():
+                            if (
+                                value
+                                >= DeploymentHealthChecker.MAX_RESPONSE_TIME_SECONDS
+                                or value == float("inf")
+                            ):
                                 all_checks_passed = False
                                 break
                     else:
                         # その他のチェックはすべてTrueであることを確認
-                        for check_name, check_result in check_results.items():
+                        for _check_name, check_result in check_results.items():
                             if not check_result:
                                 all_checks_passed = False
                                 break
@@ -349,7 +369,7 @@ class HealthCheckScript:
                     "healthy" if all_checks_passed else "unhealthy"
                 )
 
-        except Exception as e:
+        except (TimeoutError, httpx.HTTPError, ValueError) as e:
             results["overall_status"] = "error"
             results["error"] = str(e)
 
@@ -378,7 +398,11 @@ class HealthCheckScript:
             if check_category == "performance":
                 for metric, value in check_results.items():
                     status = (
-                        "✅" if value < 5.0 and value != float("inf") else "❌"
+                        "✅"
+                        if value
+                        < DeploymentHealthChecker.MAX_RESPONSE_TIME_SECONDS
+                        and value != float("inf")
+                        else "❌"
                     )
                     if value == float("inf"):
                         print(f"  {status} {metric}: エラー")

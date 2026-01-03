@@ -7,10 +7,13 @@ from typing import Any
 from unittest.mock import Mock, patch
 
 import numpy as np
+import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from app.services.importance_score_service import ImportanceScoreService
+
+pytestmark = pytest.mark.property
 
 
 # テスト用の戦略定義

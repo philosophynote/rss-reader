@@ -68,12 +68,23 @@ jobs:
       working-directory: ./infrastructure
       env:
         ENVIRONMENT: ${{ github.event.inputs.environment || 'development' }}
-        RSS_READER_API_KEY: ${{ secrets.RSS_READER_API_KEY }}
+        RSS_READER_API_KEY_SECRET_ID: ${{ secrets.RSS_READER_API_KEY_SECRET_ID }}
       run: |
         # Bootstrap only if not already done
-        if ! aws cloudformation describe-stacks --stack-name CDKToolkit --region ${{ env.AWS_REGION }} 2>/dev/null; then
-          echo "Bootstrapping CDK..."
-          npx cdk bootstrap aws://$(aws sts get-caller-identity --query Account --output text)/${{ env.AWS_REGION }}
+        DESCRIBE_OUTPUT=$(aws cloudformation describe-stacks \
+          --stack-name CDKToolkit \
+          --region ${{ env.AWS_REGION }} \
+          --query 'Stacks[0].StackName' \
+          --output text 2>&1) || DESCRIBE_STATUS=$?
+
+        if [ "${DESCRIBE_STATUS:-0}" -ne 0 ]; then
+          if echo "$DESCRIBE_OUTPUT" | grep -q "does not exist"; then
+            echo "Bootstrapping CDK..."
+            npx cdk bootstrap aws://$(aws sts get-caller-identity --query Account --output text)/${{ env.AWS_REGION }}
+          else
+            echo "CDKToolkitの確認に失敗しました: $DESCRIBE_OUTPUT"
+            exit 1
+          fi
         else
           echo "CDK already bootstrapped"
         fi
@@ -82,14 +93,14 @@ jobs:
       working-directory: ./infrastructure
       env:
         ENVIRONMENT: ${{ github.event.inputs.environment || 'development' }}
-        RSS_READER_API_KEY: ${{ secrets.RSS_READER_API_KEY }}
+        RSS_READER_API_KEY_SECRET_ID: ${{ secrets.RSS_READER_API_KEY_SECRET_ID }}
       run: npx cdk synth
 
     - name: CDK Diff
       working-directory: ./infrastructure
       env:
         ENVIRONMENT: ${{ github.event.inputs.environment || 'development' }}
-        RSS_READER_API_KEY: ${{ secrets.RSS_READER_API_KEY }}
+        RSS_READER_API_KEY_SECRET_ID: ${{ secrets.RSS_READER_API_KEY_SECRET_ID }}
       run: |
         echo "=== CDK Diff ==="
         npx cdk diff || true
@@ -99,7 +110,7 @@ jobs:
       working-directory: ./infrastructure
       env:
         ENVIRONMENT: ${{ github.event.inputs.environment || 'development' }}
-        RSS_READER_API_KEY: ${{ secrets.RSS_READER_API_KEY }}
+        RSS_READER_API_KEY_SECRET_ID: ${{ secrets.RSS_READER_API_KEY_SECRET_ID }}
       run: |
         echo "Deploying infrastructure to $ENVIRONMENT environment..."
         npx cdk deploy --all --require-approval never --outputs-file outputs.json
@@ -109,7 +120,7 @@ jobs:
       working-directory: ./infrastructure
       env:
         ENVIRONMENT: ${{ github.event.inputs.environment || 'development' }}
-        RSS_READER_API_KEY: ${{ secrets.RSS_READER_API_KEY }}
+        RSS_READER_API_KEY_SECRET_ID: ${{ secrets.RSS_READER_API_KEY_SECRET_ID }}
       run: |
         echo "⚠️ DESTROYING infrastructure in $ENVIRONMENT environment..."
         npx cdk destroy --all --force

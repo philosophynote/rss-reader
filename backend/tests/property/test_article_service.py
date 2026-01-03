@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from uuid import uuid4
 
+import pytest
 from hypothesis import given, settings
 from hypothesis.strategies import (
     booleans,
@@ -24,6 +25,8 @@ from hypothesis.strategies import (
 
 from app.models.article import Article
 from app.services.article_service import ArticleService
+
+pytestmark = pytest.mark.property
 
 
 @dataclass

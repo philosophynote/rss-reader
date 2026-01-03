@@ -468,6 +468,44 @@
     - セキュリティアラートの設定
     - _要件: 9.7, 13.12_
 
+  - [x] 18.10 コードレビュー指摘対応（必須/推奨）
+    - [x] 18.10.1 Lambdaシークレット管理をSecrets Manager/Parameter Store参照に変更
+      - Lambda環境変数へシークレットを直接埋め込まない
+      - _対象: .github/workflows/deploy-backend.yml_
+    - [x] 18.10.2 通知ワークフローのシークレット存在チェックを修正
+      - `env`参照ではなく`secrets`参照で判定
+      - _対象: .github/workflows/notify.yml_
+    - [x] 18.10.3 Dockerイメージタグ戦略の見直し
+      - 本番デプロイで`latest`を使用しない
+      - _対象: .github/workflows/deploy-backend.yml_
+    - [x] 18.10.4 CORS_ALLOWED_ORIGINSのフォーマット検証を追加
+      - デプロイ前に入力形式をバリデーション
+      - _対象: .github/workflows/deploy-backend.yml_
+    - [x] 18.10.5 無効API Keyテストデータを動的生成
+      - 固定文字列ではなくランダム生成で検証
+      - _対象: backend/tests/integration/test_deployment_health.py_
+    - [x] 18.10.6 IAMポリシーサンプルの最小権限化
+      - `Resource: "*"` を具体的なARNに置き換える指針を追加
+      - _対象: docs/github-secrets-setup.md_
+    - [x] 18.10.7 CloudFront無効化の非同期化
+      - 無効化完了待ちをせずに次のステップへ進める
+      - _対象: .github/workflows/deploy-frontend.yml_
+    - [x] 18.10.8 マジックナンバーの定数化
+      - しきい値をクラス定数に整理
+      - _対象: backend/tests/integration/test_deployment_health.py_
+    - [x] 18.10.9 YAML `on` キー取得の統一
+      - ヘルパー関数で取得処理を統一
+      - _対象: backend/tests/property/test_cicd_pipeline.py_
+    - [x] 18.10.10 エラーハンドリングの具体化
+      - 例外型を明確にしてキャッチ
+      - _対象: backend/tests/integration/test_deployment_health.py_
+    - [x] 18.10.11 CDK Bootstrap 判定の明確化
+      - エラー抑制を避け、判定条件を明示
+      - _対象: .github/workflows/deploy-infra.yml_
+    - [x] 18.10.12 pytestマーカーの一貫運用
+      - 既存マーカーに合わせてテストへ付与
+      - _対象: backend/tests/integration/test_deployment_health.py ほか_
+
 - [ ] 19. デプロイメント設定
   - [ ] 19.1 CDKデプロイメントの実行
     - 開発環境へのデプロイ

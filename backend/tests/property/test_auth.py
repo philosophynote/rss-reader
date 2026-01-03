@@ -4,6 +4,7 @@
 API Key認証の基本的な性質を検証します。
 """
 
+import pytest
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
 from hypothesis import assume, given
@@ -11,6 +12,8 @@ from hypothesis import strategies as st
 
 from app.config import settings
 from app.security import verify_api_key
+
+pytestmark = pytest.mark.property
 
 
 def create_test_app() -> FastAPI:

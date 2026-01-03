@@ -120,7 +120,7 @@ jobs:
         } >> $GITHUB_OUTPUT
 
     - name: Send Slack notification
-      if: env.SLACK_WEBHOOK_URL != ''
+      if: ${{ secrets.SLACK_WEBHOOK_URL != '' }}
       uses: 8398a7/action-slack@v3
       with:
         status: custom
@@ -149,7 +149,7 @@ jobs:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
     - name: Send Discord notification
-      if: env.DISCORD_WEBHOOK_URL != ''
+      if: ${{ secrets.DISCORD_WEBHOOK_URL != '' }}
       uses: Ilshidur/action-discord@master
       with:
         args: ${{ steps.message.outputs.discord-message }}
@@ -157,7 +157,7 @@ jobs:
         DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
 
     - name: Send email notification
-      if: env.EMAIL_TO != ''
+      if: ${{ secrets.EMAIL_TO != '' }}
       uses: dawidd6/action-send-mail@v3
       with:
         server_address: ${{ secrets.SMTP_SERVER }}

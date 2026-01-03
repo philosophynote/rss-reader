@@ -32,9 +32,11 @@ export class RssReaderStack extends cdk.Stack {
       "development";
 
     // 必須環境変数の検証
-    const apiKey = process.env.RSS_READER_API_KEY;
-    if (!apiKey) {
-      throw new Error("RSS_READER_API_KEY environment variable is required");
+    const apiKeySecretId = process.env.RSS_READER_API_KEY_SECRET_ID;
+    if (!apiKeySecretId) {
+      throw new Error(
+        "RSS_READER_API_KEY_SECRET_ID environment variable is required"
+      );
     }
 
     // DynamoDB テーブル（シングルテーブル設計）
@@ -116,7 +118,7 @@ export class RssReaderStack extends cdk.Stack {
         BEDROCK_MODEL_ID: "amazon.nova-2-multimodal-embeddings-v1:0",
         EMBEDDING_DIMENSION: "1024",
         // 認証関連の環境変数（環境変数必須）
-        API_KEY: apiKey,
+        RSS_READER_API_KEY_SECRET_ID: apiKeySecretId,
         // CORS_ORIGINSは後でCloudFrontドメインを追加するため、ここでは基本設定のみ
         CORS_ORIGINS:
           process.env.CORS_ORIGINS ||
@@ -128,6 +130,18 @@ export class RssReaderStack extends cdk.Stack {
 
     // DynamoDB 権限
     this.table.grantReadWriteData(this.apiFunction);
+
+    // Secrets Manager 権限（API Key取得）
+    const apiKeySecretArn = apiKeySecretId.startsWith("arn:")
+      ? apiKeySecretId
+      : `arn:aws:secretsmanager:${this.region}:${this.account}:secret:${apiKeySecretId}*`;
+    this.apiFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ["secretsmanager:GetSecretValue"],
+        resources: [apiKeySecretArn],
+      })
+    );
 
     // Bedrock 権限（最小権限の原則に従い特定モデルのみ許可）
     const bedrockModelId =
