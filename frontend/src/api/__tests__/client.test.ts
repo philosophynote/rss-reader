@@ -19,18 +19,22 @@ type MockAxiosInstance = {
   };
 };
 
-const mockInterceptors = {
-  request: { use: vi.fn(), eject: vi.fn(), clear: vi.fn() },
-  response: { use: vi.fn(), eject: vi.fn(), clear: vi.fn() },
-};
+const { mockAxiosInstance } = vi.hoisted(() => {
+  const mockInterceptors = {
+    request: { use: vi.fn(), eject: vi.fn(), clear: vi.fn() },
+    response: { use: vi.fn(), eject: vi.fn(), clear: vi.fn() },
+  };
 
-const mockAxiosInstance = {
-  get: vi.fn(),
-  post: vi.fn(),
-  put: vi.fn(),
-  delete: vi.fn(),
-  interceptors: mockInterceptors,
-} satisfies MockAxiosInstance;
+  const mockAxiosInstance = {
+    get: vi.fn(),
+    post: vi.fn(),
+    put: vi.fn(),
+    delete: vi.fn(),
+    interceptors: mockInterceptors,
+  } satisfies MockAxiosInstance;
+
+  return { mockAxiosInstance };
+});
 
 // axiosをモック（モジュールインポート前に実行）
 vi.mock("axios", () => ({
