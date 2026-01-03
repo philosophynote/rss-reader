@@ -44,7 +44,6 @@ export interface ArticleListParams {
   filter_by?: "unread" | "read" | "saved";
   limit?: number;
   last_evaluated_key?: Record<string, unknown>;
-  [key: string]: unknown;
 }
 
 export interface ArticleListResponse {

@@ -147,7 +147,10 @@ class ApiClient {
   /**
    * GETリクエスト
    */
-  async get<T = unknown>(url: string, params?: Record<string, unknown>): Promise<T> {
+  async get<T = unknown, P extends object = object>(
+    url: string,
+    params?: P
+  ): Promise<T> {
     const response = await this.client.get<T>(url, { params });
     return response.data;
   }
