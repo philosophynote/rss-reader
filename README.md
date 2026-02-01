@@ -124,7 +124,8 @@ VITE_API_KEY=dev-api-key-placeholder
 DYNAMODB_TABLE_NAME=rss-reader
 BEDROCK_REGION=ap-northeast-1
 BEDROCK_MODEL_ID=amazon.nova-2-multimodal-embeddings-v1:0
-API_KEY=your-api-key-here
+RSS_READER_API_KEY_PARAMETER_NAME=/rss-reader/development/api-key
+ENVIRONMENT=development
 CORS_ORIGINS=http://localhost:3000
 ```
 

@@ -5,11 +5,12 @@ permissions:
   id-token: write
 
 "on":
-  push:
-    branches: [ main ]
-    paths:
-      - 'frontend/**'
-      - '.github/workflows/deploy-frontend.yml'
+  # 自動デプロイは一時停止（手動実行のみ）
+  # push:
+  #   branches: [ main ]
+  #   paths:
+  #     - 'frontend/**'
+  #     - '.github/workflows/deploy-frontend.yml'
   workflow_dispatch:
     inputs:
       environment:

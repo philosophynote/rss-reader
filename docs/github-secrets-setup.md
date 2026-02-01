@@ -18,10 +18,10 @@
 
 ### API Key関連
 
-#### `RSS_READER_API_KEY_SECRET_ID`
-- **説明**: Secrets Managerに保存したAPI KeyのシークレットIDまたはARN
-- **形式**: `rss-reader/production/api-key` または `arn:aws:secretsmanager:ap-northeast-1:{YOUR_AWS_ACCOUNT_ID}:secret:rss-reader/production/api-key`
-- **設定方法**: AWS Secrets Managerでシークレットを作成し、そのID/ARNをGitHub Secretsに登録
+#### `RSS_READER_API_KEY_PARAMETER_NAME`
+- **説明**: Parameter Storeに保存したAPI Keyのパラメータ名またはARN（未設定の場合は `ENVIRONMENT` から `/rss-reader/<environment>/api-key` を自動解決）
+- **形式**: `/rss-reader/production/api-key` または `arn:aws:ssm:ap-northeast-1:{YOUR_AWS_ACCOUNT_ID}:parameter/rss-reader/production/api-key`
+- **設定方法**: AWS Systems Manager Parameter Storeでパラメータを作成し、その名前/ARNをGitHub Secretsに登録
 - **API Keyの生成方法**:
 ```bash
 # 強力なAPI Keyを生成
@@ -175,7 +175,8 @@ aws iam create-open-id-connect-provider \
 | Secret名 | 値 | 説明 |
 |----------|-----|------|
 | `AWS_ROLE_ARN` | `arn:aws:iam::{YOUR_AWS_ACCOUNT_ID}:role/GitHubActionsRole` | AWS IAMロールARN |
-| `RSS_READER_API_KEY_SECRET_ID` | `Secrets ManagerのID/ARN` | バックエンドAPI Keyの参照ID |
+| `RSS_READER_API_KEY_PARAMETER_NAME` | `Parameter Storeの名前/ARN` | バックエンドAPI Keyの参照ID（省略可） |
+| `ENVIRONMENT` | `development` / `production` | 省略時は `development` |
 | `VITE_API_KEY` | `Secrets ManagerのAPI Keyと同じ値` | フロントエンドAPI Key |
 | `VITE_API_BASE_URL` | `Lambda Function URL` | APIベースURL |
 | `CORS_ALLOWED_ORIGINS` | `CloudFront URL,localhost URL` | CORS許可オリジン |
@@ -188,8 +189,8 @@ aws iam create-open-id-connect-provider \
 
 ```bash
 # 開発環境用のAPI Key生成
-DEVELOPMENT_API_KEY=$(openssl rand -hex 32)
-echo "Development API Key: $DEVELOPMENT_API_KEY"
+API_KEY_VALUE=$(openssl rand -hex 32)
+echo "Development API Key: $API_KEY_VALUE"
 
 # GitHub Environmentsで環境別シークレットを設定
 # Settings → Environments → development → Add secret
@@ -199,8 +200,8 @@ echo "Development API Key: $DEVELOPMENT_API_KEY"
 
 ```bash
 # 本番環境用のAPI Key生成（開発環境とは異なる値）
-PRODUCTION_API_KEY=$(openssl rand -hex 32)
-echo "Production API Key: $PRODUCTION_API_KEY"
+API_KEY_VALUE=$(openssl rand -hex 32)
+echo "Production API Key: $API_KEY_VALUE"
 
 # 本番環境では追加のセキュリティ設定を適用
 # - IP制限
@@ -241,15 +242,18 @@ echo "Production API Key: $PRODUCTION_API_KEY"
 ### 3. 機密情報の暗号化
 
 ```bash
-# AWS Secrets Managerを使用した機密情報の暗号化
-aws secretsmanager create-secret \
-  --name "rss-reader/development/api-key" \
-  --secret-string "$RSS_READER_API_KEY"
+# AWS Systems Manager Parameter Storeを使用した機密情報の暗号化
+aws ssm put-parameter \
+  --name "/rss-reader/development/api-key" \
+  --type "SecureString" \
+  --value "$API_KEY_VALUE"
 
-# 既存シークレットの更新
-aws secretsmanager put-secret-value \
-  --secret-id "rss-reader/development/api-key" \
-  --secret-string "$RSS_READER_API_KEY"
+# 既存パラメータの更新（上書き）
+aws ssm put-parameter \
+  --name "/rss-reader/development/api-key" \
+  --type "SecureString" \
+  --value "$API_KEY_VALUE" \
+  --overwrite
 ```
 
 ### 4. 監視とアラート

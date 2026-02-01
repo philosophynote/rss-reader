@@ -1,28 +1,46 @@
-# AWS Lambda Web Adapter用のDockerfile
-FROM public.ecr.aws/lambda/python:3.14
+# syntax=docker/dockerfile:1.6
+FROM public.ecr.aws/lambda/python:3.14 AS builder
 
-# AWS Lambda Web Adapterをインストール
-COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.7.2 /lambda-adapter /opt/extensions/lambda-adapter
+# uv（公式バイナリ）
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-# 作業ディレクトリを設定
+# 作業ディレクトリ
 WORKDIR ${LAMBDA_TASK_ROOT}
 
-# uvをインストール
-RUN pip install uv
+# 依存定義のみ先にコピー（キャッシュ最適化）
+COPY pyproject.toml uv.lock README.md ./
 
-# 依存関係ファイルをコピー
-COPY pyproject.toml uv.lock* ./
+# アプリケーションコード
+COPY app ./app
 
-# 依存関係をインストール
-RUN uv sync --frozen --no-dev
+# uv キャッシュを build cache として利用
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync \
+      --frozen \
+      --no-dev \
+      --python-preference=system \
+      --compile-bytecode
 
-# アプリケーションコードをコピー
-COPY app/ ./app/
+FROM public.ecr.aws/lambda/python:3.14
 
-# 環境変数を設定
+# AWS Lambda Web Adapter（最新版推奨）
+COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.9.1 \
+  /lambda-adapter /opt/extensions/lambda-adapter
+
+# 作業ディレクトリ
+WORKDIR ${LAMBDA_TASK_ROOT}
+
+# 依存関係とアプリケーションをコピー
+COPY --from=builder ${LAMBDA_TASK_ROOT} ${LAMBDA_TASK_ROOT}
+
+# venv を有効化
+ENV VIRTUAL_ENV=${LAMBDA_TASK_ROOT}/.venv
+ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
+
+# Lambda Web Adapter 設定
 ENV AWS_LWA_ENABLE_COMPRESSION=true
-ENV AWS_LWA_INVOKE_MODE=response_stream
+ENV AWS_LWA_INVOKE_MODE=buffered
 ENV PORT=8000
 
-# FastAPIアプリケーションを起動
-CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# uv は使わず、python を直接起動（Lambdaの既定entrypointを上書き）
+ENTRYPOINT ["python", "-m", "uvicorn", "app.main:app", "--host=0.0.0.0", "--port=8000"]

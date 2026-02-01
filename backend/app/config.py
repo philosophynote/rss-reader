@@ -4,8 +4,6 @@
 環境変数とデフォルト値を一元管理します。
 """
 
-import base64
-import json
 import logging
 import os
 
@@ -35,7 +33,7 @@ class Settings:
     )
 
     # API設定
-    API_KEY_SECRET_ID: str | None = os.getenv("RSS_READER_API_KEY_SECRET_ID")
+    API_KEY_PARAMETER_NAME: str | None = None
     API_KEY: str | None = None
 
     # ログ設定
@@ -66,47 +64,40 @@ class Settings:
 
     @classmethod
     def _load_api_key(cls) -> str | None:
-        api_key = os.getenv("RSS_READER_API_KEY")
-        if api_key:
-            return api_key
-
-        secret_id = os.getenv("RSS_READER_API_KEY_SECRET_ID")
-        if not secret_id:
+        parameter_name = os.getenv("RSS_READER_API_KEY_PARAMETER_NAME")
+        if not parameter_name:
+            environment = os.getenv("ENVIRONMENT", "development")
+            parameter_name = f"/rss-reader/{environment}/api-key"
+        if not parameter_name:
+            logger.error("API KeyのParameter名が設定されていません")
             return None
 
         try:
             client = boto3.client(
-                "secretsmanager",
+                "ssm",
                 region_name=cls.DYNAMODB_REGION,
             )
-            response = client.get_secret_value(SecretId=secret_id)
+            response = client.get_parameter(
+                Name=parameter_name, WithDecryption=True
+            )
         except (BotoCoreError, ClientError) as exc:
             logger.error(
-                "Secrets ManagerからAPI Keyの取得に失敗しました",
+                "Parameter StoreからAPI Keyの取得に失敗しました",
                 exc_info=exc,
             )
             return None
 
-        secret_value = response.get("SecretString")
-        if not secret_value and "SecretBinary" in response:
-            secret_value = base64.b64decode(response["SecretBinary"]).decode(
-                "utf-8"
-            )
-
-        if not secret_value:
-            logger.error("Secrets ManagerのAPI Keyが空です")
+        parameter = response.get("Parameter")
+        if not parameter:
+            logger.error("Parameter StoreのAPI Keyが見つかりません")
             return None
 
-        try:
-            parsed = json.loads(secret_value)
-        except json.JSONDecodeError:
-            return secret_value
+        value = parameter.get("Value")
+        if not value:
+            logger.error("Parameter StoreのAPI Keyが空です")
+            return None
 
-        return (
-            parsed.get("api_key")
-            or parsed.get("RSS_READER_API_KEY")
-            or secret_value
-        )
+        return value
 
     @classmethod
     def get_dynamodb_endpoint_url(cls) -> str | None:

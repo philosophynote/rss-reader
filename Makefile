@@ -1,7 +1,7 @@
 # RSS Reader Project Makefile
 # Python 3.14 + TypeScript 5系 + uv前提
 
-.PHONY: help install lint format type-check test test-coverage clean setup-dev dev backend-dev backend-dev-local dynamodb-local dynamodb-local-create-table
+.PHONY: help install lint format type-check test test-coverage clean setup-dev dev backend-dev backend-dev-local dynamodb-local dynamodb-local-create-table infra-deploy-dev infra-deploy-prod infra-diff-dev infra-diff-prod logs-dev logs-prod frontend-build frontend-deploy-dev frontend-deploy-prod
 
 # デフォルトターゲット
 help:
@@ -31,6 +31,17 @@ help:
 	@echo ""
 	@echo "その他:"
 	@echo "  clean         ビルド成果物とキャッシュを削除"
+	@echo ""
+	@echo "インフラ:"
+	@echo "  infra-deploy-dev  開発環境にCDKデプロイ"
+	@echo "  infra-deploy-prod 本番環境にCDKデプロイ"
+	@echo "  infra-diff-dev    開発環境の差分を表示"
+	@echo "  infra-diff-prod   本番環境の差分を表示"
+	@echo "  logs-dev          開発環境のCloudWatch Logsをtail"
+	@echo "  logs-prod         本番環境のCloudWatch Logsをtail"
+	@echo "  frontend-build    フロントエンドをビルド"
+	@echo "  frontend-deploy-dev  フロントエンドをビルドして開発環境へデプロイ"
+	@echo "  frontend-deploy-prod フロントエンドをビルドして本番環境へデプロイ"
 
 # =========================
 # セットアップ
@@ -89,6 +100,7 @@ DYNAMODB_TABLE_NAME ?= rss-reader-local
 AWS_REGION ?= ap-northeast-1
 AWS_ACCESS_KEY_ID ?= local
 AWS_SECRET_ACCESS_KEY ?= local
+LOG_TAIL_SINCE ?= 10m
 
 dynamodb-local:
 	@echo "🧪 DynamoDB Local を起動中..."
@@ -231,3 +243,35 @@ infra-type-check:
 
 infra-synth:
 	@cd infrastructure && npx cdk synth
+
+infra-deploy-dev:
+	@cd infrastructure && RSS_READER_API_KEY_PARAMETER_NAME="$$RSS_READER_API_KEY_PARAMETER_NAME" npx cdk deploy --context environment=development --verbose
+
+infra-deploy-prod:
+	@cd infrastructure && RSS_READER_API_KEY_PARAMETER_NAME="$$RSS_READER_API_KEY_PARAMETER_NAME" npx cdk deploy --context environment=production --verbose
+
+infra-diff-dev:
+	@cd infrastructure && npx cdk diff --context environment=development
+
+infra-diff-prod:
+	@cd infrastructure && npx cdk diff --context environment=production
+
+frontend-build:
+	@echo "🧱 フロントエンドをビルド中..."
+	@cd frontend && npm run build
+
+frontend-deploy-dev: frontend-build
+	@echo "🚀 フロントエンドを開発環境へデプロイ中..."
+	@cd infrastructure && RSS_READER_API_KEY_PARAMETER_NAME="$$RSS_READER_API_KEY_PARAMETER_NAME" npx cdk deploy --context environment=development --verbose
+
+frontend-deploy-prod: frontend-build
+	@echo "🚀 フロントエンドを本番環境へデプロイ中..."
+	@cd infrastructure && RSS_READER_API_KEY_PARAMETER_NAME="$$RSS_READER_API_KEY_PARAMETER_NAME" npx cdk deploy --context environment=production --verbose
+
+logs-dev:
+	@echo "🪵 CloudWatch Logs (development) をtail中... (since: $(LOG_TAIL_SINCE))"
+	@AWS_PAGER=$(AWS_PAGER) aws logs tail /aws/lambda/rss-reader-api-development --since $(LOG_TAIL_SINCE)
+
+logs-prod:
+	@echo "🪵 CloudWatch Logs (production) をtail中... (since: $(LOG_TAIL_SINCE))"
+	@AWS_PAGER=$(AWS_PAGER) aws logs tail /aws/lambda/rss-reader-api-production --since $(LOG_TAIL_SINCE)

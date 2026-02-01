@@ -107,7 +107,8 @@ npm run test
 - `CDK_DEFAULT_ACCOUNT`: AWSアカウントID
 - `CDK_DEFAULT_REGION`: AWSリージョン（デフォルト: ap-northeast-1）
 - `ENVIRONMENT`: 環境名（development/production）
-- `RSS_READER_API_KEY`: API認証キー（本番環境では必須）
+- `RSS_READER_API_KEY_PARAMETER_NAME`: Parameter Storeの名前/ARN（省略時は `/rss-reader/<environment>/api-key` を使用）
+- `ENVIRONMENT`: environment名（省略時は `development`）
 - `CORS_ORIGINS`: CORS許可オリジン
 
 ### 環境別設定

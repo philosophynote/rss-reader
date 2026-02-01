@@ -71,6 +71,13 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Load CI environment variables
+      run: |
+        cat .github/ci.env >> "$GITHUB_ENV"
+        if [[ -n "${{ secrets.RSS_READER_API_KEY_PARAMETER_NAME }}" ]]; then
+          echo "RSS_READER_API_KEY_PARAMETER_NAME=${{ secrets.RSS_READER_API_KEY_PARAMETER_NAME }}" >> "$GITHUB_ENV"
+        fi
+
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
