@@ -508,7 +508,7 @@ class TestCICDPipelineProperties:
         # 必要なシークレットが適切に定義されていることを確認
         expected_secrets = {
             "AWS_ROLE_ARN",
-            "RSS_READER_API_KEY_SECRET_ID",
+            "RSS_READER_API_KEY_PARAMETER_NAME",
             "VITE_API_KEY",
             "VITE_API_BASE_URL",
             "CORS_ALLOWED_ORIGINS",

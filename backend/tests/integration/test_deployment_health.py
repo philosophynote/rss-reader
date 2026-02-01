@@ -204,12 +204,11 @@ class TestDeploymentHealth:
     def api_config(self):
         """API設定の取得"""
         base_url = os.getenv("API_BASE_URL")
-        api_key = os.getenv("RSS_READER_API_KEY")
+        api_key = os.getenv("VITE_API_KEY")
+        api_key_parameter_name = os.getenv("RSS_READER_API_KEY_PARAMETER_NAME")
 
-        if not base_url or not api_key:
-            pytest.skip(
-                "API_BASE_URLまたはRSS_READER_API_KEYが設定されていません"
-            )
+        if not base_url or not (api_key or api_key_parameter_name):
+            pytest.skip("API_BASE_URLまたはVITE_API_KEYが設定されていません")
 
         return {"base_url": base_url, "api_key": api_key}
 
@@ -422,12 +421,11 @@ if __name__ == "__main__":
     import sys
 
     base_url = os.getenv("API_BASE_URL")
-    api_key = os.getenv("RSS_READER_API_KEY")
+    api_key = os.getenv("VITE_API_KEY")
+    api_key_parameter_name = os.getenv("RSS_READER_API_KEY_PARAMETER_NAME")
 
-    if not base_url or not api_key:
-        print(
-            "エラー: API_BASE_URLとRSS_READER_API_KEYの環境変数を設定してください"
-        )
+    if not base_url or not (api_key or api_key_parameter_name):
+        print("エラー: API_BASE_URLとVITE_API_KEYの環境変数を設定してください")
         sys.exit(1)
 
     async def main():

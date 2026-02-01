@@ -6,6 +6,7 @@ import * as events from "aws-cdk-lib/aws-events";
 import * as targets from "aws-cdk-lib/aws-events-targets";
 import * as s3 from "aws-cdk-lib/aws-s3";
 import * as cloudfront from "aws-cdk-lib/aws-cloudfront";
+import * as ecr_assets from "aws-cdk-lib/aws-ecr-assets";
 import * as s3deploy from "aws-cdk-lib/aws-s3-deployment";
 import * as origins from "aws-cdk-lib/aws-cloudfront-origins";
 import { Construct } from "constructs";
@@ -32,12 +33,9 @@ export class RssReaderStack extends cdk.Stack {
       "development";
 
     // 必須環境変数の検証
-    const apiKeySecretId = process.env.RSS_READER_API_KEY_SECRET_ID;
-    if (!apiKeySecretId) {
-      throw new Error(
-        "RSS_READER_API_KEY_SECRET_ID environment variable is required"
-      );
-    }
+    const apiKeyParameterName =
+      process.env.RSS_READER_API_KEY_PARAMETER_NAME ||
+      `/rss-reader/${environment}/api-key`;
 
     // DynamoDB テーブル（シングルテーブル設計）
     this.table = new dynamodb.Table(this, "RssReaderTable", {
@@ -105,12 +103,13 @@ export class RssReaderStack extends cdk.Stack {
     this.apiFunction = new lambda.DockerImageFunction(this, "ApiFunction", {
       code: lambda.DockerImageCode.fromImageAsset("../backend", {
         file: "Dockerfile",
+        platform: ecr_assets.Platform.LINUX_ARM64,
       }),
       functionName: `rss-reader-api-${environment}`,
       description: "RSS Reader API using FastAPI",
       timeout: cdk.Duration.minutes(5), // API呼び出し用に短縮
       memorySize: 1024,
-      architecture: lambda.Architecture.X86_64,
+      architecture: lambda.Architecture.ARM_64,
       environment: {
         DYNAMODB_TABLE_NAME: this.table.tableName,
         // AWS_REGIONはLambdaランタイムが自動設定するため不要
@@ -118,7 +117,8 @@ export class RssReaderStack extends cdk.Stack {
         BEDROCK_MODEL_ID: "amazon.nova-2-multimodal-embeddings-v1:0",
         EMBEDDING_DIMENSION: "1024",
         // 認証関連の環境変数（環境変数必須）
-        RSS_READER_API_KEY_SECRET_ID: apiKeySecretId,
+        RSS_READER_API_KEY_PARAMETER_NAME: apiKeyParameterName,
+        ENVIRONMENT: environment,
         // CORS_ORIGINSは後でCloudFrontドメインを追加するため、ここでは基本設定のみ
         CORS_ORIGINS:
           process.env.CORS_ORIGINS ||
@@ -131,15 +131,18 @@ export class RssReaderStack extends cdk.Stack {
     // DynamoDB 権限
     this.table.grantReadWriteData(this.apiFunction);
 
-    // Secrets Manager 権限（API Key取得）
-    const apiKeySecretArn = apiKeySecretId.startsWith("arn:")
-      ? apiKeySecretId
-      : `arn:aws:secretsmanager:${this.region}:${this.account}:secret:${apiKeySecretId}*`;
+    // Parameter Store 権限（API Key取得）
+    const apiKeyParameterArn = apiKeyParameterName.startsWith("arn:")
+      ? apiKeyParameterName
+      : `arn:aws:ssm:${this.region}:${this.account}:parameter/${apiKeyParameterName.replace(
+          /^\/+/,
+          ""
+        )}`;
     this.apiFunction.addToRolePolicy(
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
-        actions: ["secretsmanager:GetSecretValue"],
-        resources: [apiKeySecretArn],
+        actions: ["ssm:GetParameter"],
+        resources: [apiKeyParameterArn],
       })
     );
 
@@ -172,13 +175,6 @@ export class RssReaderStack extends cdk.Stack {
         environment === "production"
           ? lambda.FunctionUrlAuthType.AWS_IAM // 本番環境ではIAM認証
           : lambda.FunctionUrlAuthType.NONE, // 開発環境ではAPI Key認証のみ
-      cors: {
-        allowedOrigins: initialCorsOrigins,
-        allowedMethods: [lambda.HttpMethod.ALL],
-        allowedHeaders: ["*"],
-        allowCredentials: true,
-        maxAge: cdk.Duration.hours(1),
-      },
     });
 
     // EventBridge ルール: フィード取得（1時間ごと）
@@ -229,7 +225,9 @@ export class RssReaderStack extends cdk.Stack {
     // CloudFront ディストリビューション
     this.distribution = new cloudfront.Distribution(this, "Distribution", {
       defaultBehavior: {
-        origin: new origins.S3Origin(this.frontendBucket),
+        origin: origins.S3BucketOrigin.withOriginAccessControl(
+          this.frontendBucket
+        ),
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
         allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
@@ -254,27 +252,39 @@ export class RssReaderStack extends cdk.Stack {
       comment: "RSS Reader Frontend Distribution",
     });
 
-    // 本番環境でCloudFrontドメインをLambda環境変数に追加
+    // フロントエンドの配信（ビルド済み成果物をS3に配置してCloudFrontを無効化）
+    new s3deploy.BucketDeployment(this, "FrontendDeployment", {
+      sources: [s3deploy.Source.asset("../frontend/dist")],
+      destinationBucket: this.frontendBucket,
+      distribution: this.distribution,
+      distributionPaths: ["/*"],
+    });
+
+    // CloudFrontドメインをCORS許可オリジンに追加（全環境）
+    const cfnFunctionUrl = functionUrl.node.defaultChild as lambda.CfnUrl;
+    const baseCorsOrigins =
+      process.env.CORS_ORIGINS?.split(",").filter(Boolean) ||
+      (environment === "production"
+        ? []
+        : ["http://localhost:3000", "http://localhost:5173"]);
+    const cloudfrontOrigin = `https://${this.distribution.distributionDomainName}`;
+    const mergedCorsOrigins = Array.from(
+      new Set([...baseCorsOrigins, cloudfrontOrigin])
+    );
+
+    this.apiFunction.addEnvironment(
+      "CORS_ORIGINS",
+      mergedCorsOrigins.join(",")
+    );
+
     if (environment === "production") {
       this.apiFunction.addEnvironment(
         "CLOUDFRONT_DOMAIN",
         this.distribution.distributionDomainName
       );
-
-      // 本番環境でのCORS設定更新（CloudFrontドメインを追加）
-      const cfnFunctionUrl = functionUrl.node.defaultChild as lambda.CfnUrl;
-      const productionCorsOrigins = process.env.CORS_ORIGINS?.split(",").filter(
-        Boolean
-      ) || [`https://${this.distribution.distributionDomainName}`];
-
-      cfnFunctionUrl.cors = {
-        allowCredentials: true,
-        allowHeaders: ["*"],
-        allowMethods: ["*"],
-        allowOrigins: productionCorsOrigins,
-        maxAge: 3600,
-      };
     }
+
+    // Function URL側のCORSは無効化し、アプリ側のCORSに統一する
     new cdk.CfnOutput(this, "TableName", {
       value: this.table.tableName,
       description: "DynamoDB Table Name",

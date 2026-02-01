@@ -325,6 +325,13 @@ npm run build
 
 ## 実装上の注意
 
+### AWS Lambda デプロイメント方式
+
+* **必須**: Dockerコンテナ方式を使用（Zipデプロイは禁止）
+* Python 3.14対応のため、Lambda Web Adapter + ECRが必要
+* 複雑な依存関係（feedparser、sentence-transformers等）に対応
+* 開発環境・本番環境で一貫したコンテナ環境を維持
+
 ### AWS Bedrock を使ったセマンティック検索
 
 * Bedrock の埋め込みを使って「キーワード ↔ 記事」の類似度を算出
